@@ -1,0 +1,31 @@
+{
+  "title": "WhatsApp Business Account",
+  "subtitle": "Manage your WABA connection, settings, and quality metrics",
+  "connectTitle": "Connect WhatsApp Business",
+  "connectDescription": "Set up your WhatsApp Business Account to start messaging",
+  "connectIntro": "Connect your WhatsApp Business Account using Meta's Embedded Signup flow. This will allow you to:",
+  "features": {
+    "sendReceive": "Send and receive WhatsApp messages",
+    "templates": "Create and manage message templates",
+    "conversations": "Track customer conversations",
+    "quality": "Monitor quality ratings"
+  },
+  "connectButton": "Connect WhatsApp Business",
+  "note": "You can connect an existing WhatsApp Business number or create a new one. Supports WhatsApp Coexistence - use your number on both WhatsApp app and Business API.",
+  "connectedTitle": "WABA Connected",
+  "connectedDescription": "Your WhatsApp Business Account is connected and ready",
+  "connectedInfo": "You can start sending messages to your customers. Manage your templates, customers, and view analytics from the dashboard.",
+  "officialApi": {
+    "badge": "Official Meta API",
+    "title": "Powered by Official WhatsApp Cloud API",
+    "description": "KirimChat uses the official Meta WhatsApp Business Cloud API. Your data is secure and compliant with Meta's policies.",
+    "benefits": {
+      "official": "Direct integration with Meta's official API",
+      "compliant": "Fully compliant with Meta's terms"
+    }
+  },
+  "tabs": {
+    "overview": "Overview",
+    "quality": "Quality"
+  }
+}

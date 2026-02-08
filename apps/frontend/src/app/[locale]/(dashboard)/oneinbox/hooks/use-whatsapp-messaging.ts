@@ -1,0 +1,725 @@
+/**
+ * useWhatsAppMessaging Hook
+ * Handles WhatsApp message sending with optimistic UI updates
+ */
+
+import { useState, useCallback } from "react"
+import { messagesApi, type Message, type APIError } from "@/lib/api/messages-api"
+import { useToast } from "@/hooks/use-toast"
+import type { WindowStatus } from "@/lib/window-utils"
+import type { UnifiedConversation, Customer } from "./unified-inbox-types"
+
+interface UseWhatsAppMessagingOptions {
+  userId: string | null
+  selectedConversation: UnifiedConversation | null
+  waWindowStatus: WindowStatus | null
+  loadConversations: () => Promise<void>
+}
+
+export function useWhatsAppMessaging({
+  userId,
+  selectedConversation,
+  waWindowStatus,
+  loadConversations,
+}: UseWhatsAppMessagingOptions) {
+  const { toast } = useToast()
+
+  // WhatsApp specific state
+  const [waMessages, setWaMessages] = useState<Message[]>([])
+  const [waCustomers, setWaCustomers] = useState<Customer[]>([])
+  const [waTemplates, setWaTemplates] = useState<any[]>([])
+  const [whatsappConnected, setWhatsappConnected] = useState(true)
+
+  // Sending states
+  const [sending, setSending] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  // Load templates for WhatsApp
+  const loadTemplates = useCallback(async () => {
+    if (!userId) return
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const response = await fetch(`${apiUrl}/api/v1/templates?userId=${userId}`, {
+        credentials: "include",
+      })
+      const result = await response.json()
+      const approvedTemplates = result.data?.filter((t: any) => t.status === "APPROVED") || []
+      setWaTemplates(approvedTemplates)
+    } catch (error) {
+      console.error("Failed to load templates:", error)
+    }
+  }, [userId])
+
+  // WhatsApp message sending with Optimistic UI
+  const sendWhatsAppMessage = useCallback(async (text: string) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp" || !text.trim()) {
+      return false
+    }
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create optimistic message (appears immediately)
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "text",
+      content: text,
+      status: "PENDING", // Shows as "sending..."
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+    }
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
+    try {
+      setSending(true)
+      const response = await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "text",
+        text: { body: text },
+      })
+
+      // Update optimistic message with real data (SENT status)
+      setWaMessages(prev => prev.map(msg => 
+        msg.id === tempId 
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
+      return true
+    } catch (error: any) {
+      console.error("Failed to send WhatsApp message:", error)
+      
+      // Update optimistic message to FAILED status
+      setWaMessages(prev => prev.map(msg => 
+        msg.id === tempId 
+          ? {
+              ...msg,
+              status: "FAILED",
+            }
+          : msg
+      ))
+      
+      const apiError = error as APIError
+      
+      if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
+        toast({
+          variant: "destructive",
+          title: "Window Expired",
+          description: "24-hour window expired. Use a template instead.",
+        })
+        return "WINDOW_EXPIRED"
+      }
+      
+      // Build description with recovery action
+      const errorMessage = apiError.message || "Failed to send message"
+      const description = apiError.recoveryAction 
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, toast])
+
+  const sendWhatsAppTemplate = useCallback(async (template: any) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+
+    const customer = selectedConversation.originalData as Customer
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create optimistic message for template
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "template",
+      content: `[Template: ${template.templateName}]`,
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+      template: {
+        id: "",
+        templateName: template.templateName,
+        category: "",
+      },
+    }
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
+    try {
+      setSending(true)
+      const response = await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "template",
+        template: {
+          name: template.templateName,
+          language: { code: template.language },
+          components: template.components,
+        },
+        variableValues: template.variableValues,
+      })
+      
+      // Update optimistic message with real data
+      setWaMessages(prev => prev.map(msg => 
+        msg.id === tempId 
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
+      toast({ title: "Success", description: `Template "${template.templateName}" sent!` })
+      return true
+    } catch (error: any) {
+      console.error("Failed to send template:", error)
+      
+      // Update optimistic message to FAILED status
+      setWaMessages(prev => prev.map(msg => 
+        msg.id === tempId 
+          ? {
+              ...msg,
+              status: "FAILED",
+            }
+          : msg
+      ))
+      
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send template"
+      const description = apiError.recoveryAction 
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, userId, toast])
+
+  const sendWhatsAppMedia = useCallback(async (file: File, caption?: string) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    const messageType = file.type.startsWith("image/") ? "image" : "document"
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create optimistic message for media
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: messageType,
+      content: caption || `[${messageType === "image" ? "Image" : "Document"}: ${file.name}]`,
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+    }
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
+    try {
+      setUploading(true)
+
+      // Derive phoneNumberId from customer's linked WhatsApp phone number
+      const customerPhoneNumberId = (customer as any).whatsappPhoneNumber?.phoneNumberId
+
+      const formData = new FormData()
+      formData.append("file", file)
+      if (customerPhoneNumberId) {
+        formData.append("phoneNumberId", customerPhoneNumberId)
+      }
+      formData.append("target", "whatsapp")
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const uploadResponse = await fetch(`${apiUrl}/api/v1/media/upload`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      })
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error?.message || "Failed to upload media")
+      }
+
+      const uploadResult = await uploadResponse.json()
+      const mediaId = uploadResult.data.id
+      const mediaUrl = uploadResult.data.url
+
+      const mediaPayload: any = { caption: caption?.trim() || undefined }
+
+      if (mediaId) mediaPayload.id = mediaId
+      if (mediaUrl) mediaPayload.link = mediaUrl
+      if (messageType === "document") mediaPayload.filename = file.name
+
+      const response = await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: messageType,
+        [messageType]: mediaPayload,
+      })
+
+      // Update optimistic message with real data
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
+      toast({ title: "Success", description: "Media sent!" })
+      return true
+    } catch (error: any) {
+      console.error("Failed to send media:", error)
+
+      // Update optimistic message to FAILED status
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              status: "FAILED",
+            }
+          : msg
+      ))
+
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send media"
+      const description = apiError.recoveryAction
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setUploading(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, toast])
+
+  // WhatsApp CTA button sending
+  const sendWhatsAppCta = useCallback(async (ctaForm: {
+    bodyText: string
+    buttonLabel: string
+    buttonUrl: string
+    footerText: string
+    headerImageUrl: string
+  }) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+    if (!ctaForm.bodyText || !ctaForm.buttonLabel || !ctaForm.buttonUrl) return false
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    try {
+      setSending(true)
+
+      let header
+      if (ctaForm.headerImageUrl) {
+        header = {
+          type: "image",
+          image: { link: ctaForm.headerImageUrl }
+        } as any
+      }
+
+      await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "interactive",
+        interactive: {
+          type: "cta_url",
+          header,
+          body: { text: ctaForm.bodyText },
+          footer: ctaForm.footerText ? { text: ctaForm.footerText } : undefined,
+          action: {
+            name: "cta_url",
+            parameters: {
+              display_text: ctaForm.buttonLabel,
+              url: ctaForm.buttonUrl
+            }
+          }
+        }
+      })
+
+      toast({
+        title: "Success",
+        description: "CTA Message sent!",
+      })
+      setTimeout(() => loadConversations(), 500)
+      return true
+    } catch (error: any) {
+      console.error("Failed to send CTA message:", error)
+      const apiError = error as APIError
+      
+      if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
+        toast({
+          variant: "destructive",
+          title: "Window Expired",
+          description: "24-hour window expired. Use a template instead.",
+        })
+        return "WINDOW_EXPIRED"
+      }
+      
+      const errorMessage = apiError.message || "Failed to send CTA message"
+      const description = apiError.recoveryAction 
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+
+  // WhatsApp Reply Buttons sending
+  const sendWhatsAppReplyButtons = useCallback(async (replyForm: {
+    bodyText: string
+    buttons: { id: string; title: string }[]
+    footerText: string
+    headerImage: File | null
+  }) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+    if (!replyForm.bodyText || replyForm.buttons.some(b => !b.title)) return false
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    try {
+      setSending(true)
+
+      let header
+      if (replyForm.headerImage) {
+        // Upload header image - derive phoneNumberId from customer
+        const customerPhoneNumberId = (customer as any).whatsappPhoneNumber?.phoneNumberId
+        const formData = new FormData()
+        formData.append("file", replyForm.headerImage)
+        if (customerPhoneNumberId) {
+          formData.append("phoneNumberId", customerPhoneNumberId)
+        }
+        formData.append("target", "whatsapp")
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+        const uploadResponse = await fetch(`${apiUrl}/api/v1/media/upload`, {
+          method: "POST",
+          credentials: "include",
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) throw new Error("Failed to upload header image")
+        const uploadResult = await uploadResponse.json()
+
+        header = {
+          type: "image",
+          image: { id: uploadResult.data.id }
+        } as any
+      }
+
+      await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "interactive",
+        interactive: {
+          type: "button",
+          header,
+          body: { text: replyForm.bodyText },
+          footer: replyForm.footerText ? { text: replyForm.footerText } : undefined,
+          action: {
+            buttons: replyForm.buttons.map(b => ({
+              type: "reply",
+              reply: {
+                id: b.id,
+                title: b.title
+              }
+            }))
+          }
+        }
+      })
+
+      toast({
+        title: "Success",
+        description: "Reply Buttons sent!",
+      })
+      setTimeout(() => loadConversations(), 500)
+      return true
+    } catch (error: any) {
+      console.error("Failed to send Reply Buttons:", error)
+      const apiError = error as APIError
+      
+      if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
+        toast({
+          variant: "destructive",
+          title: "Window Expired",
+          description: "24-hour window expired. Use a template instead.",
+        })
+        return "WINDOW_EXPIRED"
+      }
+      
+      const errorMessage = apiError.message || "Failed to send Reply Buttons"
+      const description = apiError.recoveryAction 
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+
+  // WhatsApp List Message sending
+  const sendWhatsAppListMessage = useCallback(async (listForm: {
+    headerText: string
+    bodyText: string
+    footerText: string
+    buttonText: string
+    sections: Array<{
+      title: string
+      rows: Array<{
+        id: string
+        title: string
+        description: string
+      }>
+    }>
+  }) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+    if (!listForm.bodyText?.trim() || !listForm.buttonText?.trim()) {
+      return false
+    }
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    try {
+      setSending(true)
+
+      // Build header if provided
+      let header
+      if (listForm.headerText.trim()) {
+        header = {
+          type: "text",
+          text: listForm.headerText.trim()
+        }
+      }
+
+      // Build sections - WhatsApp requires title if multiple sections
+      const hasMultipleSections = listForm.sections.length > 1
+      const sections = listForm.sections.map((section, idx) => {
+        const sectionObj: { title?: string; rows: Array<{ id: string; title: string; description?: string }> } = {
+          rows: section.rows.map(row => {
+            const rowObj: { id: string; title: string; description?: string } = {
+              id: row.id,
+              title: row.title.trim()
+            }
+            // Only add description if not empty
+            if (row.description.trim()) {
+              rowObj.description = row.description.trim()
+            }
+            return rowObj
+          })
+        }
+        // Add title if provided or if multiple sections (use default)
+        const sectionTitle = section.title.trim()
+        if (sectionTitle) {
+          sectionObj.title = sectionTitle
+        } else if (hasMultipleSections) {
+          // WhatsApp requires title for multiple sections
+          sectionObj.title = `Section ${idx + 1}`
+        }
+        return sectionObj
+      })
+
+      // Build the interactive payload - only include defined fields
+      const interactivePayload: any = {
+        type: "list",
+        body: { text: listForm.bodyText.trim() },
+        action: {
+          button: listForm.buttonText.trim(),
+          sections
+        }
+      }
+      
+      // Only add header if defined
+      if (header) {
+        interactivePayload.header = header
+      }
+      
+      // Only add footer if not empty
+      if (listForm.footerText.trim()) {
+        interactivePayload.footer = { text: listForm.footerText.trim() }
+      }
+
+      const requestPayload = {
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "interactive" as const,
+        interactive: interactivePayload
+      }
+      
+      await messagesApi.sendMessage(requestPayload)
+
+      toast({
+        title: "Success",
+        description: "List Message sent!",
+      })
+      setTimeout(() => loadConversations(), 500)
+      return true
+    } catch (error: any) {
+      console.error("Failed to send List Message:", error)
+      const apiError = error as APIError
+      
+      if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
+        toast({
+          variant: "destructive",
+          title: "Window Expired",
+          description: "24-hour window expired. Use a template instead.",
+        })
+        return "WINDOW_EXPIRED"
+      }
+      
+      const errorMessage = apiError.message || "Failed to send List Message"
+      const description = apiError.recoveryAction 
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+
+  return {
+    // State
+    waMessages,
+    setWaMessages,
+    waCustomers,
+    setWaCustomers,
+    waTemplates,
+    whatsappConnected,
+    setWhatsappConnected,
+    sending,
+    uploading,
+    // Actions
+    loadTemplates,
+    sendWhatsAppMessage,
+    sendWhatsAppTemplate,
+    sendWhatsAppMedia,
+    sendWhatsAppCta,
+    sendWhatsAppReplyButtons,
+    sendWhatsAppListMessage,
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "generic": "Something went wrong",
+  "notFound": "Page not found",
+  "unauthorized": "You are not authorized",
+  "networkError": "Network error. Please try again.",
+  "oops": "Oops!",
+  "unexpectedError": "Sorry, an unexpected error occurred.",
+  "tryAgainOrGoHome": "Please try again or go back to home.",
+  "appError": "Application Error",
+  "appErrorDesc": "The application encountered a problem. Please reload the page.",
+  "reload": "Reload",
+  "tooManyAttempts": "Too many attempts. Try again in {seconds} seconds.",
+  "failedToSendReset": "Failed to send reset code",
+  "failedToResetPassword": "Failed to reset password",
+  "errorOccurred": "An error occurred. Please try again.",
+  "failedToSendOtp": "Failed to send OTP code",
+  "failedToResendOtp": "Failed to resend OTP code",
+  "accessDenied": "Access Denied",
+  "accessDeniedDescription": "You don't have permission to access this page."
+}

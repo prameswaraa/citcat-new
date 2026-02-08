@@ -1,0 +1,50 @@
+import { IconTool, IconBell } from "@tabler/icons-react"
+import { Header } from "@/components/layout/header"
+import SidebarNav from "./components/sidebar-nav"
+
+const sidebarNavItems = [
+  {
+    title: "General",
+    icon: <IconTool />,
+    href: "/settings",
+  },
+  {
+    title: "Notifications",
+    icon: <IconBell />,
+    href: "/settings/notifications",
+  },
+]
+
+interface Props {
+  children: React.ReactNode
+}
+
+export default function SettingsLayout({ children }: Props) {
+  return (
+    <>
+      <Header />
+
+      <div
+        data-layout="fixed"
+        className="flex flex-1 flex-col gap-4 overflow-hidden p-4"
+      >
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold tracking-tight md:text-2xl">
+            Settings
+          </h1>
+          <p className="text-muted-foreground">
+            Update account preferences and manage integrations.
+          </p>
+        </div>
+        <div className="flex flex-1 flex-col overflow-auto md:overflow-hidden lg:flex-row lg:space-x-12">
+          <aside className="lg:sticky lg:w-1/5">
+            <SidebarNav items={sidebarNavItems} />
+          </aside>
+          <div className="flex w-full flex-col overflow-y-auto p-4">
+            {children}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}

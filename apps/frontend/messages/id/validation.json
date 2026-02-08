@@ -1,0 +1,12 @@
+{
+  "required": "Kolom ini wajib diisi",
+  "invalidEmail": "Masukkan email yang valid",
+  "minLength": "Minimal {min} karakter",
+  "maxLength": "Maksimal {max} karakter",
+  "passwordMismatch": "Password tidak cocok",
+  "enterEmail": "Masukkan email Anda",
+  "enterPassword": "Masukkan password Anda",
+  "enterName": "Masukkan nama Anda",
+  "emailRequired": "Email wajib diisi",
+  "invalidEmailFormat": "Format email tidak valid"
+}

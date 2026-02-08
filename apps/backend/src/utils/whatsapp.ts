@@ -1,0 +1,759 @@
+import axios, { AxiosInstance } from 'axios'
+import https from 'https'
+import { settingsCache, CACHE_KEYS, CACHE_TTL } from '../services/settings-cache.js'
+import { logger } from './logger.js'
+import type { WhatsAppSettings } from '../types/admin-settings.js'
+import type {
+  Granularity,
+  ConversationCategory,
+  ConversationType,
+  ConversationDirection,
+  MetaMessageAnalyticsResponse,
+  MetaConversationAnalyticsResponse,
+  MetaTemplatePerformanceResponse,
+} from '../types/insights.js'
+import { toConversationGranularity } from '../types/insights.js'
+
+// Create HTTPS agent that forces IPv4 (fixes ETIMEDOUT on some servers)
+const httpsAgent = new https.Agent({
+  family: 4, // Force IPv4
+  rejectUnauthorized: true,
+})
+
+interface WhatsAppConfig {
+  accessToken: string
+  apiVersion?: string
+}
+
+interface SendMessageParams {
+  phoneNumberId: string
+  to: string
+  type: 'text' | 'template' | 'image' | 'document' | 'audio' | 'video' | 'interactive'
+  text?: {
+    body: string
+    preview_url?: boolean
+  }
+  template?: {
+    name: string
+    language: {
+      code: string
+    }
+    components?: any[]
+  }
+  image?: {
+    link?: string
+    id?: string
+    caption?: string
+  }
+  document?: {
+    link?: string
+    id?: string
+    caption?: string
+    filename?: string
+  }
+  interactive?: {
+    type: 'cta_url' | 'button' | 'list'
+    header?: {
+      type: 'text' | 'image' | 'video' | 'document'
+      text?: string
+      image?: { id?: string; link?: string }
+      video?: { id?: string; link?: string }
+      document?: { id?: string; link?: string }
+    }
+    body?: { text: string }
+    footer?: { text: string }
+    action: {
+      // For cta_url
+      name?: string
+      parameters?: {
+        display_text: string
+        url: string
+      }
+      // For button (reply buttons)
+      buttons?: Array<{
+        type: 'reply'
+        reply: {
+          id: string
+          title: string
+        }
+      }>
+      // For list message
+      button?: string
+      sections?: Array<{
+        title?: string
+        rows: Array<{
+          id: string
+          title: string
+          description?: string
+        }>
+      }>
+    }
+  }
+}
+
+interface TemplateComponent {
+  type: string
+  format?: string
+  text?: string
+  buttons?: any[]
+  example?: any
+}
+
+interface CreateTemplateParams {
+  wabaId: string
+  name: string
+  category: 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+  language: string
+  components: TemplateComponent[]
+}
+
+export class WhatsAppAPI {
+  private client: AxiosInstance
+  private accessToken: string
+  private apiVersion: string
+
+  constructor(config: WhatsAppConfig) {
+    this.accessToken = config.accessToken
+    this.apiVersion = config.apiVersion || 'v24.0'
+    this.client = this.createClient()
+  }
+
+  // Create axios client with fresh token
+  private createClient() {
+    return axios.create({
+      baseURL: `https://graph.facebook.com/${this.apiVersion}`,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      params: {
+        access_token: this.getAccessToken() // Use query param instead of header
+      },
+      timeout: 60000, // Increased to 60s for slow connections
+      httpsAgent, // Force IPv4 to avoid ETIMEDOUT on IPv6
+    })
+  }
+
+  // Get fresh access token from cache or environment
+  private getAccessToken(): string {
+    // Check cache first for database settings
+    const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
+    if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
+      return cachedSettings.accessToken
+    }
+    // Fallback to process.env
+    return process.env.META_ACCESS_TOKEN || this.accessToken
+  }
+
+  /**
+   * Refresh settings from database with caching
+   * Requirements: 6.3, 6.4
+   */
+  async refreshSettingsFromDb(): Promise<void> {
+    try {
+      // Check cache first
+      const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
+      if (cachedSettings) {
+        if (cachedSettings.accessToken && !cachedSettings.accessToken.includes('****')) {
+          this.accessToken = cachedSettings.accessToken
+        }
+        return
+      }
+
+      // Fetch from database using dynamic import to avoid circular dependency
+      const { adminSettingsService } = await import('../services/admin/settings-service.js')
+      const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
+      
+      // Cache the settings
+      settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
+      
+      // Update access token if available
+      if (response.data.accessToken && !response.data.accessToken.includes('****')) {
+        this.accessToken = response.data.accessToken
+      }
+      
+      logger.debug('WhatsApp API settings refreshed from database', { source: response.source })
+    } catch (error) {
+      logger.warn('Failed to refresh WhatsApp API settings from database', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+      // Continue with existing config (env fallback)
+    }
+  }
+
+  /**
+   * Invalidate settings cache
+   */
+  invalidateCache(): void {
+    settingsCache.invalidate(CACHE_KEYS.whatsapp())
+    logger.info('WhatsApp API settings cache invalidated')
+  }
+
+  // Refresh client with new token
+  private refreshClient() {
+    this.accessToken = this.getAccessToken()
+    this.client = this.createClient()
+  }
+
+  // Send message
+  async sendMessage(params: SendMessageParams) {
+    // Refresh client to get latest token from .env
+    this.refreshClient()
+    
+    const { phoneNumberId, to, type, ...messageData } = params
+
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type
+    }
+
+    if (type === 'text' && messageData.text) {
+      payload.text = messageData.text
+    } else if (type === 'template' && messageData.template) {
+      payload.template = messageData.template
+    } else if (type === 'image' && messageData.image) {
+      payload.image = messageData.image
+    } else if (type === 'document' && messageData.document) {
+      payload.document = messageData.document
+    } else if (type === 'interactive' && messageData.interactive) {
+      payload.interactive = messageData.interactive
+    }
+
+    const response = await this.client.post(`/${phoneNumberId}/messages`, payload)
+    return response.data
+  }
+
+  // Mark message as read (and optionally show typing indicator)
+  async markAsRead(phoneNumberId: string, messageId: string, showTyping: boolean = false) {
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      status: 'read',
+      message_id: messageId
+    }
+
+    // Add typing indicator if requested (Based on Meta documentation v24.0+)
+    if (showTyping) {
+      payload.typing_indicator = {
+        type: 'text'
+      }
+    }
+
+    const response = await this.client.post(`/${phoneNumberId}/messages`, payload)
+    return response.data
+  }
+
+  // Get WhatsApp Business Profile for a phone number
+  async getBusinessProfile(phoneNumberId: string) {
+    this.refreshClient()
+    const response = await this.client.get(`/${phoneNumberId}/whatsapp_business_profile`, {
+      params: {
+        fields: 'about,address,description,email,profile_picture_url,websites,vertical'
+      }
+    })
+    // Meta returns { data: [{ ...profile }] }
+    const data = response.data?.data?.[0] || {}
+    return {
+      about: data.about || null,
+      address: data.address || null,
+      description: data.description || null,
+      email: data.email || null,
+      profilePictureUrl: data.profile_picture_url || null,
+      websites: data.websites || [],
+      vertical: data.vertical || null,
+    }
+  }
+
+  // Get business phone number info
+  async getPhoneNumber(phoneNumberId: string) {
+    const response = await this.client.get(`/${phoneNumberId}`, {
+      params: {
+        fields: 'id,verified_name,display_phone_number,quality_rating,code_verification_status,messaging_limit_tier'
+      }
+    })
+    return response.data
+  }
+
+  // Get WABA info
+  async getWABA(wabaId: string) {
+    const response = await this.client.get(`/${wabaId}`, {
+      params: {
+        fields: 'id,name,timezone_id,message_template_namespace,on_behalf_of_business_info,account_review_status'
+      }
+    })
+    return response.data
+  }
+
+  // Register phone number
+  async registerPhoneNumber(phoneNumberId: string, pin: string) {
+    const response = await this.client.post(`/${phoneNumberId}/register`, {
+      messaging_product: 'whatsapp',
+      pin
+    })
+    return response.data
+  }
+
+  // Get WABA details
+  async getWABADetails(wabaId: string) {
+    const response = await this.client.get(`/${wabaId}`, {
+      params: {
+        fields: 'id,name,message_template_namespace,timezone_id,currency,account_review_status'
+      }
+    })
+    return response.data
+  }
+
+  // Create message template
+  async createTemplate(params: CreateTemplateParams) {
+    const { wabaId, name, category, language, components } = params
+
+    const payload: any = {
+      name,
+      category,
+      language,
+      components
+    }
+
+    // For MARKETING category, need to set allow_category_change
+    if (category === 'MARKETING') {
+      payload.allow_category_change = true
+    }
+
+    // Removed sensitive logging (template payloads may contain business data)
+    // console.log('Creating template with payload:', JSON.stringify(payload, null, 2))
+    // console.log('Using Phone/WABA ID:', wabaId)
+    // console.log('Full URL:', `https://graph.facebook.com/v23.0/${wabaId}/message_templates`)
+
+    const response = await this.client.post(`/${wabaId}/message_templates`, payload)
+    return response.data
+  }
+
+  // Get template status
+  async getTemplate(wabaId: string, templateName: string) {
+    const response = await this.client.get(`/${wabaId}/message_templates`, {
+      params: {
+        name: templateName
+      }
+    })
+    return response.data
+  }
+
+  // List all templates from WABA
+  async listTemplates(wabaId: string, limit: number = 10) {
+    const response = await this.client.get(`/${wabaId}/message_templates`, {
+      params: {
+        limit,
+        fields: 'id,name,status,category'
+      }
+    })
+    return response.data
+  }
+
+  // Delete template
+  async deleteTemplate(wabaId: string, templateName: string) {
+    const response = await this.client.delete(`/${wabaId}/message_templates`, {
+      params: {
+        name: templateName
+      }
+    })
+    return response.data
+  }
+
+  // Get template analytics
+  async getTemplateAnalytics(wabaId: string, templateName: string) {
+    const response = await this.client.get(`/${wabaId}/template_analytics`, {
+      params: {
+        name: templateName
+      }
+    })
+    return response.data
+  }
+
+  // Get phone number quality rating
+  async getQualityRating(phoneNumberId: string) {
+    const response = await this.client.get(`/${phoneNumberId}`, {
+      params: {
+        fields: 'quality_rating,messaging_limit_tier'
+      }
+    })
+    return response.data
+  }
+
+  // Upload media to WhatsApp Cloud API
+  // Note: Media upload should use WABA ID or phone number ID depending on API version
+  // For v23.0+, use phone number ID
+  async uploadMedia(phoneNumberId: string, file: Buffer | Blob, mimeType: string, filename?: string) {
+    try {
+      // Refresh token before upload
+      this.refreshClient()
+
+      const formData = new FormData()
+      formData.append('messaging_product', 'whatsapp')
+
+      // Create a proper File-like blob with filename
+      // Create a proper File-like blob with filename
+      const blob = file instanceof Buffer ? new Blob([file as any], { type: mimeType }) : (file as any)
+      formData.append('file', blob, filename || 'file')
+      formData.append('file', blob, filename || 'file')
+
+      const response = await this.client.post(`/${phoneNumberId}/media`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        // Override default timeout for large files
+        timeout: 60000 // 60 seconds
+      })
+      return response.data
+    } catch (error: any) {
+      console.error('Meta API Error Response:', error.response?.data)
+      throw error
+    }
+  }
+
+  // Get media URL
+  async getMediaUrl(mediaId: string) {
+    const response = await this.client.get(`/${mediaId}`)
+    return response.data
+  }
+
+  // Download media
+  async downloadMedia(mediaUrl: string) {
+    const response = await axios.get(mediaUrl, {
+      headers: {
+        'Authorization': `Bearer ${this.accessToken}`
+      },
+      responseType: 'arraybuffer'
+    })
+    return response.data
+  }
+
+  /**
+   * Get message analytics from Meta Graph API
+   * Endpoint: /{waba_id}?fields=analytics.start(X).end(Y).granularity(Z).phone_numbers([...])
+   * Requirements: 1.1, 1.2, 1.5
+   */
+  async getAnalytics(
+    wabaId: string,
+    params: {
+      startDate: number;
+      endDate: number;
+      granularity: Granularity;
+      phoneNumbers?: string[];
+    }
+  ): Promise<MetaMessageAnalyticsResponse> {
+    this.refreshClient()
+
+    // Build the analytics field parameter
+    let analyticsField = `analytics.start(${params.startDate}).end(${params.endDate}).granularity(${params.granularity})`
+    
+    if (params.phoneNumbers && params.phoneNumbers.length > 0) {
+      const phoneNumbersParam = params.phoneNumbers.map(p => `"${p}"`).join(',')
+      analyticsField += `.phone_numbers([${phoneNumbersParam}])`
+    }
+
+    const response = await this.client.get(`/${wabaId}`, {
+      params: {
+        fields: analyticsField,
+      },
+    })
+
+    return response.data
+  }
+
+  /**
+   * Get conversation analytics from Meta Graph API
+   * Endpoint: /{waba_id}?fields=conversation_analytics.start(X).end(Y).granularity(Z)...
+   * 
+   * Per Meta docs (analitik.md):
+   * - analytics uses: HALF_HOUR, DAY, MONTH
+   * - conversation_analytics uses: HALF_HOUR, DAILY, MONTHLY
+   * - dimensions: CONVERSATION_CATEGORY, CONVERSATION_DIRECTION, CONVERSATION_TYPE, COUNTRY, PHONE
+   * - If no dimensions specified, returns aggregated data without breakdown
+   */
+  async getConversationAnalytics(
+    wabaId: string,
+    params: {
+      startDate: number;
+      endDate: number;
+      granularity: Granularity;
+      phoneNumbers?: string[];
+      conversationCategories?: ConversationCategory[];
+      conversationTypes?: ConversationType[];
+      conversationDirections?: ConversationDirection[];
+    }
+  ): Promise<MetaConversationAnalyticsResponse> {
+    this.refreshClient()
+
+    // Convert granularity for conversation_analytics endpoint
+    // analytics uses: HALF_HOUR, DAY, MONTH
+    // conversation_analytics uses: HALF_HOUR, DAILY, MONTHLY
+    const conversationGranularity = toConversationGranularity(params.granularity)
+
+    // Build the conversation_analytics field parameter
+    // Per docs: .dimensions(["CONVERSATION_CATEGORY"]) format with quotes inside array
+    let analyticsField = `conversation_analytics.start(${params.startDate}).end(${params.endDate}).granularity(${conversationGranularity}).dimensions(["CONVERSATION_CATEGORY"])`
+    
+    if (params.phoneNumbers && params.phoneNumbers.length > 0) {
+      const phoneNumbersParam = params.phoneNumbers.map(p => `"${p}"`).join(',')
+      analyticsField += `.phone_numbers([${phoneNumbersParam}])`
+    }
+
+    if (params.conversationCategories && params.conversationCategories.length > 0) {
+      const categoriesParam = params.conversationCategories.map(c => `"${c}"`).join(',')
+      analyticsField += `.conversation_categories([${categoriesParam}])`
+    }
+
+    if (params.conversationTypes && params.conversationTypes.length > 0) {
+      const typesParam = params.conversationTypes.map(t => `"${t}"`).join(',')
+      analyticsField += `.conversation_types([${typesParam}])`
+    }
+
+    if (params.conversationDirections && params.conversationDirections.length > 0) {
+      const directionsParam = params.conversationDirections.map(d => `"${d}"`).join(',')
+      analyticsField += `.conversation_directions([${directionsParam}])`
+    }
+
+    const response = await this.client.get(`/${wabaId}`, {
+      params: {
+        fields: analyticsField,
+      },
+    })
+
+    return response.data
+  }
+
+  /**
+   * Enable template analytics for WABA
+   * Must be called before fetching template analytics
+   * POST /{WABA_ID}?is_enabled_for_insights=true
+   */
+  async enableTemplateInsights(wabaId: string): Promise<{ id: string }> {
+    this.refreshClient()
+    
+    const response = await this.client.post(`/${wabaId}`, null, {
+      params: {
+        is_enabled_for_insights: true,
+      },
+    })
+    
+    return response.data
+  }
+
+  /**
+   * Get template performance metrics from Meta Graph API
+   * Endpoint: /{waba_id}/template_analytics?start=X&end=Y&granularity=DAILY&template_ids=[...]
+   * 
+   * Per Meta docs (analitik.md):
+   * - template_ids is REQUIRED (max 10) - format: [id1,id2,id3] without quotes
+   * - granularity must be DAILY (lowercase in query param)
+   * - metric_types: COST, CLICKED, DELIVERED, READ, SENT
+   * - COST may not be available for partner-billed businesses
+   * - This endpoint may not be available in EU/Japan regions
+   * 
+   * IMPORTANT: Template analytics must be enabled first via enableTemplateInsights()
+   */
+  async getTemplatePerformanceMetrics(
+    wabaId: string,
+    params: {
+      startDate: number;
+      endDate: number;
+      templateIds?: string[];
+    }
+  ): Promise<MetaTemplatePerformanceResponse> {
+    this.refreshClient()
+
+    // template_ids is required by Meta API
+    if (!params.templateIds || params.templateIds.length === 0) {
+      return { data: [] }
+    }
+
+    // Limit to max 10 template IDs as per Meta API docs
+    const limitedTemplateIds = params.templateIds.slice(0, 10)
+
+    // Build the full URL manually exactly like the curl example in docs:
+    // curl -g 'https://graph.facebook.com/v24.0/109259195336416/template_analytics?start=1718064000&end=1718122745&granularity=daily&template_ids=[1421988012088524,2632273056924580]'
+    const templateIdsStr = limitedTemplateIds.join(',')
+    const fullUrl = `https://graph.facebook.com/${this.apiVersion}/${wabaId}/template_analytics?start=${params.startDate}&end=${params.endDate}&granularity=daily&template_ids=[${templateIdsStr}]&access_token=${this.accessToken}`
+    
+    console.log('🔍 Template Analytics Request:')
+    console.log('   WABA ID:', wabaId)
+    console.log('   Template IDs:', limitedTemplateIds)
+    console.log('   Start:', params.startDate)
+    console.log('   End:', params.endDate)
+    console.log('   URL (without token):', fullUrl.replace(this.accessToken, '***'))
+
+    try {
+      // Use axios directly with the full URL to avoid any encoding issues
+      const response = await axios.get(fullUrl, {
+        httpsAgent,
+        timeout: 60000,
+      })
+
+      console.log('✅ Template Analytics Response:', JSON.stringify(response.data, null, 2))
+
+      return response.data
+    } catch (error: any) {
+      console.error('❌ Template Analytics Error:')
+      console.error('   Status:', error?.response?.status)
+      console.error('   Data:', JSON.stringify(error?.response?.data, null, 2))
+      throw error
+    }
+  }
+
+  // Verify webhook
+  static verifyWebhook(mode: string, token: string, challenge: string, verifyToken: string) {
+    if (mode === 'subscribe' && token === verifyToken) {
+      return challenge
+    }
+    return null
+  }
+}
+
+// Singleton instance
+let whatsappClient: WhatsAppAPI | null = null
+
+/**
+ * Get WhatsApp client (sync version, uses cached/env settings)
+ * Checks cache first (populated by async version), then falls back to env
+ */
+export function getWhatsAppClient(): WhatsAppAPI {
+  if (!whatsappClient) {
+    // Try to get access token from cache first (populated by async version)
+    let accessToken: string | undefined
+    
+    const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
+    if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
+      accessToken = cachedSettings.accessToken
+    }
+    
+    // Fallback to env
+    if (!accessToken) {
+      accessToken = process.env.META_ACCESS_TOKEN
+    }
+    
+    if (!accessToken) {
+      throw new Error('META_ACCESS_TOKEN is not configured. Please configure it in Admin Dashboard or .env')
+    }
+    whatsappClient = new WhatsAppAPI({ accessToken })
+  }
+  return whatsappClient
+}
+
+/**
+ * Get WhatsApp client with database settings (async version)
+ * Fetches settings from database with caching, falls back to .env
+ * Requirements: 6.3, 6.4
+ */
+export async function getWhatsAppClientAsync(): Promise<WhatsAppAPI> {
+  if (!whatsappClient) {
+    // Try to get access token from database first
+    let accessToken: string | undefined
+
+    try {
+      const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
+      
+      if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
+        accessToken = cachedSettings.accessToken
+      } else {
+        // Fetch from database
+        const { adminSettingsService } = await import('../services/admin/settings-service.js')
+        const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
+        
+        // Cache the settings
+        settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
+        
+        if (response.data.accessToken && !response.data.accessToken.includes('****')) {
+          accessToken = response.data.accessToken
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to get WhatsApp settings from database, using env', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+
+    // Fallback to env
+    if (!accessToken) {
+      accessToken = process.env.META_ACCESS_TOKEN
+    }
+
+    if (!accessToken) {
+      throw new Error('META_ACCESS_TOKEN is not configured')
+    }
+
+    whatsappClient = new WhatsAppAPI({ accessToken })
+  } else {
+    // Refresh settings from database
+    await whatsappClient.refreshSettingsFromDb()
+  }
+
+  return whatsappClient
+}
+
+/**
+ * Invalidate WhatsApp client cache (call when settings are updated)
+ */
+export function invalidateWhatsAppClientCache(): void {
+  if (whatsappClient) {
+    whatsappClient.invalidateCache()
+  }
+  // Reset singleton so next call will fetch fresh settings
+  whatsappClient = null
+  settingsCache.invalidate(CACHE_KEYS.whatsapp())
+}
+
+/**
+ * Initialize WhatsApp client with database settings
+ * Call this at application startup to pre-populate cache
+ */
+export async function initWhatsAppClient(): Promise<void> {
+  try {
+    const { adminSettingsService } = await import('../services/admin/settings-service.js')
+    const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
+
+    // Cache the settings
+    settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
+
+    logger.info('WhatsApp client initialized with database settings', { source: response.source })
+  } catch (error) {
+    logger.warn('Failed to initialize WhatsApp client from database, will use env fallback', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    })
+  }
+}
+
+/**
+ * Convert standard markdown to WhatsApp-compatible markdown format
+ * WhatsApp uses different formatting:
+ * - Bold: *text* (instead of **text**)
+ * - Italic: _text_ (instead of *text* or _text_)
+ * - Strikethrough: ~text~ (instead of ~~text~~)
+ * - Monospace: ```text``` (same as standard)
+ */
+export function convertToWhatsAppMarkdown(text: string): string {
+  if (!text) return text
+
+  let result = text
+
+  // Convert **bold** to *bold* (WhatsApp format)
+  result = result.replace(/\*\*([^*]+)\*\*/g, '*$1*')
+
+  // Convert ~~strikethrough~~ to ~strikethrough~ (WhatsApp format)
+  result = result.replace(/~~([^~]+)~~/g, '~$1~')
+
+  // Convert markdown links [text](url) to "text: url" format (WhatsApp doesn't support links)
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
+
+  // Convert headers (# Header) to *Header* (bold)
+  result = result.replace(/^#{1,6}\s+(.+)$/gm, '*$1*')
+
+  // Convert bullet points (- item or * item) to • item
+  result = result.replace(/^[\-\*]\s+/gm, '• ')
+
+  // Convert numbered lists to keep them as is but ensure proper formatting
+  result = result.replace(/^(\d+)\.\s+/gm, '$1. ')
+
+  return result
+}
+
+export default WhatsAppAPI

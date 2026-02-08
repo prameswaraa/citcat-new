@@ -1,0 +1,79 @@
+{
+  "sent": "Terkirim",
+  "delivered": "Diterima",
+  "read": "Dibaca",
+  "failed": "Gagal",
+  "pending": "Menunggu",
+  "noMessages": "Tidak ada pesan",
+  "typeMessage": "Ketik pesan...",
+  "send": "Kirim",
+  "attachment": "Lampiran",
+  "emoji": "Emoji",
+  "template": "Template",
+  "assignment": {
+    "filter": {
+      "all": "Semua",
+      "mine": "Milik Saya",
+      "unassigned": "Belum Ditugaskan",
+      "others": "Lainnya",
+      "allDescription": "Semua percakapan",
+      "mineDescription": "Ditugaskan ke saya",
+      "unassignedDescription": "Tidak ada penugasan",
+      "othersDescription": "Ditugaskan ke orang lain"
+    },
+    "dropdown": {
+      "assignTo": "Tugaskan ke",
+      "unassign": "Batalkan Penugasan",
+      "me": "(saya)",
+      "owner": "Pemilik",
+      "agent": "Agen",
+      "teamMembers": "Anggota Tim",
+      "aiAgents": "AI Agent",
+      "aiAgent": "AI Agent"
+    },
+    "badge": {
+      "unassigned": "Belum Ditugaskan",
+      "assignedToAI": "Ditugaskan ke AI: {name}"
+    },
+    "history": {
+      "title": "Riwayat Penugasan",
+      "noHistory": "Tidak ada riwayat penugasan",
+      "records": "{count} catatan",
+      "recordsPlural": "{count} catatan",
+      "current": "Saat Ini",
+      "assignedBy": "Ditugaskan oleh {name}",
+      "unassignedTime": "Dibatalkan {time}",
+      "showMore": "Tampilkan {count} catatan lagi",
+      "showMorePlural": "Tampilkan {count} catatan lagi",
+      "showLess": "Tampilkan lebih sedikit"
+    },
+    "errors": {
+      "unauthorized": "Anda tidak memiliki izin untuk melakukan tindakan ini",
+      "assignFailed": "Gagal menugaskan percakapan",
+      "unassignFailed": "Gagal membatalkan penugasan percakapan",
+      "loadFailed": "Gagal memuat data penugasan",
+      "aiDisabled": "AI Chatbot tidak diaktifkan. Aktifkan AI terlebih dahulu untuk menugaskan ke AI Agent.",
+      "aiAgentNotFound": "AI Agent tidak ditemukan atau bukan milik akun ini.",
+      "aiAgentRequired": "ID AI Agent diperlukan untuk penugasan AI.",
+      "invalidAssigneeType": "Tipe penugasan tidak valid. Harus manusia atau AI Agent."
+    },
+    "toast": {
+      "assigned": "Percakapan ditugaskan ke {name}",
+      "unassigned": "Penugasan percakapan dibatalkan",
+      "selfAssigned": "Percakapan ditugaskan ke Anda"
+    },
+    "aiStatus": {
+      "active": "AI Aktif",
+      "inactive": "AI Nonaktif",
+      "activeWithAgent": "AI Aktif: {name}",
+      "activeDefault": "AI merespon percakapan ini",
+      "inactiveHuman": "AI nonaktif - ditugaskan ke manusia",
+      "inactiveDisabled": "AI tidak diaktifkan",
+      "tooltip": {
+        "aiResponding": "AI Agent menangani percakapan ini",
+        "humanHandling": "Agen manusia menangani percakapan ini",
+        "defaultAgent": "Menggunakan AI Agent default"
+      }
+    }
+  }
+}

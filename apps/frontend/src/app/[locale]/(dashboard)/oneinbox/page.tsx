@@ -1,0 +1,353 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Header } from "@/components/layout/header"
+import { RefreshCw, User, PanelRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { useUnifiedInbox } from "./hooks/use-unified-inbox"
+import { UnifiedConversationList } from "./components/unified-conversation-list"
+import { UnifiedEmptyState } from "./components/unified-empty-state"
+import { ConnectionStatusBanner } from "./components/connection-status-banner"
+import { ConnectionStatus } from "./components/connection-status"
+import { CustomerProfilePanel } from "./components/customer-profile-panel"
+import { ChatArea } from "../messages/components/chat-area"
+import { IGChatArea } from "../instagram/inbox/components"
+import { MessengerChatArea } from "./components/messenger-chat-area"
+import type { Customer } from "../messages/hooks/use-chat"
+import type { IGConversation } from "@/lib/api/instagram"
+import type { AssignableUser } from "./types/unified-inbox"
+import { cn } from "@/lib/utils"
+
+// Custom hook to detect screen size
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false)
+
+  useEffect(() => {
+    const media = window.matchMedia(query)
+    if (media.matches !== matches) {
+      setMatches(media.matches)
+    }
+    const listener = () => setMatches(media.matches)
+    media.addEventListener("change", listener)
+    return () => media.removeEventListener("change", listener)
+  }, [matches, query])
+
+  return matches
+}
+
+export default function OneInboxPage() {
+  const {
+    filteredConversations,
+    selectedConversation,
+    selectConversation,
+    channelFilter,
+    setChannelFilter,
+    searchQuery,
+    setSearchQuery,
+    // New filter state
+    readStatusFilter,
+    setReadStatusFilter,
+    tagsFilter,
+    setTagsFilter,
+    pipelineFilter,
+    setPipelineFilter,
+    // Account filter state
+    accountFilter,
+    setAccountFilter,
+    instagramAccounts,
+    facebookPages,
+    whatsappPhoneNumbers,
+    clearFilters,
+    // Assignment filter state (Requirements: 5.1)
+    assignmentFilter,
+    setAssignmentFilter,
+    assignableUsers,
+    loadAssignableUsers,
+    // AI status state (Requirements: 5.1, 5.2, 5.3, 5.4)
+    aiEnabled,
+    defaultAIAgentName,
+    // Assignment methods (Requirements: 6.1, 6.2, 6.3, 6.4)
+    assignConversation,
+    unassignConversation,
+    // CRM data for filter dropdowns
+    availableTags,
+    pipelineStages,
+    loading,
+    sending,
+    uploading,
+    whatsappConnected,
+    instagramConnected,
+    waMessages,
+    waTemplates,
+    waWindowStatus,
+    sendWhatsAppMessage,
+    sendWhatsAppTemplate,
+    sendWhatsAppMedia,
+    sendWhatsAppCta,
+    sendWhatsAppReplyButtons,
+    sendWhatsAppListMessage,
+    igMessages,
+    sendInstagramMessage,
+    sendInstagramReaction,
+    msgMessages,
+    sendMessengerMessage,
+    userId,
+    isLoadingAccount,
+    loadConversations,
+    // Customer panel state
+    isPanelOpen,
+    setIsPanelOpen,
+    selectedCustomerDetail,
+    customerLoading,
+    updateCustomerTags,
+    updateCustomerStage,
+    addCustomerNote,
+    updateCustomerContact,
+    linkCustomerToConversation,
+    // WebSocket state
+    webSocketState,
+  } = useUnifiedInbox()
+
+  // State for mobile panel sheet
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+
+  // Detect if we're on desktop (lg breakpoint = 1024px)
+  const isDesktop = useMediaQuery("(min-width: 1024px)")
+
+  // Load assignable users on mount
+  useEffect(() => {
+    if (userId) {
+      loadAssignableUsers()
+    }
+  }, [userId, loadAssignableUsers])
+
+  // Handle linking customer to conversation
+  const handleLinkCustomer = async (customerId: string) => {
+    await linkCustomerToConversation(customerId)
+  }
+
+  // Toggle panel - on mobile opens sheet, on desktop toggles sidebar
+  const handlePanelToggle = () => {
+    if (isDesktop) {
+      setIsPanelOpen(!isPanelOpen)
+    } else {
+      setMobileSheetOpen(!mobileSheetOpen)
+    }
+  }
+
+  // Show loading state while checking authentication
+  if (isLoadingAccount) {
+    return (
+      <div className="flex flex-col h-screen overflow-hidden">
+        <Header />
+        <div className="flex flex-1 items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  // Show message if user is not authenticated
+  if (!userId) {
+    return (
+      <div className="flex flex-col h-screen overflow-hidden">
+        <Header />
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <User className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+            <h3 className="text-lg font-semibold mb-2">
+              Authentication Required
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Please log in to access OneInbox
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden">
+      {/* Hide header on mobile when chat is open */}
+      <div className={cn("flex-shrink-0", selectedConversation ? "hidden md:block" : "")}>
+        <div className="flex items-center">
+          <div className="flex-1">
+            <Header />
+          </div>
+          {/* WebSocket Connection Status - positioned at far right */}
+          <ConnectionStatus state={webSocketState} className="absolute right-4 top-4" />
+        </div>
+
+        {/* Connection Status Banner */}
+        <ConnectionStatusBanner
+          whatsappConnected={whatsappConnected}
+          instagramConnected={instagramConnected}
+        />
+      </div>
+
+      <div className="flex flex-1 bg-background overflow-hidden min-h-0">
+        {/* Unified Conversation List */}
+        <UnifiedConversationList
+          conversations={filteredConversations}
+          selectedConversation={selectedConversation}
+          onSelectConversation={selectConversation}
+          loading={loading}
+          onRefresh={loadConversations}
+          channelFilter={channelFilter}
+          onChannelFilterChange={setChannelFilter}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          whatsappConnected={whatsappConnected}
+          instagramConnected={instagramConnected}
+          readStatusFilter={readStatusFilter}
+          onReadStatusChange={setReadStatusFilter}
+          tagsFilter={tagsFilter}
+          onTagsChange={setTagsFilter}
+          pipelineFilter={pipelineFilter}
+          onPipelineChange={setPipelineFilter}
+          availableTags={availableTags}
+          pipelineStages={pipelineStages}
+          onClearFilters={clearFilters}
+          accountFilter={accountFilter}
+          onAccountFilterChange={setAccountFilter}
+          instagramAccounts={instagramAccounts}
+          facebookPages={facebookPages}
+          whatsappPhoneNumbers={whatsappPhoneNumbers}
+          assignmentFilter={assignmentFilter}
+          onAssignmentFilterChange={setAssignmentFilter}
+          assignableUsers={assignableUsers}
+          aiEnabled={aiEnabled}
+          defaultAIAgentName={defaultAIAgentName}
+          className={selectedConversation ? "hidden md:flex" : "flex"}
+        />
+
+        {/* Chat Area - Conditionally render based on channel */}
+        {selectedConversation ? (
+          <div className={cn(
+            "flex-1 flex flex-col bg-background h-full relative",
+            !selectedConversation ? "hidden md:flex" : "flex"
+          )}>
+            {/* Panel toggle button - Desktop: when panel closed, Mobile: always visible */}
+            <div className={cn(
+              "absolute right-2 top-2 z-10 flex items-center gap-1",
+            )}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handlePanelToggle}
+                className={cn(
+                  // On desktop, only show when panel is closed
+                  isDesktop && isPanelOpen ? "hidden" : "flex"
+                )}
+                title="Open customer panel"
+              >
+                <PanelRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {selectedConversation.channel === "whatsapp" ? (
+              <ChatArea
+                key={selectedConversation.id}
+                selectedCustomer={selectedConversation.originalData as Customer}
+                messages={waMessages}
+                currentUserId={userId}
+                onSendMessage={sendWhatsAppMessage}
+                onSendTemplate={sendWhatsAppTemplate}
+                onSendCta={sendWhatsAppCta}
+                onSendReplyButtons={sendWhatsAppReplyButtons}
+                onSendListMessage={sendWhatsAppListMessage}
+                onSendMedia={sendWhatsAppMedia}
+                sending={sending}
+                uploading={uploading}
+                templates={waTemplates}
+                onBack={() => selectConversation(null)}
+                windowStatus={waWindowStatus}
+              />
+            ) : selectedConversation.channel === "instagram" ? (
+              <IGChatArea
+                key={selectedConversation.id}
+                conversation={selectedConversation.originalData as IGConversation}
+                messages={igMessages}
+                onSendMessage={sendInstagramMessage}
+                onSendReaction={sendInstagramReaction}
+                sending={sending}
+                loadingMessages={loading}
+                onBack={() => selectConversation(null)}
+              />
+            ) : (
+              <MessengerChatArea
+                key={selectedConversation.id}
+                conversation={selectedConversation.originalData as any}
+                messages={msgMessages}
+                onSendMessage={sendMessengerMessage}
+                sending={sending}
+                loadingMessages={loading}
+                onBack={() => selectConversation(null)}
+              />
+            )}
+          </div>
+        ) : (
+          <UnifiedEmptyState />
+        )}
+
+        {/* Customer Profile Panel - Desktop sidebar */}
+        {selectedConversation && (
+          <div className="hidden lg:block h-full">
+            <CustomerProfilePanel
+              conversation={selectedConversation}
+              crmCustomer={selectedCustomerDetail}
+              isOpen={isPanelOpen}
+              onToggle={() => setIsPanelOpen(!isPanelOpen)}
+              loading={customerLoading}
+              availableTags={availableTags}
+              pipelineStages={pipelineStages}
+              onUpdateTags={updateCustomerTags}
+              onUpdateStage={updateCustomerStage}
+              onAddNote={addCustomerNote}
+              onUpdateContact={updateCustomerContact}
+              onLinkCustomer={handleLinkCustomer}
+              // Assignment props (Requirements: 6.1, 6.2, 6.3, 6.4)
+              assignableUsers={assignableUsers}
+              currentUserId={userId}
+              onAssign={assignConversation}
+              onUnassign={unassignConversation}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Customer Profile Panel - Mobile/Tablet Sheet */}
+      {selectedConversation && (
+        <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
+          <SheetContent side="right" className="w-[340px] p-0 lg:hidden">
+            <VisuallyHidden>
+              <SheetTitle>Customer Profile</SheetTitle>
+            </VisuallyHidden>
+            <CustomerProfilePanel
+              conversation={selectedConversation}
+              crmCustomer={selectedCustomerDetail}
+              isOpen={true}
+              onToggle={() => setMobileSheetOpen(false)}
+              loading={customerLoading}
+              availableTags={availableTags}
+              pipelineStages={pipelineStages}
+              onUpdateTags={updateCustomerTags}
+              onUpdateStage={updateCustomerStage}
+              onAddNote={addCustomerNote}
+              onUpdateContact={updateCustomerContact}
+              onLinkCustomer={handleLinkCustomer}
+              // Assignment props (Requirements: 6.1, 6.2, 6.3, 6.4)
+              assignableUsers={assignableUsers}
+              currentUserId={userId}
+              onAssign={assignConversation}
+              onUnassign={unassignConversation}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+    </div>
+  )
+}

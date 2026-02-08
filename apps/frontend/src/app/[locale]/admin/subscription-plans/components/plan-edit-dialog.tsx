@@ -1,0 +1,236 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { RefreshCw } from "lucide-react"
+import { useTranslations } from "next-intl"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Separator } from "@/components/ui/separator"
+import type { PlanConfig, PlanTier, DurationConfig } from "../../hooks/use-admin-subscription-plans"
+import { FeaturesListEditor } from "./features-list-editor"
+import { DurationConfigEditor } from "./duration-config-editor"
+
+interface PlanEditDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  tier: PlanTier
+  plan: PlanConfig
+  onSave: (config: PlanConfig) => Promise<void>
+  onSaveDurations?: (durations: DurationConfig[]) => Promise<{ success: boolean; message: string }>
+  isSaving: boolean
+}
+
+interface FormErrors {
+  name?: string
+  price?: string
+}
+
+// Default durations for paid tiers
+const DEFAULT_DURATIONS: DurationConfig[] = [
+  { months: 1, days: 30, discountPercent: 0, enabled: true, label: "1 Bulan" },
+  { months: 3, days: 90, discountPercent: 10, enabled: true, label: "3 Bulan" },
+  { months: 6, days: 180, discountPercent: 15, enabled: true, label: "6 Bulan" },
+  { months: 12, days: 365, discountPercent: 20, enabled: true, label: "1 Tahun" },
+]
+
+export function PlanEditDialog({
+  open,
+  onOpenChange,
+  tier,
+  plan,
+  onSave,
+  onSaveDurations,
+  isSaving,
+}: PlanEditDialogProps) {
+  const t = useTranslations("admin")
+  const tCommon = useTranslations("common")
+  const tSub = useTranslations("subscription")
+  const [name, setName] = useState(plan.name)
+  const [description, setDescription] = useState(plan.description)
+  const [price, setPrice] = useState(plan.price.toString())
+  const [features, setFeatures] = useState<string[]>(plan.features)
+  const [durations, setDurations] = useState<DurationConfig[]>(
+    plan.durations?.length ? plan.durations : DEFAULT_DURATIONS
+  )
+  const [errors, setErrors] = useState<FormErrors>({})
+  const [isSavingDurations, setIsSavingDurations] = useState(false)
+
+  // Reset form when plan changes
+  useEffect(() => {
+    setName(plan.name)
+    setDescription(plan.description)
+    setPrice(plan.price.toString())
+    setFeatures([...plan.features])
+    setDurations(plan.durations?.length ? [...plan.durations] : DEFAULT_DURATIONS)
+    setErrors({})
+  }, [plan])
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {}
+
+    // Validate name
+    if (!name || name.trim() === "") {
+      newErrors.name = t("planNameRequired")
+    }
+
+    // Validate price for paid tiers
+    if (tier !== "free") {
+      const priceNum = parseInt(price, 10)
+      if (isNaN(priceNum) || priceNum <= 0) {
+        newErrors.price = t("planPriceError")
+      }
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const handleSubmit = async () => {
+    if (!validateForm()) return
+
+    const config: PlanConfig = {
+      name: name.trim(),
+      description: description.trim(),
+      price: tier === "free" ? 0 : parseInt(price, 10),
+      features,
+      durations: tier !== "free" ? durations : [],
+    }
+
+    await onSave(config)
+  }
+
+  const tierLabels: Record<PlanTier, string> = {
+    free: "FREE",
+    basic: "BASIC",
+    lite: "LITE",
+    pro: "PRO",
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{t("editPlan", { tier: tierLabels[tier] })}</DialogTitle>
+          <DialogDescription>
+            {t("editPlanDesc")}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {/* Name Field */}
+          <div className="space-y-2">
+            <Label htmlFor="name">{t("planName")} *</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                if (errors.name) setErrors({ ...errors, name: undefined })
+              }}
+              placeholder={t("planNamePlaceholder")}
+            />
+            {errors.name && (
+              <p className="text-sm text-destructive">{errors.name}</p>
+            )}
+          </div>
+
+          {/* Description Field */}
+          <div className="space-y-2">
+            <Label htmlFor="description">{t("planDescription")}</Label>
+            <Textarea
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t("planDescriptionPlaceholder")}
+              rows={2}
+            />
+          </div>
+
+          {/* Price Field */}
+          <div className="space-y-2">
+            <Label htmlFor="price">
+              {t("planPrice")} {tier !== "free" && "*"}
+            </Label>
+            <Input
+              id="price"
+              type="number"
+              value={price}
+              onChange={(e) => {
+                setPrice(e.target.value)
+                if (errors.price) setErrors({ ...errors, price: undefined })
+              }}
+              placeholder="99000"
+              disabled={tier === "free"}
+              min={tier === "free" ? 0 : 1}
+            />
+            {tier === "free" && (
+              <p className="text-sm text-muted-foreground">
+                {t("planPriceFreeNote")}
+              </p>
+            )}
+            {errors.price && (
+              <p className="text-sm text-destructive">{errors.price}</p>
+            )}
+          </div>
+
+          {/* Features List */}
+          <div className="space-y-2">
+            <Label>{tSub("features")}</Label>
+            <FeaturesListEditor
+              features={features}
+              onChange={setFeatures}
+            />
+          </div>
+
+          {/* Duration Configuration - Only for paid tiers */}
+          {tier !== "free" && (
+            <>
+              <Separator className="my-4" />
+              <div className="space-y-2">
+                <Label>{t("durationConfig")}</Label>
+                <DurationConfigEditor
+                  durations={durations}
+                  onChange={setDurations}
+                  basePrice={parseInt(price, 10) || 0}
+                  onSave={onSaveDurations}
+                  isSaving={isSavingDurations}
+                  setIsSaving={setIsSavingDurations}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
+            {tCommon("cancel")}
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                {tCommon("saving")}
+              </>
+            ) : (
+              tCommon("save")
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

@@ -1,0 +1,20 @@
+{
+  "generic": "Terjadi kesalahan",
+  "notFound": "Halaman tidak ditemukan",
+  "unauthorized": "Anda tidak memiliki akses",
+  "networkError": "Kesalahan jaringan. Silakan coba lagi.",
+  "oops": "Oops!",
+  "unexpectedError": "Mohon maaf, terjadi kesalahan yang tidak terduga.",
+  "tryAgainOrGoHome": "Silakan coba lagi atau kembali ke beranda.",
+  "appError": "Terjadi Kesalahan",
+  "appErrorDesc": "Aplikasi mengalami masalah. Silakan muat ulang halaman.",
+  "reload": "Muat Ulang",
+  "tooManyAttempts": "Terlalu banyak percobaan. Coba lagi dalam {seconds} detik.",
+  "failedToSendReset": "Gagal mengirim kode reset",
+  "failedToResetPassword": "Gagal reset password",
+  "errorOccurred": "Terjadi kesalahan. Silakan coba lagi.",
+  "failedToSendOtp": "Gagal mengirim kode OTP",
+  "failedToResendOtp": "Gagal mengirim ulang kode OTP",
+  "accessDenied": "Akses Ditolak",
+  "accessDeniedDescription": "Anda tidak memiliki izin untuk mengakses halaman ini."
+}

@@ -1,0 +1,88 @@
+{
+  "title": "Kebijakan Privasi",
+  "lastUpdated": "Terakhir Diperbarui",
+  "sections": {
+    "introduction": {
+      "title": "1. Pendahuluan",
+      "content": "Selamat datang di {appName}. Kami menghormati privasi Anda dan berkomitmen untuk melindungi data pribadi Anda. Kebijakan Privasi ini menjelaskan bagaimana kami mengumpulkan, menggunakan, menyimpan, dan melindungi informasi Anda saat Anda menggunakan platform kami. Dengan menggunakan layanan {appName}, Anda menyetujui praktik data yang dijelaskan dalam kebijakan ini sesuai dengan Undang-Undang Perlindungan Data Pribadi (UU PDP) yang berlaku."
+    },
+    "dataCollection": {
+      "title": "2. Informasi yang Kami Kumpulkan",
+      "intro": "Kami mengumpulkan informasi yang diperlukan untuk menyediakan layanan perpesanan bisnis yang optimal:",
+      "items": {
+        "account": {
+          "title": "Data Identitas dan Akun",
+          "description": "Termasuk nama lengkap, alamat email bisnis, nomor telepon WhatsApp, informasi profil bisnis, dan kredensial akses."
+        },
+        "usage": {
+          "title": "Data Teknis dan Penggunaan",
+          "description": "Informasi tentang alamat IP, jenis perangkat, sistem operasi, log aktivitas platform, serta statistik performa pesan."
+        },
+        "messages": {
+          "title": "Konten Komunikasi (Data Pesan)",
+          "description": "Kami memproses konten pesan, media, dan metadata yang Anda kirimkan melalui API kami untuk diteruskan ke penyedia layanan tujuan (seperti WhatsApp/Meta)."
+        },
+        "device": {
+          "title": "Data Metadata",
+          "description": "Informasi mengenai status pengiriman (terkirim, dibaca), stempel waktu, dan identitas pengirim/penerima."
+        }
+      }
+    },
+    "dataUsage": {
+      "title": "3. Penggunaan Informasi",
+      "intro": "Informasi Anda digunakan secara terbatas untuk tujuan:",
+      "items": {
+        "provide": "Menyediakan fitur platform, memproses transaksi, dan mengelola langganan Anda.",
+        "improve": "Melakukan analisis teknis untuk meningkatkan stabilitas sistem dan pengembangan fitur baru.",
+        "communicate": "Mengirimkan pemberitahuan penting terkait layanan, pembaruan keamanan, dan dukungan teknis.",
+        "security": "Mencegah aktivitas ilegal, spam, penipuan, atau penyalahgunaan platform yang melanggar ketentuan layanan.",
+        "legal": "Memenuhi kewajiban hukum, perintah pengadilan, atau permintaan resmi dari otoritas pemerintah."
+      }
+    },
+    "dataSharing": {
+      "title": "4. Pengungkapan Informasi kepada Pihak Ketiga",
+      "intro": "Kami tidak menjual atau menyewakan data pribadi Anda kepada pihak ketiga. Namun, kami membagikan data Anda kepada mitra tepercaya untuk operasional layanan:",
+      "items": {
+        "providers": {
+          "title": "Penyedia Infrastruktur (Meta/WhatsApp)",
+          "description": "Data pesan dikirimkan ke Meta Platforms, Inc. melalui WhatsApp Business API sesuai dengan instruksi pengiriman Anda."
+        },
+        "legal": {
+          "title": "Kepatuhan Hukum",
+          "description": "Kami dapat mengungkapkan informasi Anda jika diwajibkan oleh hukum atau dalam rangka melindungi hak hukum kami."
+        },
+        "business": {
+          "title": "Layanan Pihak Ketiga",
+          "description": "Vendor hosting cloud (seperti AWS/Google Cloud) dan penyedia layanan pembayaran yang memiliki standar keamanan tinggi."
+        }
+      }
+    },
+    "dataSecurity": {
+      "title": "5. Keamanan dan Penyimpanan Data",
+      "content": "Kami menerapkan standar keamanan industri, termasuk enkripsi TLS/SSL untuk perpindahan data dan enkripsi pada database kami. Data disimpan di server yang aman dengan akses terbatas. Meskipun kami melakukan upaya maksimal, perlu dipahami bahwa tidak ada metode transmisi internet yang 100% aman, sehingga Anda juga bertanggung jawab menjaga keamanan API Key dan kata sandi Anda."
+    },
+    "userRights": {
+      "title": "6. Hak-Hak Anda",
+      "intro": "Sesuai dengan regulasi perlindungan data, Anda memiliki hak untuk:",
+      "items": {
+        "access": "Mengakses informasi pribadi Anda yang kami simpan.",
+        "correction": "Meminta koreksi atas data yang tidak akurat atau tidak lengkap.",
+        "deletion": "Meminta penghapusan akun dan data terkait (Right to be Forgotten).",
+        "portability": "Menerima salinan data Anda dalam format terstruktur.",
+        "withdraw": "Menarik persetujuan pemrosesan data (yang mungkin berdampak pada ketersediaan layanan)."
+      }
+    },
+    "retention": {
+      "title": "7. Retensi Data",
+      "content": "Kami menyimpan data Anda selama akun Anda aktif atau selama diperlukan untuk menyediakan layanan. Log pesan tertentu mungkin akan dihapus secara berkala dari server kami (misalnya setelah 30-90 hari) untuk alasan privasi dan efisiensi penyimpanan, kecuali diwajibkan lain oleh hukum."
+    },
+    "changes": {
+      "title": "8. Perubahan Kebijakan",
+      "content": "Kami berhak memperbarui Kebijakan Privasi ini sewaktu-waktu. Perubahan signifikan akan diberitahukan melalui email atau pengumuman di dalam platform. Penggunaan layanan setelah perubahan berlaku dianggap sebagai persetujuan terhadap kebijakan baru."
+    },
+    "contact": {
+      "title": "9. Kontak Kami",
+      "content": "Jika Anda memiliki pertanyaan, keluhan, atau ingin menggunakan hak data Anda, silakan hubungi petugas perlindungan data kami di:"
+    }
+  }
+}

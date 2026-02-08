@@ -1,0 +1,19 @@
+{
+  "title": "Dashboard",
+  "overview": "Overview",
+  "messagesToday": "Messages Today",
+  "totalCustomers": "Total Customers",
+  "activeWindows": "Active Windows",
+  "qualityRating": "Quality Rating",
+  "deliveryRate": "{rate}% delivered",
+  "newThisWeek": "+{count} new this week",
+  "sinceLastWeek": "Since last week",
+  "tier": "Tier: {tier}",
+  "trend": "Trend",
+  "messageMetrics": "Message Metrics",
+  "channelDistribution": "Channel Distribution",
+  "pipelineFunnel": "Pipeline Funnel",
+  "topLeads": "Top Leads",
+  "templateStats": "Template Stats",
+  "qualityMetrics": "Quality Metrics"
+}

@@ -1,0 +1,46 @@
+# KirimChat Caddyfile
+# Reverse proxy with automatic HTTPS
+
+{$DOMAIN} {
+    # SSL with Let's Encrypt
+    tls {$SSL_EMAIL}
+
+    # Enable compression
+    encode gzip zstd
+
+    # API routes -> Backend
+    handle /api/* {
+        reverse_proxy backend:3005
+    }
+
+    # WebSocket -> Backend
+    handle /socket.io/* {
+        reverse_proxy backend:3005
+    }
+
+    # Webhook routes -> Backend
+    handle /webhook/* {
+        reverse_proxy backend:3005
+    }
+
+    # Health check endpoint
+    handle /health {
+        reverse_proxy backend:3005
+    }
+
+    # All other routes -> Frontend
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Redirect www to non-www
+www.{$DOMAIN} {
+    redir https://{$DOMAIN}{uri} permanent
+}

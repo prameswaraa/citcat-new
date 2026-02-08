@@ -1,0 +1,96 @@
+# Dependencies
+node_modules
+**/node_modules
+.pnpm-store
+**/.pnpm-store
+
+# Build outputs
+dist
+**/dist
+.next
+**/.next
+build
+**/build
+out
+**/out
+
+# Development files
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment files (will be provided at runtime)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.*.local
+**/.env
+**/.env.local
+
+# Testing
+coverage
+**/coverage
+**/__tests__
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+vitest.config.ts
+**/vitest.config.ts
+
+# Git
+.git
+.gitignore
+.gitattributes
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Documentation
+README.md
+*.md
+docs
+**/docs
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+.circleci
+azure-pipelines.yml
+
+# Frontend (not needed for backend image)
+apps/frontend
+
+# Temporary files
+tmp
+temp
+*.tmp
+.cache
+
+# Docker files
+Dockerfile
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+
+# Prisma migrations (will be run separately)
+**/migrations
+
+# Uploads (will be mounted as volume)
+uploads
+**/uploads

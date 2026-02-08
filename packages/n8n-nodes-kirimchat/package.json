@@ -1,0 +1,59 @@
+{
+  "name": "n8n-nodes-kichatdemo",
+  "version": "1.2.6",
+  "description": "n8n community node for ChatPlatform - Send WhatsApp, Instagram & Messenger messages with interactive buttons, flexible customer lookup, and typing indicators",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "chatplatform",
+    "whatsapp",
+    "instagram",
+    "messenger",
+    "facebook",
+    "messaging",
+    "chat",
+    "automation"
+  ],
+  "license": "MIT",
+  "homepage": "https://example.com",
+  "author": {
+    "name": "ChatPlatform",
+    "email": "support@example.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/n8n-nodes-chatplatform.git"
+  },
+  "main": "dist/nodes/ChatPlatform/ChatPlatform.node.js",
+  "scripts": {
+    "build": "tsc && npm run copy-icons",
+    "copy-icons": "node -e \"require('fs').cpSync('nodes/ChatPlatform/icon.svg', 'dist/nodes/ChatPlatform/icon.svg')\"",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials config --write",
+    "lint": "eslint nodes credentials config package.json",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/ChatPlatformApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/ChatPlatform/ChatPlatform.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^7.0.0",
+    "copyfiles": "^2.4.1",
+    "eslint": "^8.0.0",
+    "n8n-workflow": "^1.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

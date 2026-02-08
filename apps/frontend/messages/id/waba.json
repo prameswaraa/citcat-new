@@ -1,0 +1,31 @@
+{
+  "title": "Akun WhatsApp Business",
+  "subtitle": "Kelola koneksi WABA, pengaturan, dan metrik kualitas Anda",
+  "connectTitle": "Hubungkan WhatsApp Business",
+  "connectDescription": "Siapkan Akun WhatsApp Business Anda untuk mulai mengirim pesan",
+  "connectIntro": "Hubungkan Akun WhatsApp Business Anda menggunakan alur Embedded Signup dari Meta. Ini akan memungkinkan Anda untuk:",
+  "features": {
+    "sendReceive": "Kirim dan terima pesan WhatsApp",
+    "templates": "Buat dan kelola template pesan",
+    "conversations": "Lacak percakapan pelanggan",
+    "quality": "Pantau rating kualitas"
+  },
+  "connectButton": "Hubungkan WhatsApp Business",
+  "note": "Anda dapat menghubungkan nomor WhatsApp Business yang sudah ada atau membuat yang baru. Mendukung WhatsApp Coexistence - gunakan nomor Anda di aplikasi WhatsApp dan Business API secara bersamaan.",
+  "connectedTitle": "WABA Terhubung",
+  "connectedDescription": "Akun WhatsApp Business Anda terhubung dan siap digunakan",
+  "connectedInfo": "Anda dapat mulai mengirim pesan ke pelanggan. Kelola template, pelanggan, dan lihat analitik dari dashboard.",
+  "officialApi": {
+    "badge": "API Resmi Meta",
+    "title": "Didukung oleh WhatsApp Cloud API Resmi",
+    "description": "KirimChat menggunakan WhatsApp Business Cloud API resmi dari Meta. Data Anda aman dan sesuai dengan kebijakan Meta.",
+    "benefits": {
+      "official": "Integrasi langsung dengan API resmi Meta",
+      "compliant": "Sepenuhnya sesuai ketentuan Meta"
+    }
+  },
+  "tabs": {
+    "overview": "Ringkasan",
+    "quality": "Kualitas"
+  }
+}

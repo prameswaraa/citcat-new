@@ -1,0 +1,81 @@
+{
+  "title": "WhatsApp Insights",
+  "subtitle": "Analytics from Meta Graph API",
+  "updated": "Updated: {time}",
+  "refresh": "Refresh",
+  "refreshing": "Refreshing...",
+  "timeRange": {
+    "label": "Select range",
+    "24h": "Last 24 hours",
+    "7d": "Last 7 days",
+    "30d": "Last 30 days",
+    "90d": "Last 90 days"
+  },
+  "overview": {
+    "messagesSent": "Messages Sent",
+    "deliveryRate": "Delivery Rate",
+    "totalConversations": "Total Conversations",
+    "estimatedCost": "Estimated Cost",
+    "delivered": "{count} delivered",
+    "messagesDelivered": "Messages successfully delivered",
+    "billableConversations": "Billable conversations",
+    "basedOnPricing": "Based on conversation pricing"
+  },
+  "messageAnalytics": {
+    "title": "Message Analytics",
+    "description": "Messages sent vs delivered over time",
+    "sent": "Sent",
+    "delivered": "Delivered",
+    "deliveryRate": "{rate}% delivery rate",
+    "noData": "No message data available for this period"
+  },
+  "conversationCategories": {
+    "title": "Conversation Categories",
+    "description": "Distribution by category",
+    "totalConversations": "{count} total conversations",
+    "conversations": "{count} conversations",
+    "marketing": "Marketing",
+    "utility": "Utility",
+    "authentication": "Authentication",
+    "service": "Service",
+    "noData": "No conversation data available"
+  },
+  "costBreakdown": {
+    "title": "Cost Breakdown",
+    "description": "Cost per conversation category",
+    "total": "Total: {amount}",
+    "totalCost": "Total Cost",
+    "noData": "No cost data available"
+  },
+  "templatePerformance": {
+    "title": "Template Performance",
+    "description": "Template delivery and read metrics",
+    "sortedBy": "{count} templates • Sorted by performance",
+    "template": "Template",
+    "sent": "Sent",
+    "delivered": "Delivered",
+    "read": "Read",
+    "deliveryPercent": "Delivery %",
+    "readPercent": "Read %",
+    "score": "Score",
+    "excellent": "Excellent",
+    "good": "Good",
+    "average": "Average",
+    "poor": "Poor",
+    "noData": "No template data available for this period",
+    "regionRestricted": "Template performance metrics are not available in your region (EU/Japan) due to privacy regulations."
+  },
+  "errors": {
+    "noWabaConnected": "No WhatsApp Business Account Connected",
+    "noWabaDescription": "Please connect your WhatsApp Business Account to view insights.",
+    "connectWaba": "Connect WABA",
+    "apiError": "Failed to Load Insights",
+    "apiErrorDescription": "An error occurred while fetching data from Meta API. Please try again.",
+    "retry": "Retry",
+    "rateLimited": "Rate Limit Reached",
+    "rateLimitedDescription": "Meta API rate limit reached. Showing cached data. Please wait {seconds} seconds before refreshing.",
+    "unauthorized": "Session Expired",
+    "unauthorizedDescription": "Your WhatsApp Business Account session has expired. Please reconnect.",
+    "reconnectWaba": "Reconnect WABA"
+  }
+}

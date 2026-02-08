@@ -1,0 +1,38 @@
+{
+  "name": "kirimchat-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KirimChat Monorepo",
+  "scripts": {
+    "dev": "concurrently --raw -n \"backend,frontend\" -c \"blue,magenta\" \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "dev:pnpm": "pnpm --stream --filter \"./apps/*\" dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter @kirimchat/backend dev",
+    "build": "pnpm --filter frontend --filter @kirimchat/backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "build:backend": "pnpm --filter @kirimchat/backend build",
+    "start": "concurrently -n \"backend,frontend\" -c \"blue,magenta\" \"pnpm start:backend\" \"pnpm start:frontend\"",
+    "start:frontend": "pnpm --filter frontend start",
+    "start:backend": "pnpm --filter @kirimchat/backend start",
+    "lint": "pnpm --filter \"./apps/*\" lint",
+    "lint:fix": "pnpm --filter \"./apps/*\" lint:fix",
+    "clean": "pnpm --filter \"./apps/*\" exec rm -rf node_modules dist .next",
+    "prisma:generate": "pnpm --filter @kirimchat/backend prisma:generate",
+    "prisma:db-push": "pnpm --filter @kirimchat/backend prisma:db-push",
+    "prisma:migrate": "pnpm --filter @kirimchat/backend prisma:migrate",
+    "prisma:seed": "pnpm --filter @kirimchat/backend prisma:seed"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@9.15.2",
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": ["zod"]
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

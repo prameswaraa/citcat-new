@@ -1,0 +1,79 @@
+{
+  "sent": "Sent",
+  "delivered": "Delivered",
+  "read": "Read",
+  "failed": "Failed",
+  "pending": "Pending",
+  "noMessages": "No messages",
+  "typeMessage": "Type a message...",
+  "send": "Send",
+  "attachment": "Attachment",
+  "emoji": "Emoji",
+  "template": "Template",
+  "assignment": {
+    "filter": {
+      "all": "All",
+      "mine": "Mine",
+      "unassigned": "Unassigned",
+      "others": "Others",
+      "allDescription": "All conversations",
+      "mineDescription": "Assigned to me",
+      "unassignedDescription": "No assignee",
+      "othersDescription": "Assigned to others"
+    },
+    "dropdown": {
+      "assignTo": "Assign to",
+      "unassign": "Unassign",
+      "me": "(me)",
+      "owner": "Owner",
+      "agent": "Agent",
+      "teamMembers": "Team Members",
+      "aiAgents": "AI Agents",
+      "aiAgent": "AI Agent"
+    },
+    "badge": {
+      "unassigned": "Unassigned",
+      "assignedToAI": "Assigned to AI: {name}"
+    },
+    "history": {
+      "title": "Assignment History",
+      "noHistory": "No assignment history",
+      "records": "{count} record",
+      "recordsPlural": "{count} records",
+      "current": "Current",
+      "assignedBy": "Assigned by {name}",
+      "unassignedTime": "Unassigned {time}",
+      "showMore": "Show {count} more record",
+      "showMorePlural": "Show {count} more records",
+      "showLess": "Show less"
+    },
+    "errors": {
+      "unauthorized": "You do not have permission to perform this action",
+      "assignFailed": "Failed to assign conversation",
+      "unassignFailed": "Failed to unassign conversation",
+      "loadFailed": "Failed to load assignment data",
+      "aiDisabled": "AI Chatbot is not enabled. Enable AI first to assign to AI Agent.",
+      "aiAgentNotFound": "AI Agent not found or does not belong to this account.",
+      "aiAgentRequired": "AI Agent ID is required for AI assignment.",
+      "invalidAssigneeType": "Invalid assignee type. Must be human or AI Agent."
+    },
+    "toast": {
+      "assigned": "Conversation assigned to {name}",
+      "unassigned": "Conversation unassigned",
+      "selfAssigned": "Conversation assigned to you"
+    },
+    "aiStatus": {
+      "active": "AI Active",
+      "inactive": "AI Inactive",
+      "activeWithAgent": "AI Active: {name}",
+      "activeDefault": "AI is responding to this conversation",
+      "inactiveHuman": "AI disabled - assigned to human",
+      "inactiveDisabled": "AI is not enabled",
+      "tooltip": {
+        "aiResponding": "AI Agent is handling this conversation",
+        "humanHandling": "Human agent is handling this conversation",
+        "defaultAgent": "Using default AI Agent"
+      }
+    }
+  }
+}

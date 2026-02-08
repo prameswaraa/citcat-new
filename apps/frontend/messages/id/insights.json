@@ -1,0 +1,81 @@
+{
+  "title": "WhatsApp Insights",
+  "subtitle": "Analitik dari Meta Graph API",
+  "updated": "Diperbarui: {time}",
+  "refresh": "Segarkan",
+  "refreshing": "Menyegarkan...",
+  "timeRange": {
+    "label": "Pilih rentang",
+    "24h": "24 jam terakhir",
+    "7d": "7 hari terakhir",
+    "30d": "30 hari terakhir",
+    "90d": "90 hari terakhir"
+  },
+  "overview": {
+    "messagesSent": "Pesan Terkirim",
+    "deliveryRate": "Tingkat Pengiriman",
+    "totalConversations": "Total Percakapan",
+    "estimatedCost": "Estimasi Biaya",
+    "delivered": "{count} terkirim",
+    "messagesDelivered": "Pesan berhasil terkirim",
+    "billableConversations": "Percakapan berbayar",
+    "basedOnPricing": "Berdasarkan harga percakapan"
+  },
+  "messageAnalytics": {
+    "title": "Analitik Pesan",
+    "description": "Pesan terkirim vs diterima dari waktu ke waktu",
+    "sent": "Terkirim",
+    "delivered": "Diterima",
+    "deliveryRate": "{rate}% tingkat pengiriman",
+    "noData": "Tidak ada data pesan untuk periode ini"
+  },
+  "conversationCategories": {
+    "title": "Kategori Percakapan",
+    "description": "Distribusi berdasarkan kategori",
+    "totalConversations": "{count} total percakapan",
+    "conversations": "{count} percakapan",
+    "marketing": "Marketing",
+    "utility": "Utilitas",
+    "authentication": "Autentikasi",
+    "service": "Layanan",
+    "noData": "Tidak ada data percakapan tersedia"
+  },
+  "costBreakdown": {
+    "title": "Rincian Biaya",
+    "description": "Biaya per kategori percakapan",
+    "total": "Total: {amount}",
+    "totalCost": "Total Biaya",
+    "noData": "Tidak ada data biaya tersedia"
+  },
+  "templatePerformance": {
+    "title": "Performa Template",
+    "description": "Metrik pengiriman dan pembacaan template",
+    "sortedBy": "{count} template • Diurutkan berdasarkan performa",
+    "template": "Template",
+    "sent": "Terkirim",
+    "delivered": "Diterima",
+    "read": "Dibaca",
+    "deliveryPercent": "Pengiriman %",
+    "readPercent": "Dibaca %",
+    "score": "Skor",
+    "excellent": "Sangat Baik",
+    "good": "Baik",
+    "average": "Rata-rata",
+    "poor": "Buruk",
+    "noData": "Tidak ada data template untuk periode ini",
+    "regionRestricted": "Metrik performa template tidak tersedia di wilayah Anda (EU/Jepang) karena regulasi privasi."
+  },
+  "errors": {
+    "noWabaConnected": "Tidak Ada WhatsApp Business Account Terhubung",
+    "noWabaDescription": "Silakan hubungkan WhatsApp Business Account Anda untuk melihat insights.",
+    "connectWaba": "Hubungkan WABA",
+    "apiError": "Gagal Memuat Insights",
+    "apiErrorDescription": "Terjadi kesalahan saat mengambil data dari Meta API. Silakan coba lagi.",
+    "retry": "Coba Lagi",
+    "rateLimited": "Batas Rate Tercapai",
+    "rateLimitedDescription": "Batas rate Meta API tercapai. Menampilkan data cache. Silakan tunggu {seconds} detik sebelum menyegarkan.",
+    "unauthorized": "Sesi Berakhir",
+    "unauthorizedDescription": "Sesi WhatsApp Business Account Anda telah berakhir. Silakan hubungkan kembali.",
+    "reconnectWaba": "Hubungkan Ulang WABA"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "Dasbor",
+  "overview": "Ringkasan",
+  "messagesToday": "Pesan Hari Ini",
+  "totalCustomers": "Total Pelanggan",
+  "activeWindows": "Jendela Aktif",
+  "qualityRating": "Rating Kualitas",
+  "deliveryRate": "{rate}% terkirim",
+  "newThisWeek": "+{count} baru minggu ini",
+  "sinceLastWeek": "Sejak minggu lalu",
+  "tier": "Tier: {tier}",
+  "trend": "Tren",
+  "messageMetrics": "Metrik Pesan",
+  "channelDistribution": "Distribusi Kanal",
+  "pipelineFunnel": "Funnel Pipeline",
+  "topLeads": "Lead Teratas",
+  "templateStats": "Statistik Template",
+  "qualityMetrics": "Metrik Kualitas"
+}
