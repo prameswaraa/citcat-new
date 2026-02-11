@@ -1,6 +1,6 @@
 "use client"
 
-import { Dispatch, SetStateAction, useState } from "react"
+import { Dispatch, SetStateAction, useEffect, useState } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -79,20 +79,34 @@ export function MutateWebhook({ open, setOpen, currentWebhook, onSuccess }: Prop
 
   const form = useForm<MutateWebhookForm>({
     resolver: zodResolver(formSchema),
-    defaultValues: currentWebhook
-      ? {
-          name: currentWebhook.name,
-          url: currentWebhook.url,
-          events: currentWebhook.events,
-          channels: currentWebhook.channels,
-        }
-      : {
-          name: "",
-          url: "",
-          events: [],
-          channels: [],
-        },
+    defaultValues: {
+      name: "",
+      url: "",
+      events: [],
+      channels: [],
+    },
   })
+
+  // Reset form when dialog opens with new webhook data
+  useEffect(() => {
+    if (open && currentWebhook) {
+      // Edit mode: populate with current webhook data
+      form.reset({
+        name: currentWebhook.name,
+        url: currentWebhook.url,
+        events: currentWebhook.events,
+        channels: currentWebhook.channels,
+      })
+    } else if (open && !currentWebhook) {
+      // Create mode: reset to empty
+      form.reset({
+        name: "",
+        url: "",
+        events: [],
+        channels: [],
+      })
+    }
+  }, [open, currentWebhook, form])
 
   const onSubmit = async (data: MutateWebhookForm) => {
     try {
