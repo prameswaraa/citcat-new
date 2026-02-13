@@ -87,6 +87,13 @@ export const queryKeys = {
       [...queryKeys.notifications.lists(), filters] as const,
     unreadCount: () => [...queryKeys.notifications.all, 'unreadCount'] as const,
   },
+
+  // Auto Tagging
+  autoTagging: {
+    all: ['autoTagging'] as const,
+    rules: () => [...queryKeys.autoTagging.all, 'rules'] as const,
+    rule: (id: string) => [...queryKeys.autoTagging.all, 'rule', id] as const,
+  },
 } as const
 
 // Type exports for type-safe query key usage
@@ -99,3 +106,4 @@ export type InsightsKeys = typeof queryKeys.insights
 export type TeamKeys = typeof queryKeys.team
 export type MessagesKeys = typeof queryKeys.messages
 export type NotificationsKeys = typeof queryKeys.notifications
+export type AutoTaggingKeys = typeof queryKeys.autoTagging

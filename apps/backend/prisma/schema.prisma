@@ -553,6 +553,9 @@ model User {
   affiliate  Affiliate? // User's affiliate profile
   referredBy Referral?  @relation("ReferredByAffiliate") // Who referred this user
 
+  // Auto Tagging Relations
+  autoTagRules AutoTagRule[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1094,9 +1097,10 @@ model PipelineStage {
   order Int    @default(0)
 
   // Relationships
-  pipelineId String
-  pipeline   Pipeline   @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
-  customers  Customer[]
+  pipelineId   String
+  pipeline     Pipeline      @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  customers    Customer[]
+  autoTagRules AutoTagRule[] // Rules that move customers to this stage
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1946,6 +1950,38 @@ model PromoCode {
   @@index([code])
   @@index([isActive])
   @@index([startsAt, expiresAt])
+}
+
+// =============================================================================
+// Auto Tagging System Models
+// =============================================================================
+
+model AutoTagRule {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Rule Configuration
+  name     String   // e.g., "Interested Buyer", "Support Request"
+  keywords String[] // ["harga", "price", "biaya"] - case-insensitive matching
+  priority Int      @default(10) // 1-100, higher = executed first
+  isActive Boolean  @default(true)
+
+  // Actions
+  addTags               String[] // Tags to add when rule matches
+  moveToPipelineStageId String? // Optional: move customer to this stage
+  moveToPipelineStage   PipelineStage? @relation(fields: [moveToPipelineStageId], references: [id], onDelete: SetNull)
+
+  // Statistics
+  matchCount  Int       @default(0) // Number of times this rule matched
+  lastMatchAt DateTime? // Last time this rule matched
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+  @@index([priority])
 }
 
 // =============================================================================

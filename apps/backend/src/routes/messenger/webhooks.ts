@@ -10,6 +10,7 @@ import * as messengerService from '../../services/messenger/index.js'
 import { webhookService } from '../../services/webhook-service.js'
 import { eventEmitter } from '../../websocket/index.js'
 import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js'
+import { AutoTaggingService } from '../../services/auto-tagging-service.js'
 import type {
   MessengerWebhookEvent,
   MessengerMessagingEvent,
@@ -452,6 +453,27 @@ async function handleMessageEvent(
       }
     } catch (err) {
       console.error('[Messenger Webhook] Failed to emit to assigned agent:', err)
+    }
+
+    // Process auto-tagging rules for inbound messages
+    if (text && conversation.customerId) {
+      AutoTaggingService.processInboundMessage(
+        userId,
+        conversation.customerId,
+        text
+      )
+        .then(result => {
+          if (result.matched) {
+            console.log(`[Messenger Webhook] 🏷️ Auto-tagging applied: ${result.rulesMatched.join(', ')}`)
+            if (result.tagsAdded.length > 0) {
+              console.log(`[Messenger Webhook]    Tags added: ${result.tagsAdded.join(', ')}`)
+            }
+            if (result.stageChanged) {
+              console.log(`[Messenger Webhook]    Stage changed to: ${result.newStageName}`)
+            }
+          }
+        })
+        .catch(err => console.error(`[Messenger Webhook] Failed to process auto-tagging:`, err))
     }
 
     // --- AI Auto-Reply Logic with Assignment Check ---

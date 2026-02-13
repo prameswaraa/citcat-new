@@ -22,6 +22,7 @@ import {
 import { webhookService } from '../../services/webhook-service.js'
 import { eventEmitter } from '../../websocket/index.js'
 import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js'
+import { AutoTaggingService } from '../../services/auto-tagging-service.js'
 
 // AI Orchestrator instance for Instagram auto-reply
 const aiOrchestrator = new AIOrchestrator()
@@ -500,6 +501,27 @@ async function handleMessageEvent(
       }
     } catch (err) {
       console.error('[IG Webhook] Failed to emit to assigned agent:', err)
+    }
+
+    // Process auto-tagging rules for inbound messages
+    if (text && conversation.customerId) {
+      AutoTaggingService.processInboundMessage(
+        conversation.instagramAccount.userId,
+        conversation.customerId,
+        text
+      )
+        .then(result => {
+          if (result.matched) {
+            console.log(`[IG Webhook] 🏷️ Auto-tagging applied: ${result.rulesMatched.join(', ')}`)
+            if (result.tagsAdded.length > 0) {
+              console.log(`[IG Webhook]    Tags added: ${result.tagsAdded.join(', ')}`)
+            }
+            if (result.stageChanged) {
+              console.log(`[IG Webhook]    Stage changed to: ${result.newStageName}`)
+            }
+          }
+        })
+        .catch(err => console.error(`[IG Webhook] Failed to process auto-tagging:`, err))
     }
 
     // --- AI Auto-Reply Logic with Assignment Check ---

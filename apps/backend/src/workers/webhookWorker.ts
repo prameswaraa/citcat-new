@@ -14,6 +14,7 @@ import { webhookService } from '../services/webhook-service.js'
 import { eventEmitter } from '../websocket/index.js'
 import { mediaDownloadService } from '../services/media-download-service.js'
 import { AuditLogService } from '../services/audit-log-service.js'
+import { AutoTaggingService } from '../services/auto-tagging-service.js'
 
 console.log('📦 webhookWorker imports loaded')
 
@@ -503,6 +504,23 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
         LeadScoringService.updateCustomerScore(customer.id).catch(err =>
             console.error(`Failed to update lead score for customer ${customer.id}:`, err)
         )
+
+        // Process auto-tagging rules for inbound messages
+        if (content) {
+            AutoTaggingService.processInboundMessage(user.id, customer.id, content)
+                .then(result => {
+                    if (result.matched) {
+                        console.log(`🏷️ Auto-tagging applied: ${result.rulesMatched.join(', ')}`)
+                        if (result.tagsAdded.length > 0) {
+                            console.log(`   Tags added: ${result.tagsAdded.join(', ')}`)
+                        }
+                        if (result.stageChanged) {
+                            console.log(`   Stage changed to: ${result.newStageName}`)
+                        }
+                    }
+                })
+                .catch(err => console.error(`Failed to process auto-tagging for customer ${customer.id}:`, err))
+        }
 
         // Log incoming message activity
         ActivityService.logMessageActivity(

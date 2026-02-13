@@ -7,7 +7,7 @@ import {
   IconMessage,
   IconUsers,
   IconChartBar,
-IconBrandInstagram,
+  IconBrandInstagram,
   IconBrandWhatsapp,
   IconBrandFacebook,
   IconInbox,
@@ -18,6 +18,7 @@ IconBrandInstagram,
   IconShieldCog,
   IconBroadcast,
   IconChartLine,
+  IconTags,
 } from "@tabler/icons-react"
 import { BrainCircuit, HelpCircle } from "lucide-react"
 import { type SidebarData, type NavItem } from "../types"
@@ -97,6 +98,12 @@ export function useSidebarData(): SidebarData {
           title: t("pipeline"),
           url: "/crm/pipeline",
           icon: IconChartBar,
+          roles: ["BUSINESS_OWNER", "ADMIN"],
+        },
+        {
+          title: t("autoTagging"),
+          url: "/crm/auto-tagging",
+          icon: IconTags,
           roles: ["BUSINESS_OWNER", "ADMIN"],
         },
       ]),
