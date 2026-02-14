@@ -105,14 +105,24 @@ export async function getWhatsAppAccountById(
 
 /**
  * Decrypt the access token for a WhatsApp account.
+ * Throws error if token is invalid placeholder.
  */
 export function decryptAccountToken(account: WhatsAppAccount): string {
-  return tokenEncryption.decrypt({
+  const token = tokenEncryption.decrypt({
     ciphertext: account.accessToken,
     iv: account.accessTokenIV,
     authTag: account.accessTokenTag,
     algorithm: 'aes-256-gcm',
   })
+  
+  // Validate token is not a placeholder
+  if (!token || token === 'your-meta-access-token' || token.includes('your-') || token.length < 50) {
+    throw new Error(
+      'Invalid WABA token detected. Please reconnect your WhatsApp Business Account via OAuth to get a valid token.'
+    )
+  }
+  
+  return token
 }
 
 /**
