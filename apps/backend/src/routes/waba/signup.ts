@@ -280,12 +280,14 @@ app.get('/callback', async (c: Context) => {
         accessTokenTag: encryptedToken.authTag,
         tokenExpiresAt: expiresAt,
         tokenLastRefresh: new Date(),
+        connectedAt: new Date(),
         lastSyncAt: new Date(),
         connectionStatus: 'connected',
         timezoneId: wabaResources.timezone,
         currency: wabaResources.currency,
         messageTemplateNamespace: wabaResources.messageTemplateNamespace,
         metaAppId: metaApp.id,
+        userId: userId,
       }
     })
 
