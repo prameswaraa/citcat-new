@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { prisma } from '../../../../utils/database.js';
-import { getWhatsAppClientAsync } from '../../../../utils/whatsapp.js';
+import { WhatsAppAPI } from '../../../../utils/whatsapp.js';
 import { getApiKeyUserId } from '../../../../middleware/apiKeyAuth.js';
 import { cacheRedis } from '../../../../utils/cache.js';
 import { logger } from '../../../../utils/logger.js';
@@ -265,7 +265,7 @@ async function sendWhatsAppTyping(c: Context, userId: string, customer: any, wha
   
   // Send typing indicator via WhatsApp API
   // WhatsApp typing indicator is sent via markAsRead with showTyping=true
-  const whatsapp = await getWhatsAppClientAsync();
+  const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
   await whatsapp.markAsRead(credentials.phoneNumberId, lastMessage.wamId, true);
   
   return c.json({

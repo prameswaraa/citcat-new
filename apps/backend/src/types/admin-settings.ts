@@ -18,11 +18,13 @@ export type SettingCategory = 'whatsapp' | 'instagram' | 'messenger' | 'smtp' | 
 /**
  * WhatsApp/Meta API Settings
  * Requirements: 1.1
+ * 
+ * NOTE: accessToken is NOT stored here - each WABA uses its own OAuth token
+ * stored encrypted in WhatsAppAccount table (per Meta policy).
  */
 export interface WhatsAppSettings {
   appId: string;
   appSecret: string;      // sensitive
-  accessToken: string;    // sensitive
   verifyToken: string;    // sensitive
   configId: string;
   webhookBaseUrl: string;
@@ -143,7 +145,7 @@ export interface SettingKeyConfig {
 export const WHATSAPP_SETTINGS_KEYS: SettingKeyConfig[] = [
   { key: 'app_id', envKey: 'META_APP_ID', sensitive: false },
   { key: 'app_secret', envKey: 'META_APP_SECRET', sensitive: true },
-  { key: 'access_token', envKey: 'META_ACCESS_TOKEN', sensitive: true },
+  // NOTE: access_token REMOVED - each WABA uses its own OAuth token stored in WhatsAppAccount (per Meta policy)
   { key: 'verify_token', envKey: 'META_VERIFY_TOKEN', sensitive: true },
   { key: 'config_id', envKey: 'META_CONFIG_ID', sensitive: false },
   { key: 'webhook_base_url', envKey: 'WEBHOOK_BASE_URL', sensitive: false },

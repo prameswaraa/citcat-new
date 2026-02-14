@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { requireRole } from '../middleware/auth.js'
 import { prisma } from '../utils/database.js'
-import { getWhatsAppClientAsync } from '../utils/whatsapp.js'
+import { WhatsAppAPI } from '../utils/whatsapp.js'
 import { resolveCredentialsForSending } from '../utils/whatsapp-account-helper.js'
 
 const app = new Hono()
@@ -87,8 +87,8 @@ app.post('/sync', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) =
       return c.json({ error: { code: 'BadRequest', message: 'No WhatsApp Business Account connected or no phone number configured' } }, 400)
     }
 
-    // Fetch quality rating from Meta
-    const whatsapp = await getWhatsAppClientAsync()
+    // Fetch quality rating from Meta with per-account token
+    const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken })
     let qualityData
     try {
       qualityData = await whatsapp.getQualityRating(credentials.phoneNumberId)

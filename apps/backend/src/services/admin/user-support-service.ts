@@ -462,11 +462,14 @@ export class AdminUserSupportService {
     }
 
     try {
-      // Import WhatsApp client dynamically
-      const { getWhatsAppClientAsync } = await import("../../utils/whatsapp.js")
+      // Import WhatsApp client and helper dynamically
+      const { WhatsAppAPI } = await import("../../utils/whatsapp.js")
       const { templateCacheService } = await import("../template-cache-service.js")
+      const { decryptAccountToken } = await import("../../utils/whatsapp-account-helper.js")
 
-      const whatsapp = await getWhatsAppClientAsync()
+      // Use per-account token (per Meta policy)
+      const accessToken = decryptAccountToken(whatsappAccount)
+      const whatsapp = new WhatsAppAPI({ accessToken })
       const wabaId = whatsappAccount.wabaId
 
       console.log(`[Admin] Force syncing templates from Meta for WABA ${wabaId}, userId: ${userId}`)

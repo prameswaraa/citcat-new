@@ -15,7 +15,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../../utils/database.js'
-import { getWhatsAppClientAsync } from '../../utils/whatsapp.js'
+import { WhatsAppAPI } from '../../utils/whatsapp.js'
 import { auditLog } from '../../utils/auditLog.js'
 import { templateRendererService, isIndexBasedVariableValues, type WhatsAppTemplate, type WhatsAppTemplateComponent } from '../../services/template-renderer-service.js'
 import { templateValidatorService } from '../../services/template-validator-service.js'
@@ -378,8 +378,8 @@ app.post('/send', async (c: Context) => {
       mappings
     )
 
-    // Send via WhatsApp API
-    const whatsapp = await getWhatsAppClientAsync()
+    // Send via WhatsApp API with per-account token
+    const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken })
     const result = await whatsapp.sendMessage({
       phoneNumberId: credentials.phoneNumberId,
       to: customer.phoneNumber,

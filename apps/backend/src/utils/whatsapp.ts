@@ -1,8 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
 import https from 'https'
-import { settingsCache, CACHE_KEYS, CACHE_TTL } from '../services/settings-cache.js'
 import { logger } from './logger.js'
-import type { WhatsAppSettings } from '../types/admin-settings.js'
 import type {
   Granularity,
   ConversationCategory,
@@ -133,64 +131,29 @@ export class WhatsAppAPI {
     })
   }
 
-  // Get fresh access token from cache or environment
+  // Get access token - must be provided in constructor (per-account token)
   private getAccessToken(): string {
-    // Check cache first for database settings
-    const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
-    if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
-      return cachedSettings.accessToken
-    }
-    // Fallback to process.env
-    return process.env.META_ACCESS_TOKEN || this.accessToken
+    return this.accessToken
   }
 
   /**
-   * Refresh settings from database with caching
-   * Requirements: 6.3, 6.4
+   * @deprecated No longer needed - each WhatsAppAPI instance uses per-account token
    */
   async refreshSettingsFromDb(): Promise<void> {
-    try {
-      // Check cache first
-      const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
-      if (cachedSettings) {
-        if (cachedSettings.accessToken && !cachedSettings.accessToken.includes('****')) {
-          this.accessToken = cachedSettings.accessToken
-        }
-        return
-      }
-
-      // Fetch from database using dynamic import to avoid circular dependency
-      const { adminSettingsService } = await import('../services/admin/settings-service.js')
-      const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
-      
-      // Cache the settings
-      settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
-      
-      // Update access token if available
-      if (response.data.accessToken && !response.data.accessToken.includes('****')) {
-        this.accessToken = response.data.accessToken
-      }
-      
-      logger.debug('WhatsApp API settings refreshed from database', { source: response.source })
-    } catch (error) {
-      logger.warn('Failed to refresh WhatsApp API settings from database', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      })
-      // Continue with existing config (env fallback)
-    }
+    // No-op: per-account tokens are provided in constructor
+    logger.debug('refreshSettingsFromDb is deprecated - using per-account token')
   }
 
   /**
-   * Invalidate settings cache
+   * @deprecated No longer needed - each WhatsAppAPI instance uses per-account token
    */
   invalidateCache(): void {
-    settingsCache.invalidate(CACHE_KEYS.whatsapp())
-    logger.info('WhatsApp API settings cache invalidated')
+    // No-op: per-account tokens don't use global cache
+    logger.debug('invalidateCache is deprecated - using per-account token')
   }
 
-  // Refresh client with new token
+  // Refresh client (no longer refreshes token, just recreates axios instance)
   private refreshClient() {
-    this.accessToken = this.getAccessToken()
     this.client = this.createClient()
   }
 
@@ -609,117 +572,46 @@ export class WhatsAppAPI {
   }
 }
 
-// Singleton instance
-let whatsappClient: WhatsAppAPI | null = null
-
 /**
- * Get WhatsApp client (sync version, uses cached/env settings)
- * Checks cache first (populated by async version), then falls back to env
+ * @deprecated Use createWhatsAppApiForAccount() from whatsapp-account-helper.ts instead
+ * This function is removed to enforce per-account token usage per Meta policy.
+ * 
+ * Migration: 
+ * 1. Get credentials via resolveCredentialsForSending() or resolveCredentialsByPhoneNumber()
+ * 2. Create client: new WhatsAppAPI({ accessToken: credentials.accessToken })
  */
-export function getWhatsAppClient(): WhatsAppAPI {
-  if (!whatsappClient) {
-    // Try to get access token from cache first (populated by async version)
-    let accessToken: string | undefined
-    
-    const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
-    if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
-      accessToken = cachedSettings.accessToken
-    }
-    
-    // Fallback to env
-    if (!accessToken) {
-      accessToken = process.env.META_ACCESS_TOKEN
-    }
-    
-    if (!accessToken) {
-      throw new Error('META_ACCESS_TOKEN is not configured. Please configure it in Admin Dashboard or .env')
-    }
-    whatsappClient = new WhatsAppAPI({ accessToken })
-  }
-  return whatsappClient
+export function getWhatsAppClient(): never {
+  throw new Error(
+    'getWhatsAppClient() is deprecated. Use new WhatsAppAPI({ accessToken }) with per-account credentials from resolveCredentialsForSending().'
+  )
 }
 
 /**
- * Get WhatsApp client with database settings (async version)
- * Fetches settings from database with caching, falls back to .env
- * Requirements: 6.3, 6.4
+ * @deprecated Use createWhatsAppApiForAccount() from whatsapp-account-helper.ts instead
+ * This function is removed to enforce per-account token usage per Meta policy.
+ * 
+ * Migration:
+ * 1. Get credentials via resolveCredentialsForSending() or resolveCredentialsByPhoneNumber()
+ * 2. Create client: new WhatsAppAPI({ accessToken: credentials.accessToken })
  */
-export async function getWhatsAppClientAsync(): Promise<WhatsAppAPI> {
-  if (!whatsappClient) {
-    // Try to get access token from database first
-    let accessToken: string | undefined
-
-    try {
-      const cachedSettings = settingsCache.get<WhatsAppSettings>(CACHE_KEYS.whatsapp())
-      
-      if (cachedSettings?.accessToken && !cachedSettings.accessToken.includes('****')) {
-        accessToken = cachedSettings.accessToken
-      } else {
-        // Fetch from database
-        const { adminSettingsService } = await import('../services/admin/settings-service.js')
-        const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
-        
-        // Cache the settings
-        settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
-        
-        if (response.data.accessToken && !response.data.accessToken.includes('****')) {
-          accessToken = response.data.accessToken
-        }
-      }
-    } catch (error) {
-      logger.warn('Failed to get WhatsApp settings from database, using env', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      })
-    }
-
-    // Fallback to env
-    if (!accessToken) {
-      accessToken = process.env.META_ACCESS_TOKEN
-    }
-
-    if (!accessToken) {
-      throw new Error('META_ACCESS_TOKEN is not configured')
-    }
-
-    whatsappClient = new WhatsAppAPI({ accessToken })
-  } else {
-    // Refresh settings from database
-    await whatsappClient.refreshSettingsFromDb()
-  }
-
-  return whatsappClient
+export async function getWhatsAppClientAsync(): Promise<never> {
+  throw new Error(
+    'getWhatsAppClientAsync() is deprecated. Use new WhatsAppAPI({ accessToken }) with per-account credentials from resolveCredentialsForSending().'
+  )
 }
 
 /**
- * Invalidate WhatsApp client cache (call when settings are updated)
+ * @deprecated No longer needed - singleton pattern removed for per-account tokens
  */
 export function invalidateWhatsAppClientCache(): void {
-  if (whatsappClient) {
-    whatsappClient.invalidateCache()
-  }
-  // Reset singleton so next call will fetch fresh settings
-  whatsappClient = null
-  settingsCache.invalidate(CACHE_KEYS.whatsapp())
+  logger.debug('invalidateWhatsAppClientCache is deprecated - using per-account tokens')
 }
 
 /**
- * Initialize WhatsApp client with database settings
- * Call this at application startup to pre-populate cache
+ * @deprecated No longer needed - singleton pattern removed for per-account tokens
  */
 export async function initWhatsAppClient(): Promise<void> {
-  try {
-    const { adminSettingsService } = await import('../services/admin/settings-service.js')
-    const response = await adminSettingsService.getSettings<WhatsAppSettings>('whatsapp', false)
-
-    // Cache the settings
-    settingsCache.set(CACHE_KEYS.whatsapp(), response.data, CACHE_TTL.settings)
-
-    logger.info('WhatsApp client initialized with database settings', { source: response.source })
-  } catch (error) {
-    logger.warn('Failed to initialize WhatsApp client from database, will use env fallback', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-    })
-  }
+  logger.debug('initWhatsAppClient is deprecated - using per-account tokens')
 }
 
 /**

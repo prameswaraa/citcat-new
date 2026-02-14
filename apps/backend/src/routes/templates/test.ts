@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { prisma } from '../../utils/database.js'
-import { getWhatsAppClientAsync } from '../../utils/whatsapp.js'
+import { WhatsAppAPI } from '../../utils/whatsapp.js'
 import { resolveCredentialsForSending } from '../../utils/whatsapp-account-helper.js'
 
 const app = new Hono()
@@ -68,9 +68,9 @@ app.post('/:id/send-test', async (c: Context) => {
       }, 400)
     }
 
-    // Get WhatsApp client and send test message
+    // Get WhatsApp client and send test message with per-account token
     try {
-      const whatsapp = await getWhatsAppClientAsync()
+      const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken })
 
       const testPhoneNumberId = credentials.phoneNumberId
       const wabaId = credentials.wabaId

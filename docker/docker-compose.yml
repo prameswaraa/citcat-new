@@ -73,7 +73,7 @@ services:
       # Meta/WhatsApp Configuration
       META_APP_ID: ${META_APP_ID:-}
       META_APP_SECRET: ${META_APP_SECRET:-}
-      META_ACCESS_TOKEN: ${META_ACCESS_TOKEN:-}
+      # META_ACCESS_TOKEN removed - Each WABA uses per-account token (per Meta policy)
       META_CONFIG_ID: ${META_CONFIG_ID:-}
       # Google OAuth
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

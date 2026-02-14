@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { prisma } from '../../utils/database.js'
 import { auditLog } from '../../utils/auditLog.js'
-import { getWhatsAppClientAsync } from '../../utils/whatsapp.js'
+import { WhatsAppAPI } from '../../utils/whatsapp.js'
 import { templateCacheService } from '../../services/template-cache-service.js'
 import { resolveCredentialsForSending } from '../../utils/whatsapp-account-helper.js'
 
@@ -41,7 +41,7 @@ app.delete('/:id', async (c: Context) => {
       try {
         const credentials = await resolveCredentialsForSending(template.userId)
         if (credentials) {
-          const whatsapp = await getWhatsAppClientAsync()
+          const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken })
           await whatsapp.deleteTemplate(credentials.wabaId, template.templateName)
         }
       } catch (metaError) {

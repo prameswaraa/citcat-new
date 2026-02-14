@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { z } from 'zod';
 import { prisma } from '../../../../utils/database.js';
-import { getWhatsAppClientAsync } from '../../../../utils/whatsapp.js';
+import { WhatsAppAPI } from '../../../../utils/whatsapp.js';
 import { canSendFreeMessage } from '../../../../utils/messageWindow.js';
 import { instagramService } from '../../../../services/InstagramService.js';
 import * as messengerService from '../../../../services/messenger/index.js';
@@ -458,8 +458,8 @@ async function sendWhatsAppMessage(
     }
   }
   
-  // Build WhatsApp message payload
-  const whatsapp = await getWhatsAppClientAsync();
+  // Build WhatsApp message payload with per-account token
+  const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
   let messagePayload: any = {
     phoneNumberId: credentials.phoneNumberId,
     to: customer.phoneNumber,
@@ -1108,8 +1108,8 @@ app.post('/:messageId/read', async (c: Context) => {
         }, 400);
       }
 
-      // Send read receipt via WhatsApp API
-      const whatsapp = await getWhatsAppClientAsync();
+      // Send read receipt via WhatsApp API with per-account token
+      const whatsapp = new WhatsAppAPI({ accessToken: readCredentials.accessToken });
       await whatsapp.markAsRead(readCredentials.phoneNumberId, message.wamId);
       
       // Update message status

@@ -8,7 +8,7 @@
  */
 
 import { prisma } from '../utils/database.js';
-import { getWhatsAppClientAsync } from '../utils/whatsapp.js';
+import { WhatsAppAPI } from '../utils/whatsapp.js';
 import { logger } from '../utils/logger.js';
 import { resolveCredentialsForSending } from '../utils/whatsapp-account-helper.js';
 
@@ -198,8 +198,8 @@ export class TemplateMediaService {
     }
 
     try {
-      // Upload to WhatsApp Media API
-      const whatsapp = await getWhatsAppClientAsync();
+      // Upload to WhatsApp Media API with per-account token
+      const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
       const result = await whatsapp.uploadMedia(
         credentials.phoneNumberId,
         file,
@@ -257,8 +257,15 @@ export class TemplateMediaService {
    * @returns Media info including URL
    */
   async getMediaInfo(userId: string, mediaId: string): Promise<MediaInfo> {
+    // Resolve WhatsApp account credentials for this user
+    const credentials = await resolveCredentialsForSending(userId);
+
+    if (!credentials) {
+      throw new Error('WhatsApp Business Account not configured or disconnected. Please connect your WABA first.');
+    }
+
     try {
-      const whatsapp = await getWhatsAppClientAsync();
+      const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
       const result = await whatsapp.getMediaUrl(mediaId);
 
       return {

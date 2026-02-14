@@ -12,7 +12,7 @@
 import { writeFile, mkdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
-import WhatsAppAPI, { getWhatsAppClientAsync } from '../utils/whatsapp.js'
+import { WhatsAppAPI } from '../utils/whatsapp.js'
 import { logger } from '../utils/logger.js'
 
 // Types
@@ -97,15 +97,22 @@ export class MediaDownloadService {
    * Requirements: 6.1, 6.2, 6.3
    *
    * @param mediaId - WhatsApp media ID
-   * @param accessToken - Per-account access token (for multi-WABA support)
+   * @param accessToken - Per-account access token (REQUIRED - no global fallback per Meta policy)
    * @returns Download result with local URL or error
    */
-  async downloadAndStore(mediaId: string, accessToken?: string): Promise<MediaDownloadResult> {
+  async downloadAndStore(mediaId: string, accessToken: string): Promise<MediaDownloadResult> {
     try {
-      // 1. Get WhatsApp client - use per-account token if available, fallback to global
-      const whatsapp = accessToken
-        ? new WhatsAppAPI({ accessToken })
-        : await getWhatsAppClientAsync()
+      // Validate access token is provided (required per Meta policy)
+      if (!accessToken) {
+        return {
+          success: false,
+          error: 'Access token is required for media download (per-account token)',
+          mediaId
+        }
+      }
+      
+      // Create WhatsApp client with per-account token
+      const whatsapp = new WhatsAppAPI({ accessToken })
 
       // 2. Get media URL from WhatsApp (valid 5 minutes)
       const mediaInfo = await whatsapp.getMediaUrl(mediaId)
@@ -180,11 +187,15 @@ export class MediaDownloadService {
    * This is a fallback method for media that wasn't downloaded initially
    * 
    * @param mediaId - WhatsApp media ID
+   * @param accessToken - Per-account access token (REQUIRED - no global fallback per Meta policy)
    * @returns Public URL for the media
    */
-  async getMediaUrl(mediaId: string): Promise<string> {
+  async getMediaUrl(mediaId: string, accessToken: string): Promise<string> {
     try {
-      const whatsapp = await getWhatsAppClientAsync()
+      if (!accessToken) {
+        throw new Error('Access token is required for media URL retrieval (per-account token)')
+      }
+      const whatsapp = new WhatsAppAPI({ accessToken })
       const mediaInfo = await whatsapp.getMediaUrl(mediaId)
       return mediaInfo.url
     } catch (error) {

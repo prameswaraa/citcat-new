@@ -281,7 +281,7 @@ SMTP_FROM_NAME=xxx
 # Meta/WhatsApp (jika ada)
 META_APP_ID=xxx
 META_APP_SECRET=xxx
-META_ACCESS_TOKEN=xxx
+# META_ACCESS_TOKEN sudah DIHAPUS - setiap WABA menggunakan token OAuth sendiri (per kebijakan Meta)
 META_CONFIG_ID=xxx
 
 # Payment Gateway (jika ada)
