@@ -26,7 +26,7 @@ KirimChat Backend dapat di-deploy dengan mudah menggunakan Easypanel. Template y
 |---------|-------|------|-----------|
 | `kirimchat-db` | `pgvector/pgvector:pg16` | 5432 | PostgreSQL 16 dengan pgvector extension |
 | `kirimchat-redis` | Redis (managed) | 6379 | Redis untuk caching dan queue |
-| `kirimchat-api` | `ghcr.io/orif1n/kirimchat-backend:latest` | 3005 | KirimChat Backend API |
+| `kirimchat-api` | `ghcr.io/tech-provider/kirimchat-backend:latest` | 3005 | KirimChat Backend API |
 
 ---
 
@@ -43,7 +43,7 @@ Sebelum memulai, pastikan Anda memiliki:
    - DNS A record pointing ke IP server
 
 3. **Akses ke repository** (untuk generate template)
-   - Clone repo: `git clone https://github.com/orif1n/kichat-approved.git`
+   - Clone repo: `git clone https://github.com/tech-provider/kirimchat.git`
 
 4. **Node.js terinstall** (untuk generate template)
    - Version 18+ recommended
@@ -84,8 +84,8 @@ Sebelum memulai, pastikan Anda memiliki:
 ### Langkah 1: Clone Repository
 
 ```bash
-git clone https://github.com/orif1n/kichat-approved.git
-cd kichat-approved
+git clone https://github.com/tech-provider/kirimchat.git
+cd kirimchat
 ```
 
 ### Langkah 2: Generate Template
@@ -249,7 +249,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 1. Klik **"+ New"** → **"App"**
 2. Nama: `kirimchat-api`
 3. Source: **"Docker Image"**
-4. Image: `ghcr.io/orif1n/kirimchat-backend:latest`
+4. Image: `ghcr.io/tech-provider/kirimchat-backend:latest`
 5. Port: `3005`
 6. Klik **"Create"**
 

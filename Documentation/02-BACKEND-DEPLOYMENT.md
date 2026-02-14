@@ -219,7 +219,7 @@ docker compose exec postgres psql -U postgres -d kirimchat -c "SELECT * FROM pg_
 **Option A: Clone dari Git**
 ```bash
 cd ~
-git clone https://github.com/orif1n/kirimchat.git kirimchat
+git clone https://github.com/tech-provider/kirimchat.git kirimchat
 cd kirimchat
 ```
 
@@ -232,10 +232,10 @@ scp -r ./kirimchat user@your-server:~/kirimchat-source
 ### Step 9: Install Dependencies
 
 ```bash
-cd ~/kirimchat
+cd ~/kirimchat/backend
 
 # Install all dependencies (monorepo)
-pnpm install
+pnpm install --ignore-workspace
 ```
 
 ### Step 10: Configure Environment Variables
@@ -264,7 +264,7 @@ PORT=3005
 # CORS Configuration (comma-separated list of allowed origins)
 CORS_ALLOWED_ORIGINS="https://yourdomain.com,https://www.yourdomain.com,https://api.yourdomain.com"
 
-# Meta/WhatsApp Configuration
+# Meta/WhatsApp Configuration (Opsional bisa setting nanti)
 META_APP_ID="your-meta-app-id"
 META_APP_SECRET="your-meta-app-secret"
 META_ACCESS_TOKEN="your-meta-access-token"
@@ -280,7 +280,7 @@ WABA_TOKEN_ENCRYPTION_KEY="base64-encoded-32-byte-key"
 RATE_LIMIT_WINDOW=60
 RATE_LIMIT_MAX=100
 
-# Email Configuration (Provider-Agnostic SMTP)
+# Email Configuration (Provider-Agnostic SMTP) (Opsional bisa setting nanti)
 SMTP_HOST="smtp-relay.brevo.com"
 SMTP_PORT=587
 SMTP_USER="your-smtp-login"
@@ -318,7 +318,7 @@ TWO_FACTOR_ISSUER="YourAppName"
 BETTER_AUTH_SECRET="your-super-secret-better-auth-key-change-in-production"
 BETTER_AUTH_URL="https://yourdomain.com"
 
-# Google OAuth (optional)
+# Google OAuth (wajib)
 # GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
 # GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
@@ -361,7 +361,7 @@ cd ~/apps/backend
 pnpm prisma db push
 
 # Push schema ke database
-pnpm prisma db generate
+pnpm prisma dgenerate
 
 ```
 
@@ -762,4 +762,4 @@ sudo systemctl restart docker
 
 **Backend deployment complete!** 🎉
 
-Next: Deploy frontend → See [02-FRONTEND-DEPLOYMENT.md](02-FRONTEND-DEPLOYMENT.md)
+Next: Deploy frontend → See [03-FRONTEND-DEPLOYMENT.md](03-FRONTEND-DEPLOYMENT.md)

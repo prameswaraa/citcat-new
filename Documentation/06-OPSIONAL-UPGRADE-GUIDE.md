@@ -171,7 +171,7 @@ cat backup-YYYYMMDD-HHMMSS.sql | docker compose exec -T postgres psql -U postgre
 ### 3. Use Previous Image
 ```bash
 # Edit docker-compose.yml, specify previous version
-# image: ghcr.io/orif1n/kirimchat-backend:v1.0.0
+# image: ghcr.io/tech-provider/kirimchat-backend:v1.0.0
 
 # Start with old image
 docker compose up -d

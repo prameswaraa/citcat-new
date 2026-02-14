@@ -44,8 +44,8 @@ Panduan lengkap deployment frontend KirimChat ke Cloudflare Workers/Pages.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/kichat-approved.git
-cd kichat-approved
+git clone https://github.com/yourusername/kirimchat.git
+cd kirimchat
 
 # Install dependencies
 npm install -g pnpm
@@ -148,7 +148,7 @@ git push origin main
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
 2. Navigate to **Workers & Pages** → **Create application**
 3. Click **Connect to Git**
-4. Select your repository: `kichat-approved`
+4. Select your repository: `kirimchat`
 5. Configure build settings:
 
 **Build Configuration:**
@@ -367,4 +367,4 @@ npx wrangler --version
 2. Configure WhatsApp/Instagram webhooks
 3. Setup monitoring
 4. **[Config Embedded Facebook Login](https://www.notion.so/Setelah-Approve-2dd77d41bd658066a0d2d9e2e53c1367)** - Setting untuk embedded WhatsApp login setelah website online
-5. See [03-UPGRADE-GUIDE.md](03-UPGRADE-GUIDE.md) for updates
+5. See [06-OPSIONAL-UPGRADE-GUIDE.md](06-OPSIONAL-UPGRADE-GUIDE.md) for updates

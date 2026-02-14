@@ -139,16 +139,8 @@ export const auth = betterAuth({
         required: false,
         defaultValue: "FREE",
       },
-      whatsappAccountCount: {
-        type: "number",
-        required: false,
-        defaultValue: 0,
-      },
-      hasConnectedWhatsApp: {
-        type: "boolean",
-        required: false,
-        defaultValue: false,
-      },
+      // NOTE: whatsappAccountCount dan hasConnectedWhatsApp adalah computed fields
+      // yang dihitung dari relasi whatsappAccounts, bukan disimpan di database
     },
   },
   trustedOrigins: [
