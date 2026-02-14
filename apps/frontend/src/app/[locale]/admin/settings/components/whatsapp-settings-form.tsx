@@ -21,7 +21,7 @@ import {
 interface WhatsAppSettings {
   appId: string
   appSecret: string
-  accessToken: string
+  // accessToken removed - each WABA uses its own OAuth token (per Meta policy)
   verifyToken: string
   configId: string
   webhookBaseUrl: string
@@ -31,7 +31,6 @@ interface WhatsAppSettings {
 const defaultSettings: WhatsAppSettings = {
   appId: "",
   appSecret: "",
-  accessToken: "",
   verifyToken: "",
   configId: "",
   webhookBaseUrl: "",
@@ -184,16 +183,7 @@ export function WhatsAppSettingsForm() {
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="accessToken">Access Token</Label>
-            <SensitiveInput
-              id="accessToken"
-              value={formData.accessToken}
-              onChange={handleChange("accessToken")}
-              placeholder="Enter Meta Access Token"
-              isMasked={formData.accessToken?.includes("****")}
-            />
-          </div>
+          {/* Access Token field removed - each WABA uses its own OAuth token (per Meta policy) */}
 
           <div className="grid gap-2">
             <Label htmlFor="verifyToken">Verify Token</Label>
