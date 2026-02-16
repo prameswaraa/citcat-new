@@ -219,7 +219,7 @@ docker compose exec postgres psql -U postgres -d kirimchat -c "SELECT * FROM pg_
 **Option A: Clone dari Git**
 ```bash
 cd ~
-git clone https://github.com/tech-provider/kirimchat.git kirimchat
+git clone https://github.com/username/kirimchat-multi.git kirimchat
 cd kirimchat
 ```
 
@@ -235,7 +235,7 @@ scp -r ./kirimchat user@your-server:~/kirimchat-source
 cd ~/kirimchat/backend
 
 # Install all dependencies (monorepo)
-pnpm install --ignore-workspace
+pnpm install
 ```
 
 ### Step 10: Configure Environment Variables
@@ -361,7 +361,7 @@ cd ~/apps/backend
 pnpm prisma db push
 
 # Push schema ke database
-pnpm prisma dgenerate
+pnpm prisma generate
 
 ```
 
