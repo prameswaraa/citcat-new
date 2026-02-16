@@ -38,8 +38,8 @@ Panduan lengkap deployment frontend KirimChat ke Cloudflare Workers/Pages.
 
 ---
 
-## Local Setup
-
+## Local Setup (skip aja kalau mau langsung fork)
+Langsung ke  4. [Cloudflare Pages Deployment](#cloudflare-pages-deployment)
 ### Step 1: Prepare Local Environment
 
 ```bash
@@ -155,6 +155,8 @@ git push origin main
 ```
 Framework preset: None
 Build command: pnpm build:worker
+Deploy command : npx wrangler deploy
+
 Root directory: /apps/frontend
 ```
 
