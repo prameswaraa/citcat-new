@@ -2,9 +2,14 @@ import winston from 'winston'
 
 const { combine, timestamp, errors, printf, colorize } = winston.format
 
-// Custom format for console output
-const consoleFormat = printf(({ level, message, timestamp, stack }) => {
-  return `${timestamp} [${level}]: ${stack || message}`
+// Custom format for console output - include all metadata
+const consoleFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  // Remove service from meta as it's redundant
+  const { service, ...restMeta } = meta
+  const metaStr = Object.keys(restMeta).length > 0 
+    ? '\n' + JSON.stringify(restMeta, null, 2) 
+    : ''
+  return `${timestamp} [${level}]: ${stack || message}${metaStr}`
 })
 
 // Create logger instance

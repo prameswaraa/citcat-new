@@ -280,13 +280,12 @@ export function CustomerProfilePanel({
                     onUnassign={handleUnassign}
                     loading={assignmentLoading}
                   />
-                  {/* Tags section hidden - feature not available in customer panel */}
-                  {/* <TagsSection
+                  <TagsSection
                     tags={crmCustomer.tags}
                     availableTags={availableTags}
                     onAddTag={handleAddTag}
                     onRemoveTag={handleRemoveTag}
-                  /> */}
+                  />
                   <PipelineSection
                     currentStage={crmCustomer.pipelineStage}
                     availableStages={pipelineStages}

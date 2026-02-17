@@ -117,17 +117,20 @@ export function useWhatsAppMessaging({
     } catch (error: any) {
       console.error("Failed to send WhatsApp message:", error)
       
-      // Update optimistic message to FAILED status
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send message"
+      
+      // Update optimistic message to FAILED status with error details
       setWaMessages(prev => prev.map(msg => 
         msg.id === tempId 
           ? {
               ...msg,
               status: "FAILED",
+              errorMessage: errorMessage,
+              errorCode: apiError.code,
             }
           : msg
       ))
-      
-      const apiError = error as APIError
       
       if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
         toast({
@@ -139,15 +142,14 @@ export function useWhatsAppMessaging({
       }
       
       // Build description with recovery action
-      const errorMessage = apiError.message || "Failed to send message"
-      const description = apiError.recoveryAction 
+      const toastDescription = apiError.recoveryAction 
         ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
         : errorMessage
       
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
@@ -221,26 +223,29 @@ export function useWhatsAppMessaging({
     } catch (error: any) {
       console.error("Failed to send template:", error)
       
-      // Update optimistic message to FAILED status
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send template"
+      
+      // Update optimistic message to FAILED status with error details
       setWaMessages(prev => prev.map(msg => 
         msg.id === tempId 
           ? {
               ...msg,
               status: "FAILED",
+              errorMessage: errorMessage,
+              errorCode: apiError.code,
             }
           : msg
       ))
       
-      const apiError = error as APIError
-      const errorMessage = apiError.message || "Failed to send template"
-      const description = apiError.recoveryAction 
+      const toastDescription = apiError.recoveryAction 
         ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
         : errorMessage
       
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
@@ -347,26 +352,29 @@ export function useWhatsAppMessaging({
     } catch (error: any) {
       console.error("Failed to send media:", error)
 
-      // Update optimistic message to FAILED status
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send media"
+      
+      // Update optimistic message to FAILED status with error details
       setWaMessages(prev => prev.map(msg =>
         msg.id === tempId
           ? {
               ...msg,
               status: "FAILED",
+              errorMessage: errorMessage,
+              errorCode: apiError.code,
             }
           : msg
       ))
 
-      const apiError = error as APIError
-      const errorMessage = apiError.message || "Failed to send media"
-      const description = apiError.recoveryAction
+      const toastDescription = apiError.recoveryAction
         ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
         : errorMessage
 
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
@@ -374,7 +382,7 @@ export function useWhatsAppMessaging({
     }
   }, [selectedConversation, waWindowStatus, userId, toast])
 
-  // WhatsApp CTA button sending
+  // WhatsApp CTA button sending with Optimistic UI
   const sendWhatsAppCta = useCallback(async (ctaForm: {
     bodyText: string
     buttonLabel: string
@@ -395,18 +403,58 @@ export function useWhatsAppMessaging({
     }
 
     const customer = selectedConversation.originalData as Customer
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Build header for optimistic message
+    let header: any = undefined
+    if (ctaForm.headerImageUrl) {
+      header = {
+        type: "image",
+        image: { link: ctaForm.headerImageUrl }
+      }
+    }
+    
+    // Create optimistic message for CTA
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "interactive",
+      content: ctaForm.bodyText,
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+      // Store interactive data for rendering
+      interactive: {
+        type: "cta_url",
+        header,
+        body: { text: ctaForm.bodyText },
+        footer: ctaForm.footerText ? { text: ctaForm.footerText } : undefined,
+        action: {
+          name: "cta_url",
+          parameters: {
+            display_text: ctaForm.buttonLabel,
+            url: ctaForm.buttonUrl
+          }
+        }
+      }
+    } as any
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
     try {
       setSending(true)
 
-      let header
-      if (ctaForm.headerImageUrl) {
-        header = {
-          type: "image",
-          image: { link: ctaForm.headerImageUrl }
-        } as any
-      }
-
-      await messagesApi.sendMessage({
+      const response = await messagesApi.sendMessage({
         userId: userId!,
         customerId: customer.id,
         phoneNumber: customer.phoneNumber,
@@ -426,15 +474,39 @@ export function useWhatsAppMessaging({
         }
       })
 
+      // Update optimistic message with real data
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
       toast({
         title: "Success",
         description: "CTA Message sent!",
       })
-      setTimeout(() => loadConversations(), 500)
       return true
     } catch (error: any) {
       console.error("Failed to send CTA message:", error)
       const apiError = error as APIError
+      const errorMsg = apiError.message || "Failed to send CTA message"
+      
+      // Update optimistic message to FAILED status with error details
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              status: "FAILED",
+              errorMessage: errorMsg,
+              errorCode: apiError.code,
+            }
+          : msg
+      ))
       
       if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
         toast({
@@ -445,23 +517,22 @@ export function useWhatsAppMessaging({
         return "WINDOW_EXPIRED"
       }
       
-      const errorMessage = apiError.message || "Failed to send CTA message"
-      const description = apiError.recoveryAction 
-        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
-        : errorMessage
+      const toastDescription = apiError.recoveryAction 
+        ? `${errorMsg}\n\n💡 ${apiError.recoveryAction}`
+        : errorMsg
       
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
       setSending(false)
     }
-  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+  }, [selectedConversation, waWindowStatus, userId, toast])
 
-  // WhatsApp Reply Buttons sending
+  // WhatsApp Reply Buttons sending with Optimistic UI
   const sendWhatsAppReplyButtons = useCallback(async (replyForm: {
     bodyText: string
     buttons: { id: string; title: string }[]
@@ -481,6 +552,46 @@ export function useWhatsAppMessaging({
     }
 
     const customer = selectedConversation.originalData as Customer
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Create optimistic message for Reply Buttons (without header image initially)
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "interactive",
+      content: replyForm.bodyText,
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+      // Store interactive data for rendering
+      interactive: {
+        type: "button",
+        body: { text: replyForm.bodyText },
+        footer: replyForm.footerText ? { text: replyForm.footerText } : undefined,
+        action: {
+          buttons: replyForm.buttons.map(b => ({
+            type: "reply",
+            reply: {
+              id: b.id,
+              title: b.title
+            }
+          }))
+        }
+      }
+    } as any
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
     try {
       setSending(true)
 
@@ -511,7 +622,7 @@ export function useWhatsAppMessaging({
         } as any
       }
 
-      await messagesApi.sendMessage({
+      const response = await messagesApi.sendMessage({
         userId: userId!,
         customerId: customer.id,
         phoneNumber: customer.phoneNumber,
@@ -533,15 +644,39 @@ export function useWhatsAppMessaging({
         }
       })
 
+      // Update optimistic message with real data
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
       toast({
         title: "Success",
         description: "Reply Buttons sent!",
       })
-      setTimeout(() => loadConversations(), 500)
       return true
     } catch (error: any) {
       console.error("Failed to send Reply Buttons:", error)
       const apiError = error as APIError
+      const errorMsg = apiError.message || "Failed to send Reply Buttons"
+      
+      // Update optimistic message to FAILED status with error details
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              status: "FAILED",
+              errorMessage: errorMsg,
+              errorCode: apiError.code,
+            }
+          : msg
+      ))
       
       if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
         toast({
@@ -552,23 +687,22 @@ export function useWhatsAppMessaging({
         return "WINDOW_EXPIRED"
       }
       
-      const errorMessage = apiError.message || "Failed to send Reply Buttons"
-      const description = apiError.recoveryAction 
-        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
-        : errorMessage
+      const toastDescription = apiError.recoveryAction 
+        ? `${errorMsg}\n\n💡 ${apiError.recoveryAction}`
+        : errorMsg
       
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
       setSending(false)
     }
-  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+  }, [selectedConversation, waWindowStatus, userId, toast])
 
-  // WhatsApp List Message sending
+  // WhatsApp List Message sending with Optimistic UI
   const sendWhatsAppListMessage = useCallback(async (listForm: {
     headerText: string
     bodyText: string
@@ -598,64 +732,91 @@ export function useWhatsAppMessaging({
     }
 
     const customer = selectedConversation.originalData as Customer
+    
+    // Generate temporary ID for optimistic message
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    
+    // Build header if provided
+    let header: any = undefined
+    if (listForm.headerText.trim()) {
+      header = {
+        type: "text",
+        text: listForm.headerText.trim()
+      }
+    }
+
+    // Build sections - WhatsApp requires title if multiple sections
+    const hasMultipleSections = listForm.sections.length > 1
+    const sections = listForm.sections.map((section, idx) => {
+      const sectionObj: { title?: string; rows: Array<{ id: string; title: string; description?: string }> } = {
+        rows: section.rows.map(row => {
+          const rowObj: { id: string; title: string; description?: string } = {
+            id: row.id,
+            title: row.title.trim()
+          }
+          // Only add description if not empty
+          if (row.description.trim()) {
+            rowObj.description = row.description.trim()
+          }
+          return rowObj
+        })
+      }
+      // Add title if provided or if multiple sections (use default)
+      const sectionTitle = section.title.trim()
+      if (sectionTitle) {
+        sectionObj.title = sectionTitle
+      } else if (hasMultipleSections) {
+        // WhatsApp requires title for multiple sections
+        sectionObj.title = `Section ${idx + 1}`
+      }
+      return sectionObj
+    })
+
+    // Build the interactive payload - only include defined fields
+    const interactivePayload: any = {
+      type: "list",
+      body: { text: listForm.bodyText.trim() },
+      action: {
+        button: listForm.buttonText.trim(),
+        sections
+      }
+    }
+    
+    // Only add header if defined
+    if (header) {
+      interactivePayload.header = header
+    }
+    
+    // Only add footer if not empty
+    if (listForm.footerText.trim()) {
+      interactivePayload.footer = { text: listForm.footerText.trim() }
+    }
+
+    // Create optimistic message for List Message
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "interactive",
+      content: listForm.bodyText.trim(),
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+      // Store interactive data for rendering
+      interactive: interactivePayload
+    } as any
+
+    // Add optimistic message to UI immediately
+    setWaMessages(prev => [...prev, optimisticMessage])
+
     try {
       setSending(true)
-
-      // Build header if provided
-      let header
-      if (listForm.headerText.trim()) {
-        header = {
-          type: "text",
-          text: listForm.headerText.trim()
-        }
-      }
-
-      // Build sections - WhatsApp requires title if multiple sections
-      const hasMultipleSections = listForm.sections.length > 1
-      const sections = listForm.sections.map((section, idx) => {
-        const sectionObj: { title?: string; rows: Array<{ id: string; title: string; description?: string }> } = {
-          rows: section.rows.map(row => {
-            const rowObj: { id: string; title: string; description?: string } = {
-              id: row.id,
-              title: row.title.trim()
-            }
-            // Only add description if not empty
-            if (row.description.trim()) {
-              rowObj.description = row.description.trim()
-            }
-            return rowObj
-          })
-        }
-        // Add title if provided or if multiple sections (use default)
-        const sectionTitle = section.title.trim()
-        if (sectionTitle) {
-          sectionObj.title = sectionTitle
-        } else if (hasMultipleSections) {
-          // WhatsApp requires title for multiple sections
-          sectionObj.title = `Section ${idx + 1}`
-        }
-        return sectionObj
-      })
-
-      // Build the interactive payload - only include defined fields
-      const interactivePayload: any = {
-        type: "list",
-        body: { text: listForm.bodyText.trim() },
-        action: {
-          button: listForm.buttonText.trim(),
-          sections
-        }
-      }
-      
-      // Only add header if defined
-      if (header) {
-        interactivePayload.header = header
-      }
-      
-      // Only add footer if not empty
-      if (listForm.footerText.trim()) {
-        interactivePayload.footer = { text: listForm.footerText.trim() }
-      }
 
       const requestPayload = {
         userId: userId!,
@@ -665,17 +826,41 @@ export function useWhatsAppMessaging({
         interactive: interactivePayload
       }
       
-      await messagesApi.sendMessage(requestPayload)
+      const response = await messagesApi.sendMessage(requestPayload)
+
+      // Update optimistic message with real data
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
 
       toast({
         title: "Success",
         description: "List Message sent!",
       })
-      setTimeout(() => loadConversations(), 500)
       return true
     } catch (error: any) {
       console.error("Failed to send List Message:", error)
       const apiError = error as APIError
+      const errorMsg = apiError.message || "Failed to send List Message"
+      
+      // Update optimistic message to FAILED status with error details
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              status: "FAILED",
+              errorMessage: errorMsg,
+              errorCode: apiError.code,
+            }
+          : msg
+      ))
       
       if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
         toast({
@@ -686,21 +871,60 @@ export function useWhatsAppMessaging({
         return "WINDOW_EXPIRED"
       }
       
-      const errorMessage = apiError.message || "Failed to send List Message"
-      const description = apiError.recoveryAction 
-        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
-        : errorMessage
+      const toastDescription = apiError.recoveryAction 
+        ? `${errorMsg}\n\n💡 ${apiError.recoveryAction}`
+        : errorMsg
       
       toast({
         variant: "destructive",
         title: apiError.code || "Error",
-        description,
+        description: toastDescription,
       })
       return false
     } finally {
       setSending(false)
     }
-  }, [selectedConversation, waWindowStatus, userId, loadConversations, toast])
+  }, [selectedConversation, waWindowStatus, userId, toast])
+
+  // Retry failed message
+  const retryWhatsAppMessage = useCallback(async (failedMessage: Message) => {
+    if (!failedMessage || failedMessage.status !== "FAILED") return false
+
+    // Remove the failed message from the list
+    setWaMessages(prev => prev.filter(msg => msg.id !== failedMessage.id))
+
+    // Determine message type and resend
+    const messageType = failedMessage.type?.toLowerCase()
+    
+    if (messageType === "text") {
+      return sendWhatsAppMessage(failedMessage.content || "")
+    } else if (messageType === "template" && failedMessage.template) {
+      // For templates, we need to reconstruct the template object
+      // This is a simplified retry - full template retry would need more data
+      toast({
+        variant: "default",
+        title: "Info",
+        description: "Silakan kirim ulang template dari panel template.",
+      })
+      return false
+    } else if (messageType === "image" || messageType === "document") {
+      // For media, user needs to re-upload
+      toast({
+        variant: "default",
+        title: "Info",
+        description: "Silakan upload ulang file untuk mengirim kembali.",
+      })
+      return false
+    } else {
+      // For other types (interactive), just show info
+      toast({
+        variant: "default",
+        title: "Info",
+        description: "Silakan kirim ulang pesan secara manual.",
+      })
+      return false
+    }
+  }, [sendWhatsAppMessage, toast])
 
   return {
     // State
@@ -721,5 +945,6 @@ export function useWhatsAppMessaging({
     sendWhatsAppCta,
     sendWhatsAppReplyButtons,
     sendWhatsAppListMessage,
+    retryWhatsAppMessage,
   }
 }

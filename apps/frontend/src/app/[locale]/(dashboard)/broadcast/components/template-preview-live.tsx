@@ -10,6 +10,7 @@ import {
   IconExternalLink,
   IconPhone,
   IconChecks,
+  IconCopy,
 } from "@tabler/icons-react"
 import type { Template } from "../../templates/data/schema"
 
@@ -90,26 +91,39 @@ export function TemplatePreviewLive({
       return {
         type: "text" as const,
         content: template.headerContent,
+        mediaUrl: undefined,
       }
     }
     if (
       template.headerType &&
       ["IMAGE", "VIDEO", "DOCUMENT"].includes(template.headerType)
     ) {
+      const headerType = template.headerType.toLowerCase() as "image" | "video" | "document"
+      // Check for media URL in variableValues
+      const mediaUrl = variableValues[`header_${headerType}`] || variableValues["header"]
       return {
-        type: template.headerType.toLowerCase() as "image" | "video" | "document",
+        type: headerType,
         content: "",
+        mediaUrl,
       }
     }
     return null
-  }, [template])
+  }, [template, variableValues])
 
   // Extract buttons from template
   const buttons = useMemo(() => {
     const buttonComponent = template.components?.find((c) => c.type === "BUTTONS")
     if (buttonComponent?.buttons) {
       return buttonComponent.buttons.map((btn) => ({
-        type: btn.type.toLowerCase() as "url" | "phone_number" | "quick_reply",
+        type: btn.type.toLowerCase() as "url" | "phone_number" | "quick_reply" | "copy_code" | "otp",
+        text: btn.text,
+        url: btn.url || undefined,
+      }))
+    }
+    // Fallback to template.buttons if components not available
+    if (template.buttons) {
+      return template.buttons.map((btn) => ({
+        type: btn.type.toLowerCase() as "url" | "phone_number" | "quick_reply" | "copy_code" | "otp",
         text: btn.text,
         url: btn.url || undefined,
       }))
@@ -138,8 +152,21 @@ export function TemplatePreviewLive({
                 </div>
               )}
               {headerContent.type === "image" && (
-                <div className="flex h-40 items-center justify-center bg-gray-200 dark:bg-gray-700">
-                  <div className="flex flex-col items-center gap-2">
+                <div className="flex h-40 items-center justify-center bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  {headerContent.mediaUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={headerContent.mediaUrl}
+                      alt="Header"
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder on error
+                        e.currentTarget.style.display = "none"
+                        e.currentTarget.nextElementSibling?.classList.remove("hidden")
+                      }}
+                    />
+                  ) : null}
+                  <div className={cn("flex flex-col items-center gap-2", headerContent.mediaUrl && "hidden")}>
                     <IconPhoto className="h-10 w-10 text-gray-400" />
                     <span className="text-xs text-gray-500">Image</span>
                   </div>
@@ -199,6 +226,7 @@ export function TemplatePreviewLive({
               >
                 {button.type === "url" && <IconExternalLink className="h-4 w-4" />}
                 {button.type === "phone_number" && <IconPhone className="h-4 w-4" />}
+                {(button.type === "copy_code" || button.type === "otp") && <IconCopy className="h-4 w-4" />}
                 <span className="truncate">{button.text}</span>
               </button>
             ))}

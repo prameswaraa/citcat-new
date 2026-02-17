@@ -6,6 +6,8 @@ export const templateButtonSchema = z.object({
     z.literal("URL"),
     z.literal("PHONE_NUMBER"),
     z.literal("QUICK_REPLY"),
+    z.literal("COPY_CODE"),
+    z.literal("OTP"),
   ]),
   text: z.string(),
   url: z.string().optional().nullable(),

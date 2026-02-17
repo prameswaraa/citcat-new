@@ -16,7 +16,7 @@ export interface WhatsAppTemplateComponent {
 }
 
 export interface WhatsAppTemplateButton {
-  type: 'URL' | 'PHONE_NUMBER' | 'QUICK_REPLY';
+  type: 'URL' | 'PHONE_NUMBER' | 'QUICK_REPLY' | 'COPY_CODE' | 'OTP';
   text: string;
   url?: string;
   phone_number?: string;
@@ -44,7 +44,7 @@ export interface RenderedTemplate {
   body: string;
   footer?: string;
   buttons?: Array<{
-    type: 'url' | 'phone_number' | 'quick_reply';
+    type: 'url' | 'phone_number' | 'quick_reply' | 'copy_code' | 'otp';
     text: string;
     url?: string;
     phoneNumber?: string;
@@ -63,19 +63,20 @@ export interface WhatsAppTemplatePayload {
 
 export interface WhatsAppTemplateComponentPayload {
   type: 'header' | 'body' | 'button';
-  sub_type?: 'url'; // For URL buttons
+  sub_type?: 'url' | 'copy_code'; // For URL buttons and copy code buttons
   index?: number; // For buttons
   parameters?: WhatsAppTemplateParameter[];
 }
 
 export interface WhatsAppTemplateParameter {
-  type: 'text' | 'image' | 'video' | 'document' | 'currency' | 'date_time';
+  type: 'text' | 'image' | 'video' | 'document' | 'currency' | 'date_time' | 'coupon_code';
   text?: string;
   image?: { id?: string; link?: string };
   video?: { id?: string; link?: string };
   document?: { id?: string; link?: string; filename?: string };
   currency?: { fallback_value: string; code: string; amount_1000: number };
   date_time?: { fallback_value: string };
+  coupon_code?: string; // For copy code buttons
 }
 
 /**
@@ -105,12 +106,26 @@ export const TEMPLATE_RENDERER_ERRORS = {
 /**
  * Check if variableValues uses index-based keys (e.g., "1", "2")
  * instead of variableId keys (e.g., cuid like "clx1234...")
+ * 
+ * Now also returns true if there are ANY numeric keys, even if mixed with
+ * special keys like button_X, header_image, etc.
  */
 export function isIndexBasedVariableValues(variableValues: VariableValueMap): boolean {
   const keys = Object.keys(variableValues);
   if (keys.length === 0) return false;
-  // Index-based keys are numeric strings like "1", "2", "3"
-  return keys.every(key => /^\d+$/.test(key));
+  
+  // Check if ANY key is numeric (not just all keys)
+  // This handles mixed cases like {"1": "val1", "2": "val2", "button_0_copy_code": "CODE"}
+  const hasNumericKeys = keys.some(key => /^\d+$/.test(key));
+  
+  // Also check for special keys that indicate broadcast/direct sending (not mapping-based)
+  const hasSpecialKeys = keys.some(key => 
+    key.startsWith('button_') || 
+    key.startsWith('header_') ||
+    ['coupon_code', 'otp_code', 'copy_code'].includes(key)
+  );
+  
+  return hasNumericKeys || hasSpecialKeys;
 }
 
 /**
@@ -247,6 +262,7 @@ export class TemplateRendererService {
    * Requirements: 3.4
    *
    * Supports index-based variableValues with "button_0", "button_1" keys for URL buttons
+   * and "button_X_copy_code" for copy code buttons
    */
   private renderButtons(
     component: WhatsAppTemplateComponent,
@@ -259,7 +275,7 @@ export class TemplateRendererService {
       Object.keys(variableValues).some(k => k.startsWith('button_'));
 
     return component.buttons.map((button, index) => {
-      const buttonType = button.type.toLowerCase() as 'url' | 'phone_number' | 'quick_reply';
+      const buttonType = button.type.toLowerCase() as 'url' | 'phone_number' | 'quick_reply' | 'copy_code' | 'otp';
 
       const result: NonNullable<RenderedTemplate['buttons']>[number] = {
         type: buttonType,
@@ -365,6 +381,10 @@ export class TemplateRendererService {
       components: [],
     };
 
+    // Check if this is an authentication template with copy code button
+    const isAuthTemplate = template.category === 'AUTHENTICATION';
+    const otpCode = isAuthTemplate ? this.findOtpCodeValue(variableValues) : undefined;
+
     for (const component of template.components) {
       switch (component.type) {
         case 'HEADER':
@@ -377,6 +397,13 @@ export class TemplateRendererService {
           const bodyPayload = this.buildBodyPayload(component, variableValues, mappings);
           if (bodyPayload) {
             payload.components.push(bodyPayload);
+          } else if (isAuthTemplate && otpCode) {
+            // For authentication templates, always add body with OTP code
+            // even if buildBodyPayload returns null
+            payload.components.push({
+              type: 'body',
+              parameters: [{ type: 'text', text: otpCode }],
+            });
           }
           break;
         case 'BUTTONS':
@@ -459,6 +486,11 @@ export class TemplateRendererService {
    * Supports two modes:
    * 1. With mappings: Uses variableId-based variableValues (existing behavior)
    * 2. Without mappings: Uses index-based variableValues (e.g., {"1": "value1", "2": "value2"})
+   * 
+   * Special handling for authentication templates:
+   * - Authentication templates may not have {{1}} placeholder in body text
+   * - But still need body parameter with OTP code
+   * - Check for button_X_copy_code, coupon_code, or otp_code keys
    */
   private buildBodyPayload(
     component: WhatsAppTemplateComponent,
@@ -477,15 +509,27 @@ export class TemplateRendererService {
       const placeholderIndices = extractPlaceholderIndices(component.text || '');
 
       if (placeholderIndices.length === 0) {
-        return null; // No variables in template body
-      }
-
-      // Build parameters from index-based values
-      for (const index of placeholderIndices) {
-        const value = variableValues[index.toString()] || '';
-        // Default to TEXT type for index-based values
-        const param = this.buildParameter('TEXT', value);
-        parameters.push(param);
+        // No placeholders found - check if this is an authentication template
+        // Authentication templates need OTP code in body even without {{1}} placeholder
+        const otpCode = this.findOtpCodeValue(variableValues);
+        if (otpCode) {
+          parameters.push({ type: 'text', text: otpCode });
+        } else {
+          return null; // No variables in template body
+        }
+      } else {
+        // Build parameters from index-based values (numeric keys only!)
+        // This ensures button_X_copy_code doesn't get mixed in
+        for (const index of placeholderIndices) {
+          const value = variableValues[index.toString()] || '';
+          if (!value) {
+            // Log warning if value is missing for a placeholder
+            console.warn(`Missing value for body placeholder {{${index}}}`);
+          }
+          // Default to TEXT type for index-based values
+          const param = this.buildParameter('TEXT', value);
+          parameters.push(param);
+        }
       }
     } else if (bodyMappings.length > 0) {
       // Use mapping-based approach (existing behavior)
@@ -496,7 +540,13 @@ export class TemplateRendererService {
         parameters.push(param);
       }
     } else {
-      return null; // No mappings and not index-based
+      // No mappings and not strictly index-based - check for OTP code
+      const otpCode = this.findOtpCodeValue(variableValues);
+      if (otpCode) {
+        parameters.push({ type: 'text', text: otpCode });
+      } else {
+        return null; // No mappings and no OTP code
+      }
     }
 
     if (parameters.length === 0) {
@@ -510,12 +560,35 @@ export class TemplateRendererService {
   }
 
   /**
-   * Build button component payloads for dynamic URL buttons
+   * Find OTP/copy code value from variableValues
+   * Checks various key patterns used for authentication templates
+   */
+  private findOtpCodeValue(variableValues: VariableValueMap): string | undefined {
+    // Check for various key patterns
+    const otpKeys = [
+      'coupon_code',
+      'otp_code',
+      'copy_code',
+      ...Object.keys(variableValues).filter(k => k.includes('_copy_code'))
+    ];
+    
+    for (const key of otpKeys) {
+      if (variableValues[key]) {
+        return variableValues[key];
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Build button component payloads for dynamic URL buttons and copy code buttons
    * Requirements: 4.3
    *
    * Supports two modes:
    * 1. With mappings: Uses variableId-based variableValues (existing behavior)
    * 2. Without mappings: Uses special keys like "button_0", "button_1" for URL button variables
+   *    and "button_X_copy_code" for copy code buttons
    */
   private buildButtonPayloads(
     component: WhatsAppTemplateComponent,
@@ -532,7 +605,30 @@ export class TemplateRendererService {
     for (let index = 0; index < component.buttons.length; index++) {
       const button = component.buttons[index];
 
-      // Only URL buttons can have dynamic parameters
+      // Handle Copy Code / OTP buttons
+      // Per Meta documentation: copy code buttons use sub_type: 'copy_code' and parameter with coupon_code field
+      // See: https://developers.facebook.com/docs/whatsapp/cloud-api/reference/messages#template-object
+      if (button.type === 'COPY_CODE' || button.type === 'OTP') {
+        // Check for copy code value
+        const copyCodeValue = variableValues[`button_${index}_copy_code`] || 
+                             variableValues['coupon_code'] ||
+                             variableValues['otp_code'];
+        
+        if (copyCodeValue) {
+          payloads.push({
+            type: 'button',
+            sub_type: 'copy_code',
+            index,
+            parameters: [{
+              type: 'coupon_code',
+              coupon_code: copyCodeValue,
+            }],
+          });
+        }
+        continue;
+      }
+
+      // Handle URL buttons with dynamic parameters
       if (button.type !== 'URL') continue;
 
       // Check if URL has a variable placeholder
@@ -710,6 +806,15 @@ export class TemplateRendererService {
                 componentType: 'button',
                 componentIndex: buttonIndex,
                 parameterIndex: 0,
+              });
+            }
+            // Copy code / OTP buttons have one variable (the code)
+            if (button.type === 'COPY_CODE' || button.type === 'OTP') {
+              positions.push({
+                componentType: 'button',
+                componentIndex: buttonIndex,
+                parameterIndex: 0,
+                format: button.type,
               });
             }
           });

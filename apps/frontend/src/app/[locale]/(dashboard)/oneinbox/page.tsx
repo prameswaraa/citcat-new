@@ -88,6 +88,7 @@ export default function OneInboxPage() {
     sendWhatsAppCta,
     sendWhatsAppReplyButtons,
     sendWhatsAppListMessage,
+    retryWhatsAppMessage,
     igMessages,
     sendInstagramMessage,
     sendInstagramReaction,
@@ -265,6 +266,7 @@ export default function OneInboxPage() {
                 templates={waTemplates}
                 onBack={() => selectConversation(null)}
                 windowStatus={waWindowStatus}
+                onRetryMessage={retryWhatsAppMessage}
               />
             ) : selectedConversation.channel === "instagram" ? (
               <IGChatArea

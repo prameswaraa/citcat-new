@@ -814,7 +814,7 @@ response = requests.post(
                 />
               </DocsSubsection>
 
-              <DocsSubsection title="Example with Variables">
+              <DocsSubsection title="Example with Body Variables">
                 <CodeBlock
                   code={`{
   "phone_number": "628123456789",
@@ -836,6 +836,185 @@ response = requests.post(
   }
 }`}
                 />
+              </DocsSubsection>
+
+              <DocsSubsection title="Template with Header Media">
+                <p className="text-muted-foreground text-sm mb-3">
+                  For templates with image, video, or document headers, add a header component with the media URL.
+                </p>
+                <CodeBlock
+                  code={`{
+  "phone_number": "628123456789",
+  "channel": "whatsapp",
+  "message_type": "template",
+  "template": {
+    "name": "promo_with_image",
+    "language": { "code": "id" },
+    "components": [
+      {
+        "type": "header",
+        "parameters": [
+          { "type": "image", "image": { "link": "https://example.com/promo.jpg" } }
+        ]
+      },
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "FLASH SALE" },
+          { "type": "text", "text": "50%" }
+        ]
+      }
+    ]
+  }
+}`}
+                />
+                <div className="mt-3 space-y-2 text-sm">
+                  <p className="font-medium">Supported header media types:</p>
+                  <div className="grid gap-1 pl-4 text-muted-foreground">
+                    <div><code className="bg-muted rounded px-1">image</code> - JPEG, PNG (max 5MB)</div>
+                    <div><code className="bg-muted rounded px-1">video</code> - MP4 (max 16MB)</div>
+                    <div><code className="bg-muted rounded px-1">document</code> - PDF, DOC (max 100MB)</div>
+                  </div>
+                </div>
+              </DocsSubsection>
+
+              <DocsSubsection title="Template with Dynamic URL Button">
+                <p className="text-muted-foreground text-sm mb-3">
+                  For templates with dynamic URL buttons (URL contains {"{{1}}"}), add a button component.
+                </p>
+                <CodeBlock
+                  code={`{
+  "phone_number": "628123456789",
+  "channel": "whatsapp",
+  "message_type": "template",
+  "template": {
+    "name": "order_tracking",
+    "language": { "code": "id" },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "INV-12345" }
+        ]
+      },
+      {
+        "type": "button",
+        "sub_type": "url",
+        "index": 0,
+        "parameters": [
+          { "type": "text", "text": "tracking-abc123" }
+        ]
+      }
+    ]
+  }
+}`}
+                />
+              </DocsSubsection>
+
+              <DocsSubsection title="Template with Copy Code Button">
+                <p className="text-muted-foreground text-sm mb-3">
+                  For marketing templates with copy code buttons (coupon codes, promo codes).
+                </p>
+                <CodeBlock
+                  code={`{
+  "phone_number": "628123456789",
+  "channel": "whatsapp",
+  "message_type": "template",
+  "template": {
+    "name": "promo_code",
+    "language": { "code": "id" },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "FLASH SALE" }
+        ]
+      },
+      {
+        "type": "button",
+        "sub_type": "copy_code",
+        "index": 0,
+        "parameters": [
+          { "type": "coupon_code", "coupon_code": "SAVE20OFF" }
+        ]
+      }
+    ]
+  }
+}`}
+                />
+              </DocsSubsection>
+
+              <DocsSubsection title="Authentication Template (OTP)">
+                <p className="text-muted-foreground text-sm mb-3">
+                  For authentication templates with OTP codes. Include both body and copy code button.
+                </p>
+                <CodeBlock
+                  code={`{
+  "phone_number": "628123456789",
+  "channel": "whatsapp",
+  "message_type": "template",
+  "template": {
+    "name": "otp_verification",
+    "language": { "code": "id" },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "123456" }
+        ]
+      },
+      {
+        "type": "button",
+        "sub_type": "copy_code",
+        "index": 0,
+        "parameters": [
+          { "type": "coupon_code", "coupon_code": "123456" }
+        ]
+      }
+    ]
+  }
+}`}
+                />
+                <DocsTip variant="warning">
+                  For authentication templates, always include both the OTP in body parameters
+                  AND in the copy code button to ensure users can both see and copy the code.
+                </DocsTip>
+              </DocsSubsection>
+
+              <DocsSubsection title="Component Parameters Reference">
+                <div className="rounded-lg border overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left p-3 font-medium">Component Type</th>
+                        <th className="text-left p-3 font-medium">Parameter Type</th>
+                        <th className="text-left p-3 font-medium">Usage</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="p-3"><code>header</code></td>
+                        <td className="p-3 text-muted-foreground"><code>text</code>, <code>image</code>, <code>video</code>, <code>document</code></td>
+                        <td className="p-3 text-muted-foreground">Header variables or media</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3"><code>body</code></td>
+                        <td className="p-3 text-muted-foreground"><code>text</code>, <code>currency</code>, <code>date_time</code></td>
+                        <td className="p-3 text-muted-foreground">Body text variables</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3"><code>button</code> (url)</td>
+                        <td className="p-3 text-muted-foreground"><code>text</code></td>
+                        <td className="p-3 text-muted-foreground">Dynamic URL suffix</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="p-3"><code>button</code> (copy_code)</td>
+                        <td className="p-3 text-muted-foreground"><code>coupon_code</code></td>
+                        <td className="p-3 text-muted-foreground">Coupon/OTP code to copy</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </DocsSubsection>
 
               <DocsTip>

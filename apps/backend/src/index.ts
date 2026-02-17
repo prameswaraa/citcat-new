@@ -52,6 +52,7 @@ import broadcastRoutes from './routes/broadcast/index.js'
 import insightsRoutes from './routes/insights.js'
 import assignmentRoutes from './routes/assignments/index.js'
 import notificationRoutes from './routes/notifications.js'
+import conversationRoutes from './routes/conversations.js'
 
 // Import middleware
 import { authMiddleware } from './middleware/auth.js'
@@ -252,6 +253,9 @@ app.use('/api/v1/assignments/*', authMiddleware)
 app.use('/api/v1/notifications/*', authMiddleware)
 app.use('/api/v1/notifications', authMiddleware)
 
+// Conversation routes - protected (typing indicators, etc.)
+app.use('/api/v1/conversations/*', authMiddleware)
+
 // Admin routes - require both auth and admin role
 app.use('/api/v1/admin/*', authMiddleware)
 app.use('/api/v1/admin/*', adminAuthMiddleware)
@@ -280,6 +284,7 @@ app.route('/api/v1/broadcast', broadcastRoutes)
 app.route('/api/v1/insights', insightsRoutes)
 app.route('/api/v1/assignments', assignmentRoutes)
 app.route('/api/v1/notifications', notificationRoutes)
+app.route('/api/v1/conversations', conversationRoutes)
 
 // Public branding route (no auth required - used by auth pages)
 app.route('/api/v1/branding', brandingRoutes)

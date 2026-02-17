@@ -125,8 +125,8 @@ export function AIStatusIndicator({
   })
 
   const sizeClasses = {
-    sm: "h-5 px-1.5 text-[10px] gap-1",
-    md: "h-6 px-2 text-xs gap-1.5",
+    sm: "h-5 w-5",
+    md: "h-6 w-6",
   }
 
   const iconSizeClasses = {
@@ -134,15 +134,15 @@ export function AIStatusIndicator({
     md: "h-3.5 w-3.5",
   }
 
-  // Active state styling
+  // Active state styling - icon only
   const activeClasses = status.isActive
-    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-    : "bg-muted text-muted-foreground border-muted-foreground/20"
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-muted-foreground/50"
 
   const indicator = (
     <div
       className={cn(
-        "inline-flex items-center rounded-full border font-medium",
+        "inline-flex items-center justify-center rounded-full flex-shrink-0",
         sizeClasses[size],
         activeClasses,
         className
@@ -153,7 +153,6 @@ export function AIStatusIndicator({
       ) : (
         <IconRobotOff className={iconSizeClasses[size]} />
       )}
-      <span>{status.isActive ? t("aiStatus.active") : t("aiStatus.inactive")}</span>
     </div>
   )
 

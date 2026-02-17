@@ -107,6 +107,10 @@ export interface Message {
     status: string
     timestamp: string
     source?: MessageSource
+    /** Error message when status is FAILED */
+    errorMessage?: string
+    /** Error code when status is FAILED */
+    errorCode?: string
     customer?: {
         id: string
         phoneNumber: string

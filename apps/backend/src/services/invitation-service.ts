@@ -372,25 +372,41 @@ export class InvitationService {
       // Hash password using bcrypt
       const passwordHash = await bcrypt.hash(userData.password, 10);
 
-      const newUser = await prisma.user.create({
-        data: {
-          email: invitation.email,
-          name: userData.name,
-          role: 'AGENT',
-          emailVerified: true, // Verified via invitation
-          emailVerifiedAt: new Date(),
-        },
-      });
+      const newUser = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
+          data: {
+            email: invitation.email,
+            name: userData.name,
+            role: 'AGENT',
+            emailVerified: true, // Verified via invitation
+            emailVerifiedAt: new Date(),
+          },
+        });
 
-      // Create account with password
-      await prisma.account.create({
-        data: {
-          id: `acc_${newUser.id}`,
-          userId: newUser.id,
-          accountId: newUser.id,
-          providerId: 'credential',
-          password: passwordHash,
-        },
+        // Create account with password
+        await tx.account.create({
+          data: {
+            id: `acc_${createdUser.id}`,
+            userId: createdUser.id,
+            accountId: createdUser.id,
+            providerId: 'credential',
+            password: passwordHash,
+          },
+        });
+
+        // Create FREE subscription for new user
+        await tx.subscription.create({
+          data: {
+            userId: createdUser.id,
+            tier: 'FREE',
+            status: 'ACTIVE',
+            startDate: new Date(),
+            endDate: null, // FREE plan has no expiry
+            autoRenewEnabled: false
+          }
+        });
+
+        return createdUser;
       });
 
       userId = newUser.id;

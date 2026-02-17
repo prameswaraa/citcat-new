@@ -264,29 +264,29 @@ export function UnifiedConversationList({
               <button
                 key={conversation.id}
                 onClick={() => onSelectConversation(conversation)}
-                className={`w-full p-4 flex items-start gap-3 transition-all duration-150 border-b border-l-4 ${
+                className={`group w-full p-3 flex items-start gap-3 transition-all duration-150 border-b border-l-4 ${
                   isSelected
                     ? `bg-accent ${getChannelColor(conversation.channel, true)}`
                     : `hover:bg-accent/50 ${getChannelColor(conversation.channel, false)}`
                 }`}
               >
-                <div className="relative">
-                  <Avatar className="h-12 w-12">
+                <div className="relative flex-shrink-0">
+                  <Avatar className="h-10 w-10">
                     <AvatarImage src={conversation.participantAvatar || undefined} />
                     <AvatarFallback className={getAvatarStyle(conversation.channel)}>
                       {getInitials(conversation.participantName, conversation.participantDisplayId)}
                     </AvatarFallback>
                   </Avatar>
                   {/* Channel indicator */}
-                  <div className="absolute -bottom-1 -right-1 bg-background rounded-full p-0.5">
+                  <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full p-0.5">
                     {getChannelIcon(conversation.channel)}
                   </div>
                 </div>
 
                 <div className="flex-1 min-w-0 text-left">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <p className={`font-semibold truncate ${
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <p className={`font-semibold text-sm truncate max-w-[120px] ${
                         isSelected 
                           ? conversation.channel === "whatsapp" 
                             ? "text-green-600" 
@@ -297,51 +297,52 @@ export function UnifiedConversationList({
                       }`}>
                         {conversation.participantName || conversation.participantDisplayId}
                       </p>
-                      {/* Assignment Badge (Requirements: 1.5, 1.6, 4.1, 4.2) */}
-                      <AssignmentBadge 
-                        assignee={assignee} 
-                        size="sm" 
-                        showTooltip={true}
-                        assigneeType={conversation.assigneeType}
-                        aiAgentName={conversation.aiAgentName}
-                      />
-                      {/* AI Status Indicator (Requirements: 5.1, 5.2, 5.3, 5.4) */}
-                      <AIStatusIndicator
-                        assignment={null}
-                        aiEnabled={aiEnabled}
-                        defaultAIAgentName={defaultAIAgentName}
-                        size="sm"
-                        showTooltip={true}
-                        assigneeType={conversation.assigneeType}
-                        aiAgentName={conversation.aiAgentName}
-                        hasHumanAssignee={!!conversation.assigneeId && conversation.assigneeType !== "AI_AGENT"}
-                      />
+                      {/* Assignment & AI badges - show on hover only */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Assignment Badge (Requirements: 1.5, 1.6, 4.1, 4.2) */}
+                        <AssignmentBadge 
+                          assignee={assignee} 
+                          size="sm" 
+                          showTooltip={true}
+                          assigneeType={conversation.assigneeType}
+                          aiAgentName={conversation.aiAgentName}
+                        />
+                        {/* AI Status Indicator (Requirements: 5.1, 5.2, 5.3, 5.4) */}
+                        <AIStatusIndicator
+                          assignment={null}
+                          aiEnabled={aiEnabled}
+                          defaultAIAgentName={defaultAIAgentName}
+                          size="sm"
+                          showTooltip={true}
+                          assigneeType={conversation.assigneeType}
+                          aiAgentName={conversation.aiAgentName}
+                          hasHumanAssignee={!!conversation.assigneeId && conversation.assigneeType !== "AI_AGENT"}
+                        />
+                      </div>
                     </div>
                     {conversation.lastMessageAt && (
-                      <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+                      <span className="text-[10px] text-muted-foreground ml-1 flex-shrink-0">
                         {formatDistanceToNow(conversation.lastMessageAt, { addSuffix: false })}
                       </span>
                     )}
                   </div>
 
-                  {conversation.participantName && (
-                    <p className="text-xs text-muted-foreground mb-1">
-                      {conversation.participantDisplayId}
-                      {/* WhatsApp phone number badge (multi-number) */}
-                      {conversation.channel === "whatsapp" && conversation.whatsappDisplayNumber && whatsappPhoneNumbers.length > 1 && (
-                        <span className="ml-1.5 text-[10px] text-green-600">
-                          via {conversation.whatsappDisplayNumber}
-                        </span>
-                      )}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-muted-foreground mb-0.5 truncate">
+                    {conversation.participantDisplayId}
+                    {/* WhatsApp phone number badge (multi-number) */}
+                    {conversation.channel === "whatsapp" && conversation.whatsappDisplayNumber && whatsappPhoneNumbers.length > 1 && (
+                      <span className="ml-1 text-green-600">
+                        via {conversation.whatsappDisplayNumber}
+                      </span>
+                    )}
+                  </p>
 
-                  <div className="flex items-center justify-between">
-                    <p className={`text-sm truncate ${hasUnread ? "font-medium" : "text-muted-foreground"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-xs truncate flex-1 ${hasUnread ? "font-medium text-foreground" : "text-muted-foreground"}`}>
                       {conversation.lastMessagePreview || "No messages"}
                     </p>
                     {hasUnread && (
-                      <Badge className={`ml-2 text-white text-xs h-5 min-w-5 flex items-center justify-center ${
+                      <Badge className={`flex-shrink-0 text-white text-[10px] h-4 min-w-4 px-1 flex items-center justify-center ${
                         conversation.channel === "whatsapp" 
                           ? "bg-green-500" 
                           : conversation.channel === "messenger"
@@ -355,8 +356,8 @@ export function UnifiedConversationList({
 
                   {/* Window status indicator */}
                   {!conversation.isWindowActive && (
-                    <p className="text-xs text-amber-600 mt-1">
-                      ⚠️ 24h window closed
+                    <p className="text-[10px] text-amber-600 mt-0.5">
+                      24h window closed
                     </p>
                   )}
                 </div>

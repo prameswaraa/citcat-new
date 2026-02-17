@@ -6,6 +6,7 @@ import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 const app = new Hono()
 
 // GET /api/v1/customers - List customers
+// Only returns customers from connected WhatsApp accounts
 app.get('/', async (c: Context) => {
   try {
     if (!c.user) {
@@ -16,12 +17,39 @@ app.get('/', async (c: Context) => {
     // Requirements: 5.3, 6.2
     const userId = getEffectiveUserId(c)
 
+    // Get phone numbers from connected WhatsApp accounts only
+    const includeDisconnected = c.req.query('includeDisconnected') === 'true'
+    
+    let connectedPhoneNumberIds: string[] = []
+    if (!includeDisconnected) {
+      const connectedPhoneNumbers = await prisma.phoneNumber.findMany({
+        where: {
+          whatsappAccount: {
+            userId,
+            connectionStatus: 'connected'
+          }
+        },
+        select: { id: true }
+      })
+      connectedPhoneNumberIds = connectedPhoneNumbers.map(p => p.id)
+    }
+
     const where: any = { userId }
 
     // Filter by WhatsApp phone number (multi-number support)
     const whatsappPhoneNumberId = c.req.query('whatsappPhoneNumberId')
     if (whatsappPhoneNumberId) {
       where.whatsappPhoneNumberId = whatsappPhoneNumberId
+    } else if (!includeDisconnected && connectedPhoneNumberIds.length > 0) {
+      // Only show customers from connected WhatsApp phone numbers
+      where.whatsappPhoneNumberId = { in: connectedPhoneNumberIds }
+    } else if (!includeDisconnected && connectedPhoneNumberIds.length === 0) {
+      // Also include customers without whatsappPhoneNumberId (Instagram, Messenger, etc.)
+      // or return empty if no connected accounts
+      where.OR = [
+        { whatsappPhoneNumberId: null },
+        { whatsappPhoneNumberId: { in: [] } } // This will match nothing for WA customers
+      ]
     }
 
     // Filter by consent status

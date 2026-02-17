@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import signupRoutes from './signup.js'
+import manualRoutes from './manual.js'
 import phoneNumberRoutes from './phone-numbers.js'
 import connectionRoutes from './connection.js'
 import tokenRoutes from './tokens.js'
@@ -33,6 +34,7 @@ app.get('/accounts', async (c: Context) => {
         connectedAt: account.connectedAt,
         lastSyncAt: account.lastSyncAt,
         isCoexistence: account.isCoexistence,
+        isManualLogin: (account as any).isManualLogin || false,
         phoneNumbers: account.phoneNumbers.map(pn => ({
           id: pn.id,
           phoneNumberId: pn.phoneNumberId,
@@ -57,6 +59,9 @@ app.get('/accounts', async (c: Context) => {
 
 // Signup & OAuth routes
 app.route('/signup', signupRoutes)
+
+// Manual login routes (user provides own access token)
+app.route('/manual', manualRoutes)
 
 // WABA-specific routes (with :wabaId parameter)
 // Phone numbers

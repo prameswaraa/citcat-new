@@ -1,5 +1,20 @@
 import { z } from "zod"
 
+// CustomerNote schema for structured notes
+export const customerNoteSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  createdAt: z.coerce.date(),
+  createdBy: z.string().optional(), // User ID who created the note
+  creator: z.object({
+    id: z.string(),
+    name: z.string().nullable(),
+    email: z.string(),
+  }).optional(),
+})
+
+export type CustomerNote = z.infer<typeof customerNoteSchema>
+
 // WhatsApp Customer Schema
 export const customerSchema = z.object({
   id: z.string(),
@@ -16,7 +31,8 @@ export const customerSchema = z.object({
   windowExpiresAt: z.coerce.date().optional().nullable(),
   lastMessageAt: z.coerce.date().optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
-  notes: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(), // Legacy single note field (deprecated)
+  customerNotes: z.array(customerNoteSchema).optional().default([]), // New structured notes
   leadScore: z.number().optional().default(0),
   pipelineStageId: z.string().optional().nullable(),
   pipelineStage: z.object({

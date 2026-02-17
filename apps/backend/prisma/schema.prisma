@@ -420,6 +420,9 @@ model WhatsAppAccount {
   connectedAt      DateTime @default(now())
   lastSyncAt       DateTime?
 
+  // Manual login (user provides own access token + WABA ID)
+  isManualLogin           Boolean   @default(false)
+
   // Coexistence (WhatsApp Business App + Cloud API)
   isCoexistence           Boolean   @default(false)
   coexistenceSyncProgress Int?

@@ -1,8 +1,9 @@
-import { RefObject } from "react"
-import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone } from "lucide-react"
+import { RefObject, useState } from "react"
+import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone, RotateCcw, Info } from "lucide-react"
 import { MediaPreview, MediaType } from "./media-preview"
 import { cn } from "@/lib/utils"
-import type { MessageSource } from "@/lib/api/messages-api"
+import type { Message, MessageSource } from "@/lib/api/messages-api"
+import { WABAErrorDialog } from "@/components/waba/waba-error-dialog"
 
 interface MessageListProps {
     messages: any[]
@@ -10,6 +11,7 @@ interface MessageListProps {
     scrollRef: RefObject<HTMLDivElement>
     containerRef: RefObject<HTMLDivElement>
     onScroll: () => void
+    onRetry?: (message: Message) => void
 }
 
 // Helper to extract media URL from message - handles both stored URLs and media IDs
@@ -110,8 +112,19 @@ export function MessageList({
     currentUserId,
     scrollRef,
     containerRef,
-    onScroll
+    onScroll,
+    onRetry
 }: MessageListProps) {
+    const [errorDialogOpen, setErrorDialogOpen] = useState(false)
+    const [selectedErrorMessage, setSelectedErrorMessage] = useState<any>(null)
+
+    // Extract error code from errorMessage if present (e.g., "(#131031)")
+    const extractErrorCode = (errorMsg: string | null | undefined): number | null => {
+        if (!errorMsg) return null
+        const match = errorMsg.match(/\(#(\d+)\)/)
+        return match ? parseInt(match[1], 10) : null
+    }
+
     return (
         <div
             className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-slate-50 dark:bg-background/50"
@@ -448,11 +461,49 @@ export function MessageList({
                                     </span>
                                 )}
                             </div>
+
+                            {/* Failed message actions - Retry & Error Details */}
+                            {isFailed && (
+                                <div className="mt-2 space-y-1">
+                                    {msg.errorMessage && (
+                                        <p className="text-[10px] text-red-200 line-clamp-2">{msg.errorMessage}</p>
+                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedErrorMessage(msg)
+                                                setErrorDialogOpen(true)
+                                            }}
+                                            className="flex items-center gap-1 text-[10px] text-red-200 hover:text-white transition-colors"
+                                        >
+                                            <Info className="h-3 w-3" />
+                                            Lihat Detail
+                                        </button>
+                                        {onRetry && (
+                                            <button
+                                                onClick={() => onRetry(msg)}
+                                                className="flex items-center gap-1 text-[10px] text-red-200 hover:text-white transition-colors"
+                                            >
+                                                <RotateCcw className="h-3 w-3" />
+                                                Coba Lagi
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
             })}
             <div ref={scrollRef} />
+
+            {/* Error Dialog */}
+            <WABAErrorDialog
+                open={errorDialogOpen}
+                onOpenChange={setErrorDialogOpen}
+                errorCode={extractErrorCode(selectedErrorMessage?.errorMessage)}
+                errorMessage={selectedErrorMessage?.errorMessage}
+            />
         </div>
     )
 }

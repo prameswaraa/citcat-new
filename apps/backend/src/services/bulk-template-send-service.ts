@@ -13,6 +13,7 @@ import { templateRendererService, type WhatsAppTemplate, type WhatsAppTemplateCo
 import { templateValidatorService } from './template-validator-service.js';
 import { templateVariableService } from './template-variable-service.js';
 import { WhatsAppErrorService } from './whatsapp-error-service.js';
+import { AuditLogService } from './audit-log-service.js';
 import { logger } from '../utils/logger.js';
 import { resolveCredentialsForSending, getWhatsAppAccountByPhoneNumberId, resolveCredentialsByPhoneNumber } from '../utils/whatsapp-account-helper.js';
 import type { BulkSendStatus, TemplateVariable, TemplateVariableMapping } from '@prisma/client';
@@ -89,6 +90,10 @@ export interface RecipientResult {
   messageId?: string;
   error?: string;
   errorCode?: string;
+  // Debug info for troubleshooting
+  sentPayload?: any;
+  whatsappErrorResponse?: any;
+  timestamp?: string;
 }
 
 /**
@@ -666,6 +671,7 @@ export class BulkTemplateSendService {
     userId: string,
     bulkSendJobId: string
   ): Promise<RecipientResult> {
+    let sentPayload: any = null; // Store for error logging
     try {
       // Clean phone number
       const phoneNumber = row.phoneNumber.replace(/[\s-]/g, '');
@@ -679,40 +685,71 @@ export class BulkTemplateSendService {
         mappingsCount: mappings.length
       });
 
-      // Extract variable values from row (keys like "1", "2", "3" for {{1}}, {{2}}, {{3}})
-      // This handles direct variable input from frontend without needing database mappings
-      const variableKeys = Object.keys(row).filter(k => k !== 'phoneNumber' && /^\d+$/.test(k));
+      // Extract all non-phoneNumber keys from row
+      const allKeys = Object.keys(row).filter(k => k !== 'phoneNumber');
+      
+      // Categorize keys
+      const numericKeys = allKeys.filter(k => /^\d+$/.test(k)); // "1", "2", "3"
+      const headerMediaKeys = allKeys.filter(k => k.startsWith('header_')); // "header_image", "header_video", "header_document"
+      const buttonKeys = allKeys.filter(k => k.startsWith('button_')); // "button_0", "button_1", "button_0_copy_code"
+      const otpKeys = allKeys.filter(k => ['coupon_code', 'otp_code', 'copy_code'].includes(k));
       
       logger.info('Variable keys extracted', {
         phoneNumber,
-        variableKeys,
-        hasVariables: variableKeys.length > 0
+        allKeys,
+        numericKeys,
+        headerMediaKeys,
+        buttonKeys,
+        otpKeys,
+        hasVariables: allKeys.length > 0
       });
       
       // Build components directly if we have variable values
       let components: any[] = [];
       
-      if (variableKeys.length > 0) {
-        // Sort keys numerically to ensure correct parameter order
-        const sortedKeys = variableKeys.sort((a, b) => parseInt(a) - parseInt(b));
+      // Check if we have any special keys (header media, buttons, OTP)
+      const hasSpecialKeys = headerMediaKeys.length > 0 || buttonKeys.length > 0 || otpKeys.length > 0;
+      
+      if (hasSpecialKeys || numericKeys.length > 0) {
+        // Use templateRendererService for proper handling of all variable types
+        const variableValues: Record<string, string> = {};
         
-        // Build body parameters
-        const bodyParameters = sortedKeys.map(key => ({
-          type: "text",
-          text: row[key]?.trim() || ''
-        }));
-        
-        if (bodyParameters.length > 0) {
-          components.push({
-            type: "body",
-            parameters: bodyParameters
-          });
+        // Add all row values to variableValues
+        for (const key of allKeys) {
+          if (row[key]) {
+            variableValues[key] = row[key].trim();
+          }
         }
-        
-        logger.debug('Built template components from row variables', {
+
+        // Convert DB template to WhatsAppTemplate format
+        const template = this.dbTemplateToWhatsAppTemplate(dbTemplate);
+
+        logger.info('Building template payload with renderer service', {
           phoneNumber,
-          variableKeys: sortedKeys,
-          parametersCount: bodyParameters.length
+          templateName,
+          templateCategory: template.category,
+          variableValues: JSON.stringify(variableValues),
+          hasHeaderMedia: headerMediaKeys.length > 0,
+          hasButtons: buttonKeys.length > 0,
+          hasOtp: otpKeys.length > 0,
+          templateButtons: JSON.stringify(template.components.find(c => c.type === 'BUTTONS')?.buttons || [])
+        });
+
+        // Build payload using renderer service
+        const payload = templateRendererService.buildTemplatePayload(
+          templateName,
+          languageCode,
+          template,
+          variableValues,
+          mappings
+        );
+        
+        components = payload.components;
+        
+        logger.info('Template payload built', {
+          phoneNumber,
+          componentsCount: components.length,
+          components: JSON.stringify(components)
         });
       } else if (mappings.length > 0) {
         // Fallback to using mappings if no direct variables in row
@@ -750,11 +787,16 @@ export class BulkTemplateSendService {
         templatePayload.components = components;
       }
 
-      logger.debug('Sending template message', {
+      // Store payload for error logging
+      sentPayload = templatePayload;
+
+      // Log FULL payload before sending (use info level for visibility)
+      logger.info('=== SENDING TEMPLATE MESSAGE ===', {
         phoneNumber,
         templateName,
+        languageCode,
         componentsCount: components.length,
-        payload: JSON.stringify(templatePayload)
+        fullPayload: JSON.stringify(templatePayload, null, 2)
       });
 
       // Send message
@@ -840,6 +882,8 @@ export class BulkTemplateSendService {
         phoneNumber: row.phoneNumber,
         success: true,
         messageId: wamId,
+        sentPayload: sentPayload,
+        timestamp: new Date().toISOString(),
       };
     } catch (error: any) {
       // Use WhatsAppErrorService for consistent error handling (Requirement 7.1)
@@ -847,20 +891,42 @@ export class BulkTemplateSendService {
       const errorResponse = WhatsAppErrorService.formatErrorResponse(metaError);
       const errorCode = errorResponse.error.code;
       
-      logger.error('Failed to send to recipient', {
+      // LOG FULL ERROR DETAIL
+      logger.error('=== WHATSAPP API ERROR ===', {
         phoneNumber: row.phoneNumber,
-        error: errorResponse.error.details?.originalMessage || error.message,
+        templateName,
         errorCode,
+        errorMessage: error.message,
+        fullErrorResponse: JSON.stringify(error.response?.data, null, 2),
+        errorDetails: JSON.stringify(metaError, null, 2),
+        sentPayload: JSON.stringify(sentPayload, null, 2),
         category: errorResponse.error.category,
         retryable: errorResponse.error.retryable,
-        response: error.response?.data
       });
 
+      // Log to audit log for admin dashboard visibility
+      await AuditLogService.logMessageSendFailed(
+        userId,
+        row.phoneNumber,
+        errorResponse.error.message,
+        {
+          templateName,
+          errorCode: errorCode?.toString(),
+          sentPayload: sentPayload,
+          whatsappErrorResponse: error.response?.data || { message: error.message },
+          bulkSendJobId,
+        }
+      ).catch(e => logger.error('Failed to log audit', { error: e.message }));
+
+      // Return with full debug info for admin dashboard
       return {
         phoneNumber: row.phoneNumber,
         success: false,
         error: errorResponse.error.message,
         errorCode: errorCode?.toString(),
+        sentPayload: sentPayload,
+        whatsappErrorResponse: error.response?.data || { message: error.message },
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -871,12 +937,19 @@ export class BulkTemplateSendService {
   private dbTemplateToWhatsAppTemplate(dbTemplate: any): WhatsAppTemplate {
     const components: WhatsAppTemplateComponent[] = [];
 
-    if (dbTemplate.headerType && dbTemplate.headerContent) {
-      components.push({
-        type: 'HEADER',
-        format: dbTemplate.headerType.toUpperCase(),
-        text: dbTemplate.headerType.toUpperCase() === 'TEXT' ? dbTemplate.headerContent : undefined,
-      });
+    // Handle header - TEXT headers need content, media headers (IMAGE/VIDEO/DOCUMENT) may not
+    if (dbTemplate.headerType) {
+      const headerFormat = dbTemplate.headerType.toUpperCase();
+      const isMediaHeader = ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerFormat);
+      
+      // Add header component if it's a text header with content OR a media header
+      if ((headerFormat === 'TEXT' && dbTemplate.headerContent) || isMediaHeader) {
+        components.push({
+          type: 'HEADER',
+          format: headerFormat,
+          text: headerFormat === 'TEXT' ? dbTemplate.headerContent : undefined,
+        });
+      }
     }
 
     components.push({
@@ -897,6 +970,15 @@ export class BulkTemplateSendService {
         buttons: dbTemplate.buttons,
       });
     }
+
+    logger.debug('Converted DB template to WhatsApp format', {
+      templateName: dbTemplate.templateName,
+      category: dbTemplate.category,
+      headerType: dbTemplate.headerType,
+      hasButtons: dbTemplate.buttons?.length > 0,
+      buttonTypes: dbTemplate.buttons?.map((b: any) => b.type) || [],
+      componentsCount: components.length
+    });
 
     return {
       id: dbTemplate.id,

@@ -4,6 +4,7 @@ import { MessageInput } from "./message-input"
 import { Customer } from "../hooks/use-chat"
 import { useChatScroll } from "../hooks/use-chat-scroll"
 import type { WindowStatus } from "@/lib/window-utils"
+import type { Message } from "@/lib/api/messages-api"
 
 interface ChatAreaProps {
     selectedCustomer: Customer
@@ -20,6 +21,7 @@ interface ChatAreaProps {
     templates: any[]
     onBack: () => void
     windowStatus?: WindowStatus | null
+    onRetryMessage?: (message: Message) => void
 }
 
 export function ChatArea({
@@ -36,7 +38,8 @@ export function ChatArea({
     uploading,
     templates,
     onBack,
-    windowStatus
+    windowStatus,
+    onRetryMessage
 }: ChatAreaProps) {
     // Filter messages for selected customer
     const filteredMessages = messages
@@ -68,6 +71,7 @@ export function ChatArea({
                     scrollRef={messagesEndRef as any}
                     containerRef={messageContainerRef as any}
                     onScroll={handleScroll}
+                    onRetry={onRetryMessage}
                 />
             </div>
 

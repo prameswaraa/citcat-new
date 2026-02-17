@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Header } from "@/components/layout/header"
-import { EmbeddedSignupCard } from "./components/embedded-signup-card"
+import { WABAConnectCard } from "./components/waba-connect-card"
 import { DisconnectModal } from "@/components/disconnect-modal"
 import { useBusinessAccount } from "@/hooks/use-business-account"
 import {
@@ -171,7 +171,7 @@ export default function WABAPage() {
 
         {/* Add Account Card */}
         {(showAddAccount || connectedAccounts.length === 0) && (
-          <div className="relative max-w-2xl">
+          <div className="relative">
             {showAddAccount && connectedAccounts.length > 0 && (
               <Button
                 variant="ghost"
@@ -182,7 +182,7 @@ export default function WABAPage() {
                 <IconX className="h-4 w-4" />
               </Button>
             )}
-            <EmbeddedSignupCard
+            <WABAConnectCard
               hasWABA={!showAddAccount && connectedAccounts.length > 0}
               onSuccess={() => {
                 setShowAddAccount(false)

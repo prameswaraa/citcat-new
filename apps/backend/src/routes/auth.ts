@@ -256,15 +256,31 @@ app.post('/register', async (c: Context) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        passwordHash,
-        name,
-        role,
-        emailVerified: false
-      }
+    // Create user with FREE subscription
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: email.toLowerCase(),
+          passwordHash,
+          name,
+          role,
+          emailVerified: false
+        }
+      })
+
+      // Create FREE subscription for new user
+      await tx.subscription.create({
+        data: {
+          userId: newUser.id,
+          tier: 'FREE',
+          status: 'ACTIVE',
+          startDate: new Date(),
+          endDate: null, // FREE plan has no expiry
+          autoRenewEnabled: false
+        }
+      })
+
+      return newUser
     })
     
     // Generate JWT
@@ -482,6 +498,18 @@ app.post('/register/verify', async (c: Context) => {
           accountId: newUser.id,
           providerId: 'credential',
           password: pendingReg.passwordHash
+        }
+      })
+
+      // Create FREE subscription for new user
+      await tx.subscription.create({
+        data: {
+          userId: newUser.id,
+          tier: 'FREE',
+          status: 'ACTIVE',
+          startDate: new Date(),
+          endDate: null, // FREE plan has no expiry
+          autoRenewEnabled: false
         }
       })
 

@@ -10,6 +10,30 @@ export interface WABADetails {
     connectionStatus?: string
     connectedAt?: string
     lastSyncAt?: string
+    isManualLogin?: boolean
+}
+
+export interface ManualConnectResponse {
+    waba: WABADetails & {
+        isManualLogin: boolean
+    }
+    phoneNumbers: PhoneNumberDetails[]
+    webhook: {
+        url: string
+        verifyToken: string
+        instructions: string
+    }
+}
+
+export interface WebhookInfoResponse {
+    accountId: string
+    wabaId: string
+    wabaName: string
+    webhook: {
+        url: string
+        verifyToken: string
+        instructions: string[]
+    }
 }
 
 export interface PhoneNumberDetails {
@@ -296,6 +320,61 @@ export const wabaApi = {
         if (!response.ok) {
             const error = await response.json().catch(() => ({}))
             throw new Error(error.error?.message || 'Failed to sync history')
+        }
+
+        const result = await response.json()
+        return result.data
+    },
+
+    // Manual login methods
+    async manualConnect(accessToken: string, wabaId: string): Promise<ManualConnectResponse> {
+        const response = await fetch(`${API_URL}/api/v1/waba/manual/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ accessToken, wabaId }),
+        })
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}))
+            throw new Error(error.error?.message || 'Failed to connect WABA')
+        }
+
+        const result = await response.json()
+        return result.data
+    },
+
+    async getWebhookInfo(accountId: string): Promise<WebhookInfoResponse> {
+        const response = await fetch(
+            `${API_URL}/api/v1/waba/manual/webhook-info/${accountId}`,
+            {
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            }
+        )
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}))
+            throw new Error(error.error?.message || 'Failed to get webhook info')
+        }
+
+        const result = await response.json()
+        return result.data
+    },
+
+    async regenerateVerifyToken(accountId: string): Promise<{ webhook: { url: string; verifyToken: string; message: string } }> {
+        const response = await fetch(
+            `${API_URL}/api/v1/waba/manual/regenerate-verify-token/${accountId}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            }
+        )
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}))
+            throw new Error(error.error?.message || 'Failed to regenerate verify token')
         }
 
         const result = await response.json()

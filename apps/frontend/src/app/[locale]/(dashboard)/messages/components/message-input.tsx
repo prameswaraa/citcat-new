@@ -38,6 +38,105 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { WindowStatus } from "@/lib/window-utils"
 
 // Separate component to avoid closure issues with state
+interface VariableInfo {
+    key: string
+    label: string
+    type: 'body' | 'header_media' | 'button' | 'copy_code'
+    placeholder: string
+}
+
+function extractTemplateVariables(template: any): VariableInfo[] {
+    const variables: VariableInfo[] = []
+    const variableRegex = /\{\{(\d+)\}\}/g
+
+    // 1. Header media (IMAGE, VIDEO, DOCUMENT)
+    if (template.headerType && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(template.headerType.toUpperCase())) {
+        const headerType = template.headerType.toLowerCase()
+        variables.push({
+            key: `header_${headerType}`,
+            label: `Header ${template.headerType}`,
+            type: 'header_media',
+            placeholder: `https://example.com/${headerType}.${headerType === 'image' ? 'jpg' : headerType === 'video' ? 'mp4' : 'pdf'}`,
+        })
+    }
+
+    // 2. Body variables
+    const content = template.content || template.bodyText || ''
+    const matches = content.match(variableRegex) || []
+    const uniqueVars: string[] = Array.from(new Set(matches.map((m: string) => m.replace(/[{}]/g, ''))))
+    uniqueVars.forEach(varNum => {
+        variables.push({
+            key: varNum,
+            label: `Body Variable {{${varNum}}}`,
+            type: 'body',
+            placeholder: `Value for {{${varNum}}}`,
+        })
+    })
+
+    // 3. Button variables (URL with {{1}} or Copy Code)
+    const buttons = template.buttons || []
+    let urlButtonIndex = 0
+    buttons.forEach((button: any, btnIndex: number) => {
+        // URL button with dynamic suffix
+        const hasDynamicUrl = button.type === 'URL' && (
+            (button.example && button.example.length > 0) ||
+            (button.url && button.url.includes('{{1}}'))
+        )
+        if (hasDynamicUrl) {
+            variables.push({
+                key: `button_${urlButtonIndex}`,
+                label: `Button URL Suffix`,
+                type: 'button',
+                placeholder: `URL suffix for "${button.text}" button`,
+            })
+            urlButtonIndex++
+        }
+        
+        // Copy Code / OTP button
+        if (button.type === 'COPY_CODE' || button.type === 'OTP') {
+            variables.push({
+                key: `button_${btnIndex}_copy_code`,
+                label: 'Copy Code',
+                type: 'copy_code',
+                placeholder: 'Enter code (e.g., 123456)',
+            })
+        }
+    })
+
+    // Also check components structure
+    const components = template.components || []
+    components.forEach((comp: any) => {
+        if (comp.type === 'BUTTONS' && comp.buttons) {
+            let compUrlIdx = 0
+            comp.buttons.forEach((button: any, btnIndex: number) => {
+                const hasDynamicUrl = button.type === 'URL' && (
+                    (button.example && button.example.length > 0) ||
+                    (button.url && button.url.includes('{{1}}'))
+                )
+                if (hasDynamicUrl && !variables.find(v => v.key === `button_${compUrlIdx}`)) {
+                    variables.push({
+                        key: `button_${compUrlIdx}`,
+                        label: `Button URL Suffix`,
+                        type: 'button',
+                        placeholder: `URL suffix for "${button.text}" button`,
+                    })
+                    compUrlIdx++
+                }
+                if ((button.type === 'COPY_CODE' || button.type === 'OTP') && !variables.find(v => v.key === `button_${btnIndex}_copy_code`)) {
+                    variables.push({
+                        key: `button_${btnIndex}_copy_code`,
+                        label: 'Copy Code',
+                        type: 'copy_code',
+                        placeholder: 'Enter code (e.g., 123456)',
+                    })
+                }
+            })
+        }
+    })
+
+    return variables
+}
+
 function VariableInputForm({ 
     template, 
     variableValues, 
@@ -48,14 +147,14 @@ function VariableInputForm({
     onVariableChange: (varNum: string, value: string) => void 
 }) {
     const content = template.content || template.bodyText || ''
-    const matches = content.match(/\{\{(\d+)\}\}/g) || []
-    const uniqueVars: string[] = Array.from(new Set(matches.map((m: string) => m.replace(/[{}]/g, ''))))
+    const variables = extractTemplateVariables(template)
     
-    
-    // Generate preview
+    // Generate preview for body
     let preview = content
-    Object.entries(variableValues).forEach(([num, value]) => {
-        preview = preview.replace(new RegExp(`\\{\\{${num}\\}\\}`, 'g'), value || `{{${num}}}`)
+    Object.entries(variableValues).forEach(([key, value]) => {
+        if (/^\d+$/.test(key)) {
+            preview = preview.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), value || `{{${key}}}`)
+        }
     })
 
     return (
@@ -69,19 +168,34 @@ function VariableInputForm({
             </div>
 
             {/* Variable inputs */}
-            {uniqueVars.length === 0 ? (
+            {variables.length === 0 ? (
                 <div className="text-sm text-muted-foreground italic">
-                    No variables detected in template content.
+                    No variables detected in template.
                 </div>
             ) : (
-                uniqueVars.map((varNum) => (
-                    <div key={varNum} className="space-y-2">
-                        <Label>Variable {varNum}</Label>
+                variables.map((variable) => (
+                    <div key={variable.key} className="space-y-2">
+                        <Label className="flex items-center gap-2">
+                            {variable.label}
+                            {variable.type === 'header_media' && (
+                                <span className="text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">header</span>
+                            )}
+                            {variable.type === 'button' && (
+                                <span className="text-xs bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded">button</span>
+                            )}
+                            {variable.type === 'copy_code' && (
+                                <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">copy code</span>
+                            )}
+                        </Label>
                         <Input
-                            placeholder={`Enter value for {{${varNum}}}`}
-                            value={variableValues[varNum] || ''}
-                            onChange={(e) => onVariableChange(varNum, e.target.value)}
+                            type={variable.type === 'header_media' ? 'url' : 'text'}
+                            placeholder={variable.placeholder}
+                            value={variableValues[variable.key] || ''}
+                            onChange={(e) => onVariableChange(variable.key, e.target.value)}
                         />
+                        {variable.type === 'header_media' && (
+                            <p className="text-xs text-muted-foreground">Enter a publicly accessible URL</p>
+                        )}
                     </div>
                 ))
             )}
@@ -412,44 +526,52 @@ export function MessageInput({
                             Choose a template to send to the customer.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                         {templates.map((template) => {
-                            // Check if template has variables - use backend-provided flag or check content
-                            const templateContent = template.content || template.bodyText || ''
-                            const hasVariables = template.hasVariables || templateContent.match(/\{\{(\d+)\}\}/g)
+                            // Check if template has variables
+                            const variables = extractTemplateVariables(template)
+                            const hasVariables = variables.length > 0
                             
                             return (
                                 <div
                                     key={template.id}
-                                    className="border rounded-lg p-4 hover:bg-accent cursor-pointer transition-colors"
+                                    className="border rounded-lg p-3 hover:bg-accent/50 cursor-pointer transition-colors flex flex-col h-full min-h-[120px]"
                                     onClick={() => {
                                         if (hasVariables) {
-                                            // Show variable input dialog
                                             setSelectedTemplate(template)
                                             setShowTemplateMenu(false)
                                             setShowVariableDialog(true)
                                         } else {
-                                            // Send directly
                                             onSendTemplate(template)
                                             setShowTemplateMenu(false)
                                         }
                                     }}
                                 >
-                                    <h4 className="font-semibold mb-2">{template.templateName}</h4>
-                                    <p className="text-sm text-muted-foreground line-clamp-3">
+                                    <h4 className="font-medium text-sm mb-1 truncate" title={template.templateName}>
+                                        {template.templateName}
+                                    </h4>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 mb-auto flex-1">
                                         {template.content || template.bodyText}
                                     </p>
-                                    <div className="mt-2 flex gap-2">
-                                        <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">
+                                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-border/50">
+                                        <span className="text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 px-1.5 py-0.5 rounded">
                                             {template.language}
                                         </span>
-                                        <span className="text-xs bg-muted px-2 py-1 rounded">
+                                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                                            template.category === 'MARKETING' 
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400'
+                                                : template.category === 'UTILITY'
+                                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400'
+                                                : 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400'
+                                        }`}>
                                             {template.category}
                                         </span>
                                         {hasVariables && (
-                                            <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 px-2 py-1 rounded flex items-center gap-1">
-                                                <FileText className="h-3 w-3" />
-                                                Variables
+                                            <span className="text-[10px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-400 px-1.5 py-0.5 rounded ml-auto flex items-center gap-0.5">
+                                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                </svg>
+                                                {variables.length}
                                             </span>
                                         )}
                                     </div>
@@ -504,40 +626,75 @@ export function MessageInput({
                         </Button>
                         <Button 
                             onClick={() => {
-                                // Get required variables from template
-                                const content = selectedTemplate?.content || selectedTemplate?.bodyText || ''
-                                const matches = content.match(/\{\{(\d+)\}\}/g) || []
-                                const requiredVars: string[] = Array.from(new Set(matches.map((m: string) => m.replace(/[{}]/g, ''))))
+                                // Extract all variables from template
+                                const variables = extractTemplateVariables(selectedTemplate)
                                 
-                                // Check if all variables are filled
-                                const missingVars = requiredVars.filter((v) => !variableValues[v]?.trim())
+                                // Build components for WhatsApp API
+                                const components: any[] = []
                                 
-                                // Build components directly here to ensure they're sent
-                                // IMPORTANT: Parameters MUST be in order ({{1}}, {{2}}, {{3}}) for WhatsApp API
-                                let components: any[] | undefined = undefined
-                                if (requiredVars.length > 0) {
-                                    // Sort by variable number to ensure correct order
-                                    const sortedVars = [...requiredVars].sort((a, b) => parseInt(a) - parseInt(b))
-                                    
-                                    // Build parameters - ALL variables must be included, even if empty
-                                    // WhatsApp API requires exact parameter count matching template
-                                    const bodyParameters = sortedVars.map(v => ({
-                                        type: "text",
-                                        text: variableValues[v]?.trim() || '' // Use empty string if not filled
-                                    }))
-                                    
-                                    // Only add components if we have parameters
-                                    if (bodyParameters.length > 0) {
-                                        components = [{
-                                            type: "body",
-                                            parameters: bodyParameters
+                                // 1. Header component (for media)
+                                const headerVar = variables.find(v => v.type === 'header_media')
+                                if (headerVar && variableValues[headerVar.key]) {
+                                    const mediaType = headerVar.key.replace('header_', '') // image, video, document
+                                    components.push({
+                                        type: "header",
+                                        parameters: [{
+                                            type: mediaType,
+                                            [mediaType]: { link: variableValues[headerVar.key] }
                                         }]
-                                    }
-                                    
+                                    })
                                 }
                                 
+                                // 2. Body component
+                                const bodyVars = variables.filter(v => v.type === 'body')
+                                if (bodyVars.length > 0) {
+                                    const sortedVars = [...bodyVars].sort((a, b) => parseInt(a.key) - parseInt(b.key))
+                                    const bodyParameters = sortedVars.map(v => ({
+                                        type: "text",
+                                        text: variableValues[v.key]?.trim() || ''
+                                    }))
+                                    components.push({
+                                        type: "body",
+                                        parameters: bodyParameters
+                                    })
+                                }
+                                
+                                // 3. Button components (URL suffix and Copy Code)
+                                const buttonVars = variables.filter(v => v.type === 'button')
+                                buttonVars.forEach(v => {
+                                    const idx = parseInt(v.key.replace('button_', ''))
+                                    if (variableValues[v.key]) {
+                                        components.push({
+                                            type: "button",
+                                            sub_type: "url",
+                                            index: idx,
+                                            parameters: [{
+                                                type: "text",
+                                                text: variableValues[v.key]
+                                            }]
+                                        })
+                                    }
+                                })
+                                
+                                const copyCodeVars = variables.filter(v => v.type === 'copy_code')
+                                copyCodeVars.forEach(v => {
+                                    const match = v.key.match(/button_(\d+)_copy_code/)
+                                    const idx = match ? parseInt(match[1]) : 0
+                                    if (variableValues[v.key]) {
+                                        components.push({
+                                            type: "button",
+                                            sub_type: "copy_code",
+                                            index: idx,
+                                            parameters: [{
+                                                type: "coupon_code",
+                                                coupon_code: variableValues[v.key]
+                                            }]
+                                        })
+                                    }
+                                })
+                                
                                 // Send with both variableValues AND pre-built components
-                                onSendTemplate({ ...selectedTemplate, variableValues, components })
+                                onSendTemplate({ ...selectedTemplate, variableValues, components: components.length > 0 ? components : undefined })
                                 setShowVariableDialog(false)
                                 setVariableValues({})
                                 setSelectedTemplate(null)

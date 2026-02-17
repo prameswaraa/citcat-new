@@ -157,48 +157,6 @@ export function CustomerDetailTabs({ customer, getConsentBadge }: CustomerDetail
                     </>
                 )}
 
-                {/* Notes */}
-                {customer.notes && Array.isArray(customer.notes) && customer.notes.length > 0 && (
-                    <>
-                        <div className="space-y-4">
-                            <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                                Notes ({customer.notes.length})
-                            </h4>
-                            <div className="space-y-3">
-                                {customer.notes.map((note: any) => (
-                                    <div key={note.id} className="flex items-start gap-3 p-3 rounded-md bg-muted/50">
-                                        <IconFileText className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
-                                        <div className="flex-1 min-w-0">
-                                            <p className="whitespace-pre-wrap text-sm break-words">{note.content}</p>
-                                            <p className="text-xs text-muted-foreground mt-1">
-                                                {note.createdBy} • {new Date(note.createdAt).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <Separator />
-                    </>
-                )}
-                {/* Legacy single note support */}
-                {customer.notes && typeof customer.notes === 'string' && (
-                    <>
-                        <div className="space-y-4">
-                            <h4 className="font-semibold text-sm uppercase text-muted-foreground">
-                                Notes
-                            </h4>
-                            <div className="flex items-start gap-3">
-                                <IconFileText className="text-muted-foreground mt-0.5 h-4 w-4" />
-                                <div className="flex-1">
-                                    <p className="whitespace-pre-wrap text-sm">{customer.notes}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <Separator />
-                    </>
-                )}
-
                 {/* Activity Summary */}
                 <div className="space-y-4">
                     <h4 className="font-semibold text-sm uppercase text-muted-foreground">

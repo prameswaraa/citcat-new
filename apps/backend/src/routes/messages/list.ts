@@ -6,6 +6,7 @@ import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 const app = new Hono()
 
 // GET /api/v1/messages - List messages
+// Only returns messages from connected WhatsApp accounts
 app.get('/', async (c: Context) => {
   try {
     if (!c.user) {
@@ -23,6 +24,18 @@ app.get('/', async (c: Context) => {
     const customerId = c.req.query('customerId')
     const isAgent = c.user.role === 'AGENT'
     const agentUserId = c.user.id
+
+    // Get phone numbers from connected WhatsApp accounts only
+    const connectedPhoneNumbers = await prisma.phoneNumber.findMany({
+      where: {
+        whatsappAccount: {
+          userId: effectiveUserId,
+          connectionStatus: 'connected'
+        }
+      },
+      select: { id: true }
+    })
+    const connectedPhoneNumberIds = connectedPhoneNumbers.map(p => p.id)
 
     // For agents, first get the list of customer IDs assigned to them
     let assignedCustomerIds: string[] = []
@@ -60,6 +73,19 @@ app.get('/', async (c: Context) => {
     // For agents, filter to only show messages from assigned customers
     if (isAgent && assignedCustomerIds.length > 0) {
       where.customerId = { in: assignedCustomerIds }
+    }
+    
+    // Filter to only show messages from customers linked to connected WhatsApp numbers
+    if (connectedPhoneNumberIds.length > 0) {
+      where.customer = {
+        OR: [
+          { whatsappPhoneNumberId: { in: connectedPhoneNumberIds } },
+          { whatsappPhoneNumberId: null } // Include non-WhatsApp customers (Instagram, Messenger)
+        ]
+      }
+    } else {
+      // No connected WhatsApp accounts - only show non-WhatsApp messages
+      where.customer = { whatsappPhoneNumberId: null }
     }
 
     // Fetch messages, unread counts, and assignments in parallel

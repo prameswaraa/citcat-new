@@ -57,6 +57,29 @@ export const auth = betterAuth({
         after: async (user) => {
           console.log('[Database Hook] New user created:', user.email, '| Provider detection pending')
           
+          // Create FREE subscription for new OAuth users
+          try {
+            const existingSubscription = await prisma.subscription.findUnique({
+              where: { userId: user.id }
+            })
+            
+            if (!existingSubscription) {
+              await prisma.subscription.create({
+                data: {
+                  userId: user.id,
+                  tier: 'FREE',
+                  status: 'ACTIVE',
+                  startDate: new Date(),
+                  endDate: null, // FREE plan has no expiry
+                  autoRenewEnabled: false
+                }
+              })
+              console.log('[Database Hook] FREE subscription created for user:', user.email)
+            }
+          } catch (error) {
+            console.error('[Database Hook] Failed to create subscription:', error)
+          }
+          
           // Check if this user was created via OAuth by checking accounts
           // We'll send welcome email here for all new users
           // The hook is called after user is created in database
