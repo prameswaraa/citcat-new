@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { IconBroadcast, IconPlayerPlay, IconHistory, IconAlertTriangle, IconPlugConnected } from "@tabler/icons-react"
 import { useWhatsAppPhoneNumbers } from "@/hooks/use-whatsapp-phone-numbers"
+import { WhatsAppPhoneSelector } from "@/components/whatsapp-phone-selector"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { Link } from "@/i18n/routing"
 import { ActiveJobs } from "./components/active-jobs"
@@ -17,7 +18,12 @@ import { BroadcastForm } from "./components/broadcast-form"
 
 export default function BroadcastPage() {
   const t = useTranslations("broadcast")
-  const { phoneNumbers, isLoading } = useWhatsAppPhoneNumbers()
+  const { 
+    phoneNumbers, 
+    selectedPhoneNumberId,
+    setSelectedPhoneNumberId,
+    isLoading 
+  } = useWhatsAppPhoneNumbers()
 
   // Tab navigation with URL params
   const searchParams = useSearchParams()
@@ -52,7 +58,7 @@ export default function BroadcastPage() {
     <RoleGuard>
       <Header />
       <div className="space-y-4 p-4">
-        <div className="mb-2 flex flex-col justify-between gap-4 md:flex-row md:items-baseline md:gap-2">
+        <div className="mb-2 flex flex-col justify-between gap-4 md:flex-row md:items-center md:gap-2">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">
               {t("title")}
@@ -61,6 +67,15 @@ export default function BroadcastPage() {
               {t("description")}
             </p>
           </div>
+          {/* Phone Number Filter */}
+          {isConnected && (
+            <WhatsAppPhoneSelector
+              phoneNumbers={phoneNumbers}
+              selectedId={selectedPhoneNumberId}
+              onSelect={setSelectedPhoneNumberId}
+              label="Filter"
+            />
+          )}
         </div>
 
         {/* WABA Not Connected Warning */}
@@ -104,7 +119,7 @@ export default function BroadcastPage() {
                   <CardDescription>{t("createBroadcast.description")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <BroadcastForm />
+                  <BroadcastForm selectedPhoneNumberId={selectedPhoneNumberId} />
                 </CardContent>
               </Card>
             ) : (

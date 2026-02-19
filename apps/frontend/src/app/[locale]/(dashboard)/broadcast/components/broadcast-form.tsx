@@ -43,6 +43,7 @@ import { WhatsAppPhoneSelector } from "@/components/whatsapp-phone-selector"
 
 interface BroadcastFormProps {
   onSuccess?: () => void
+  selectedPhoneNumberId?: string | null
 }
 
 type RecipientMode = "customers" | "csv"
@@ -58,18 +59,23 @@ const DELAY_OPTIONS = [
   { value: "10000", label: "10 seconds" },
 ]
 
-export function BroadcastForm({ onSuccess }: BroadcastFormProps) {
+export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumberId }: BroadcastFormProps) {
   const t = useTranslations("broadcast")
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const {
     phoneNumbers: whatsappPhoneNumbers,
-    selectedPhoneNumberId,
-    selectedPhoneNumber,
-    selectedWhatsappAccountId,
+    selectedPhoneNumberId: hookPhoneNumberId,
+    selectedPhoneNumber: hookSelectedPhone,
+    selectedWhatsappAccountId: hookAccountId,
     setSelectedPhoneNumberId,
   } = useWhatsAppPhoneNumbers()
+
+  // Use prop if provided, otherwise use hook state
+  const selectedPhoneNumberId = propPhoneNumberId !== undefined ? propPhoneNumberId : hookPhoneNumberId
+  const selectedPhoneNumber = whatsappPhoneNumbers.find(p => p.id === selectedPhoneNumberId) || null
+  const selectedWhatsappAccountId = selectedPhoneNumber?.whatsappAccountId || null
 
   // Form state
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
@@ -235,8 +241,8 @@ export function BroadcastForm({ onSuccess }: BroadcastFormProps) {
           </AlertDescription>
         </Alert>
 
-        {/* Phone Number Selection (for multi-number) */}
-        {whatsappPhoneNumbers.length > 1 && (
+        {/* Phone Number Selection - show if no prop provided and multiple numbers */}
+        {propPhoneNumberId === undefined && whatsappPhoneNumbers.length > 1 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Pilih Nomor Pengirim</CardTitle>
