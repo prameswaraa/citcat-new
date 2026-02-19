@@ -52,9 +52,18 @@ export interface CustomerStats {
 export const customersApi = {
     /**
      * Get customer statistics
+     * Supports filtering by whatsappPhoneNumberId for multi-number accounts
      */
-    async getStats(): Promise<CustomerStats> {
-        const response = await fetch(`${API_URL}/api/v1/customers/stats`, {
+    async getStats(filters?: { whatsappPhoneNumberId?: string }): Promise<CustomerStats> {
+        const params = new URLSearchParams()
+        if (filters?.whatsappPhoneNumberId) {
+            params.append('whatsappPhoneNumberId', filters.whatsappPhoneNumberId)
+        }
+        
+        const queryString = params.toString()
+        const url = `${API_URL}/api/v1/customers/stats${queryString ? `?${queryString}` : ''}`
+        
+        const response = await fetch(url, {
             credentials: 'include',
         })
         const result = await response.json()

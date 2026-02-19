@@ -14,17 +14,26 @@ import { queryKeys } from '@/lib/query-keys'
 import { CACHE_TIMES } from '@/lib/cache-config'
 
 /**
+ * Filters for customer statistics
+ */
+export interface CustomerStatsFilters {
+  whatsappPhoneNumberId?: string
+}
+
+/**
  * Hook for fetching customer statistics
  *
  * Returns counts for total, consented, active window, and blacklisted customers.
  * Stats are cached and invalidated when customer data changes.
+ * Supports filtering by whatsappPhoneNumberId for multi-number accounts.
  *
+ * @param filters - Optional filters for phone number
  * @param enabled - Whether the query should be enabled (default: true)
  */
-export function useCustomerStats(enabled: boolean = true) {
+export function useCustomerStats(filters?: CustomerStatsFilters, enabled: boolean = true) {
   return useQuery<CustomerStats, Error>({
-    queryKey: queryKeys.customers.stats(),
-    queryFn: () => customersApi.getStats(),
+    queryKey: queryKeys.customers.stats(filters || {}),
+    queryFn: () => customersApi.getStats(filters),
     ...CACHE_TIMES.customers,
     enabled,
     placeholderData: (previousData) => previousData,

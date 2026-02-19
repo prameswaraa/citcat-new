@@ -112,8 +112,11 @@ export default function CustomersPage() {
           <CustomersPrimaryActions />
         </div>
 
-        {/* Stats Cards */}
-        <CustomerStats enabled={!isLoadingAccount && !!userId} />
+        {/* Stats Cards - filtered by selected phone number */}
+        <CustomerStats 
+          enabled={!isLoadingAccount && !!userId} 
+          whatsappPhoneNumberId={selectedPhoneNumberId}
+        />
 
         {customers.length === 0 && !loading ? (
           <Card className="border-dashed">

@@ -36,7 +36,8 @@ export const queryKeys = {
   // Customers
   customers: {
     all: ['customers'] as const,
-    stats: () => [...queryKeys.customers.all, 'stats'] as const,
+    stats: (filters?: { whatsappPhoneNumberId?: string }) => 
+      [...queryKeys.customers.all, 'stats', filters || {}] as const,
     lists: () => [...queryKeys.customers.all, 'list'] as const,
     list: (filters: {
       page?: number

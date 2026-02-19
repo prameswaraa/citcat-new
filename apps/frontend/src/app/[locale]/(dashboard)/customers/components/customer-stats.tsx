@@ -40,11 +40,13 @@ function StatCard({ label, value, icon: Icon, iconColor, isLoading }: StatCardPr
 
 interface CustomerStatsProps {
   enabled?: boolean
+  whatsappPhoneNumberId?: string | null
 }
 
-export function CustomerStats({ enabled = true }: CustomerStatsProps) {
+export function CustomerStats({ enabled = true, whatsappPhoneNumberId }: CustomerStatsProps) {
   const t = useTranslations("customers")
-  const { data: stats, isLoading } = useCustomerStats(enabled)
+  const filters = whatsappPhoneNumberId ? { whatsappPhoneNumberId } : undefined
+  const { data: stats, isLoading } = useCustomerStats(filters, enabled)
 
   const statsData = [
     {
