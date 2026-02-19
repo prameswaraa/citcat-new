@@ -4,6 +4,7 @@ import { requireRole } from '../../middleware/auth.js'
 import { prisma } from '../../utils/database.js'
 import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js'
 import { adminSettingsService } from '../../services/admin/settings-service.js'
+import { checkFeatureAccess } from '../../middleware/subscription.js'
 import agents from './agents.js'
 import knowledge from './knowledge.js'
 
@@ -99,8 +100,23 @@ app.post('/config', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context)
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
     }
 
-    const whatsappAccountId = c.req.query('whatsappAccountId')
     const body = await c.req.json()
+
+    // SECURITY: Check AI feature access before allowing config changes
+    // Only check if user is trying to enable AI
+    if (body.enabled === true) {
+      const hasAccess = await checkFeatureAccess(c.user.id, 'aiChatbot')
+      if (!hasAccess) {
+        return c.json({ 
+          error: { 
+            code: 'Forbidden', 
+            message: 'AI Chatbot is not available in your current plan. Please upgrade to LITE or higher.' 
+          } 
+        }, 403)
+      }
+    }
+
+    const whatsappAccountId = c.req.query('whatsappAccountId')
 
     // Per-account config update
     if (whatsappAccountId) {

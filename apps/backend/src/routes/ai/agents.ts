@@ -95,45 +95,77 @@ app.post('/', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
       return c.json({ error: { code: 'BadRequest', message: 'Name and system prompt are required' } }, 400)
     }
 
-    const newAgent = await prisma.aIAgent.create({
-      data: {
-        name,
-        systemPrompt,
-        userId: c.user.id,
-        knowledgeDocuments: {
-          connect: documentIds?.map((id: string) => ({ id })) || [],
+    // SECURITY: Validate documentIds belong to current user
+    const docIds: string[] = documentIds || []
+    if (docIds.length > 0) {
+      const validDocs = await prisma.knowledgeDocument.count({
+        where: {
+          id: { in: docIds },
+          userId: c.user.id,
         },
-      },
-      include: { knowledgeDocuments: true },
-    })
+      })
+      if (validDocs !== docIds.length) {
+        return c.json({ error: { code: 'Forbidden', message: 'One or more documents do not belong to you' } }, 403)
+      }
+    }
 
-    // Assign agent to WhatsApp accounts (create/update per-account AI config)
+    // SECURITY: Validate assignedPhoneNumberIds belong to current user
     const phoneIds: string[] = assignedPhoneNumberIds || []
     if (phoneIds.length > 0) {
-      await Promise.all(
-        phoneIds.map((whatsappAccountId: string) =>
-          prisma.whatsAppAccountAIConfig.upsert({
-            where: {
-              userId_whatsappAccountId: { userId: c.user.id, whatsappAccountId },
-            },
-            create: {
-              userId: c.user.id,
-              whatsappAccountId,
-              enabled: true,
-              activeAgentId: newAgent.id,
-            },
-            update: {
-              activeAgentId: newAgent.id,
-              enabled: true,
-            },
-          })
-        )
-      )
+      const validAccounts = await prisma.whatsAppAccount.count({
+        where: {
+          id: { in: phoneIds },
+          userId: c.user.id,
+        },
+      })
+      if (validAccounts !== phoneIds.length) {
+        return c.json({ error: { code: 'Forbidden', message: 'One or more WhatsApp accounts do not belong to you' } }, 403)
+      }
     }
+
+    // Use transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      const newAgent = await tx.aIAgent.create({
+        data: {
+          name,
+          systemPrompt,
+          userId: c.user.id,
+          knowledgeDocuments: {
+            connect: docIds.map((id: string) => ({ id })),
+          },
+        },
+        include: { knowledgeDocuments: true },
+      })
+
+      // Assign agent to WhatsApp accounts (create/update per-account AI config)
+      if (phoneIds.length > 0) {
+        await Promise.all(
+          phoneIds.map((whatsappAccountId: string) =>
+            tx.whatsAppAccountAIConfig.upsert({
+              where: {
+                userId_whatsappAccountId: { userId: c.user.id, whatsappAccountId },
+              },
+              create: {
+                userId: c.user.id,
+                whatsappAccountId,
+                enabled: true,
+                activeAgentId: newAgent.id,
+              },
+              update: {
+                activeAgentId: newAgent.id,
+                enabled: true,
+              },
+            })
+          )
+        )
+      }
+
+      return newAgent
+    })
 
     return c.json({
       success: true,
-      data: { ...newAgent, assignedPhoneNumberIds: phoneIds },
+      data: { ...result, assignedPhoneNumberIds: phoneIds },
     }, 201)
   } catch (error) {
     console.error('Failed to create agent:', error)
@@ -151,53 +183,91 @@ app.put('/:id', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => 
     const { id } = c.req.param()
     const { name, systemPrompt, documentIds, assignedPhoneNumberIds } = await c.req.json()
 
-    const updatedAgent = await prisma.aIAgent.update({
+    // Check if agent exists and belongs to user
+    const existingAgent = await prisma.aIAgent.findFirst({
       where: { id, userId: c.user.id },
-      data: {
-        name,
-        systemPrompt,
-        knowledgeDocuments: {
-          set: documentIds?.map((id: string) => ({ id })) || [],
-        },
-      },
-      include: { knowledgeDocuments: true },
     })
-
-    // Update phone number assignments
-    const phoneIds: string[] = assignedPhoneNumberIds || []
-
-    // Remove this agent from accounts that are no longer assigned
-    await prisma.whatsAppAccountAIConfig.updateMany({
-      where: {
-        userId: c.user.id,
-        activeAgentId: id,
-        whatsappAccountId: { notIn: phoneIds },
-      },
-      data: { activeAgentId: null, enabled: false },
-    })
-
-    // Assign agent to selected accounts
-    if (phoneIds.length > 0) {
-      await Promise.all(
-        phoneIds.map((whatsappAccountId: string) =>
-          prisma.whatsAppAccountAIConfig.upsert({
-            where: {
-              userId_whatsappAccountId: { userId: c.user.id, whatsappAccountId },
-            },
-            create: {
-              userId: c.user.id,
-              whatsappAccountId,
-              enabled: true,
-              activeAgentId: id,
-            },
-            update: {
-              activeAgentId: id,
-              enabled: true,
-            },
-          })
-        )
-      )
+    if (!existingAgent) {
+      return c.json({ error: { code: 'NotFound', message: 'Agent not found' } }, 404)
     }
+
+    // SECURITY: Validate documentIds belong to current user
+    const docIds: string[] = documentIds || []
+    if (docIds.length > 0) {
+      const validDocs = await prisma.knowledgeDocument.count({
+        where: {
+          id: { in: docIds },
+          userId: c.user.id,
+        },
+      })
+      if (validDocs !== docIds.length) {
+        return c.json({ error: { code: 'Forbidden', message: 'One or more documents do not belong to you' } }, 403)
+      }
+    }
+
+    // SECURITY: Validate assignedPhoneNumberIds belong to current user
+    const phoneIds: string[] = assignedPhoneNumberIds || []
+    if (phoneIds.length > 0) {
+      const validAccounts = await prisma.whatsAppAccount.count({
+        where: {
+          id: { in: phoneIds },
+          userId: c.user.id,
+        },
+      })
+      if (validAccounts !== phoneIds.length) {
+        return c.json({ error: { code: 'Forbidden', message: 'One or more WhatsApp accounts do not belong to you' } }, 403)
+      }
+    }
+
+    // Use transaction to ensure atomicity
+    const updatedAgent = await prisma.$transaction(async (tx) => {
+      const agent = await tx.aIAgent.update({
+        where: { id, userId: c.user.id },
+        data: {
+          name,
+          systemPrompt,
+          knowledgeDocuments: {
+            set: docIds.map((docId: string) => ({ id: docId })),
+          },
+        },
+        include: { knowledgeDocuments: true },
+      })
+
+      // Remove this agent from accounts that are no longer assigned
+      await tx.whatsAppAccountAIConfig.updateMany({
+        where: {
+          userId: c.user.id,
+          activeAgentId: id,
+          whatsappAccountId: { notIn: phoneIds },
+        },
+        data: { activeAgentId: null, enabled: false },
+      })
+
+      // Assign agent to selected accounts
+      if (phoneIds.length > 0) {
+        await Promise.all(
+          phoneIds.map((whatsappAccountId: string) =>
+            tx.whatsAppAccountAIConfig.upsert({
+              where: {
+                userId_whatsappAccountId: { userId: c.user.id, whatsappAccountId },
+              },
+              create: {
+                userId: c.user.id,
+                whatsappAccountId,
+                enabled: true,
+                activeAgentId: id,
+              },
+              update: {
+                activeAgentId: id,
+                enabled: true,
+              },
+            })
+          )
+        )
+      }
+
+      return agent
+    })
 
     return c.json({
       success: true,

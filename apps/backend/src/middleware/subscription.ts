@@ -1,7 +1,10 @@
 import { Context } from 'hono'
 import { prisma } from '../utils/database.js'
 import { PLAN_LIMITS } from '../config/plans.js'
-import { SubscriptionTier, SubscriptionStatus } from '@prisma/client'
+import { SubscriptionTier, SubscriptionStatus, Prisma } from '@prisma/client'
+
+// Transaction client type for Prisma interactive transactions
+type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
 
 // Type definitions for feature checking
 export type BooleanFeature = 'aiChatbot' | 'apiAccess' | 'webhooksEnabled'
@@ -120,6 +123,66 @@ export async function checkUsageLimit(
     allowed: current < limit,
     limit,
     current
+  }
+}
+
+/**
+ * Atomic check-and-create for resources with limits.
+ * Uses a transaction with SERIALIZABLE isolation to prevent race conditions (TOCTOU).
+ * Returns the created resource or throws an error if limit exceeded.
+ */
+export async function checkAndCreateWithLimit<T>(
+  userId: string,
+  resource: NumericLimit,
+  createFn: (tx: TransactionClient) => Promise<T>
+): Promise<{ success: true; data: T } | { success: false; error: string; limit: number; current: number }> {
+  const subscription = await getSubscription(userId)
+  const effectiveTier = getEffectiveTier(subscription)
+  const limit = PLAN_LIMITS[effectiveTier][resource]
+
+  try {
+    // Use interactive transaction with serializable isolation
+    const result = await prisma.$transaction(async (tx) => {
+      let current = 0
+
+      switch (resource) {
+        case 'maxKnowledgeDocs':
+          current = await tx.knowledgeDocument.count({ where: { userId } })
+          break
+        case 'maxAgents':
+          current = await tx.aIAgent.count({ where: { userId } })
+          break
+        case 'maxApiKeys':
+          current = await tx.apiKey.count({ where: { userId, revokedAt: null } })
+          break
+        case 'maxWebhookEndpoints':
+          current = await tx.webhookEndpoint.count({ where: { userId } })
+          break
+      }
+
+      if (current >= limit) {
+        throw new Error(`LIMIT_EXCEEDED:${limit}:${current}`)
+      }
+
+      // Create the resource within the same transaction
+      return await createFn(tx)
+    }, {
+      isolationLevel: 'Serializable', // Prevents concurrent reads during transaction
+      timeout: 10000, // 10 second timeout
+    })
+
+    return { success: true, data: result }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('LIMIT_EXCEEDED:')) {
+      const [, limitStr, currentStr] = error.message.split(':')
+      return {
+        success: false,
+        error: `You have reached the maximum limit (${limitStr}) for your plan.`,
+        limit: parseInt(limitStr, 10),
+        current: parseInt(currentStr, 10),
+      }
+    }
+    throw error
   }
 }
 
