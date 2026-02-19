@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Pencil, Trash2, Bot } from "lucide-react"
+import { Plus, Pencil, Trash2, Bot, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { AIAgent, KnowledgeDocument } from "@/lib/api/ai-api"
 import { AgentDialog } from "./agent-dialog"
 import type { WhatsAppPhoneNumberOption } from "@/hooks/use-whatsapp-phone-numbers"
@@ -30,6 +40,9 @@ interface AgentsListProps {
 export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate, onDelete }: AgentsListProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | undefined>(undefined)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [agentToDelete, setAgentToDelete] = useState<AIAgent | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleCreate = () => {
     setSelectedAgent(undefined)
@@ -46,6 +59,23 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
       await onUpdate(selectedAgent.id, data)
     } else {
       await onCreate(data)
+    }
+  }
+
+  const handleDeleteClick = (agent: AIAgent) => {
+    setAgentToDelete(agent)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!agentToDelete) return
+    setIsDeleting(true)
+    try {
+      await onDelete(agentToDelete.id)
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setAgentToDelete(null)
     }
   }
 
@@ -135,7 +165,7 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => onDelete(agent.id)}
+                        onClick={() => handleDeleteClick(agent)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -155,6 +185,34 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
           phoneNumbers={phoneNumbers}
           onSave={handleSave}
         />
+
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <AlertDialogTitle>Delete Agent</AlertDialogTitle>
+              </div>
+              <AlertDialogDescription className="pt-2">
+                Are you sure you want to delete <strong>{agentToDelete?.name}</strong>?
+                <br /><br />
+                This action cannot be undone. The agent and all its configurations will be permanently removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {isDeleting ? "Deleting..." : "Delete Agent"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   )

@@ -273,8 +273,6 @@ export default function AIPage() {
   }
 
   const handleDeleteAgent = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this agent?")) return
-
     try {
       await aiApi.deleteAgent(id)
       setAgents(agents.filter((a) => a.id !== id))
