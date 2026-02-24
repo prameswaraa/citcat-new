@@ -11,6 +11,7 @@ import type { OpenAISettings } from '../../types/admin-settings.js';
 import { assignmentService } from '../assignment-service.js';
 import type { ConversationType } from '@prisma/client';
 import { resolveAIConfig } from './resolve-ai-config.js';
+import { createMemoryVectorStore, MemoryVectorStore, MemorySearchResult } from './memory/index.js';
 
 /**
  * AIOrchestrator
@@ -34,6 +35,7 @@ export class AIOrchestrator {
   private lastBaseUrl: string = '';
   private lastEmbeddingModel: string = '';
   private lastDefaultChatModel: string = DEFAULT_CHAT_MODEL;
+  private memoryStore: MemoryVectorStore | null = null;
 
   constructor() {
     // Initialize with env API key as fallback, will be updated from DB on first use
@@ -175,11 +177,35 @@ export class AIOrchestrator {
   }
 
   /**
+   * Ensure memory store is initialized
+   */
+  private async ensureMemoryStore(): Promise<MemoryVectorStore> {
+    if (!this.memoryStore) {
+      const provider = await this.ensureProvider();
+      this.memoryStore = createMemoryVectorStore(provider as OpenAIProvider);
+    }
+    return this.memoryStore;
+  }
+
+  /**
    * Invalidate settings cache (call when settings are updated)
    */
   invalidateCache(): void {
     settingsCache.invalidate(CACHE_KEYS.openai());
     logger.info('OpenAI settings cache invalidated');
+  }
+
+  /**
+   * Format memory search results for inclusion in system prompt
+   */
+  private formatMemoriesForPrompt(memories: MemorySearchResult[]): string {
+    if (memories.length === 0) return '';
+
+    return memories
+      .map((m, i) => `[Memory ${i + 1}]
+Customer asked: ${m.memory.customerMessage}
+Response was: ${m.memory.responseMessage}`)
+      .join('\n\n');
   }
 
   async processAndStoreDocument(
@@ -387,14 +413,52 @@ export class AIOrchestrator {
       console.log('🤖 AI Orchestrator: No knowledge documents linked to this AI Agent');
     }
 
+    // 2.5 Search Conversation Memory (if customerId and whatsappAccountId available)
+    let memoryContext = '';
+    if (customerId && whatsappAccountId) {
+      try {
+        const memoryStore = await this.ensureMemoryStore();
+        const memories = await memoryStore.searchMemories({
+          userId,
+          customerId,
+          whatsappAccountId,
+          query: userMessage,
+          limit: 5,
+          similarityThreshold: 0.7,
+        });
+
+        console.log(`🤖 AI Orchestrator: Found ${memories.length} relevant memories`);
+
+        if (memories.length > 0) {
+          memoryContext = this.formatMemoriesForPrompt(memories);
+          console.log('🤖 AI Orchestrator: Memory context preview:',
+            memoryContext.substring(0, 200) + '...'
+          );
+        }
+      } catch (error) {
+        logger.warn('Failed to search conversation memories', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        // Continue without memory context
+      }
+    }
+
     // 3. Construct Prompt - user's system prompt + context as reference info
     // Context is appended without additional instructions to not interfere with user's system prompt
-    const systemPrompt = contextText.length > 0
-      ? `${activeAgent.systemPrompt}\n\n---\nKnowledge Base:\n${contextText}`
-      : activeAgent.systemPrompt;
+    // Build system prompt with knowledge base and memory context
+    let systemPrompt = activeAgent.systemPrompt;
+
+    if (contextText.length > 0) {
+      systemPrompt += `\n\n---\nKnowledge Base:\n${contextText}`;
+    }
+
+    if (memoryContext.length > 0) {
+      systemPrompt += `\n\n---\nPast Conversations with This Customer:\n${memoryContext}`;
+    }
 
     console.log('🤖 AI Orchestrator: System prompt length:', systemPrompt.length, 'chars');
     console.log('🤖 AI Orchestrator: Context length:', contextText.length, 'chars');
+    console.log('🤖 AI Orchestrator: Memory context length:', memoryContext.length, 'chars');
 
     const messages: AIChatMessage[] = [
       { role: 'system', content: systemPrompt }

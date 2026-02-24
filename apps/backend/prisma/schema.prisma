@@ -197,6 +197,19 @@ enum WABAHealthStatus {
   DISABLED
 }
 
+// Conversation Memory Enums
+enum MemoryType {
+  AI_REPLY      // AI auto-response
+  HUMAN_REPLY   // Agent reply from dashboard
+  SMB_ECHO      // Owner reply from WA app
+}
+
+enum MemoryStatus {
+  PENDING       // Queued, not yet embedded
+  COMPLETED     // Embedding successful
+  FAILED        // Failed after retries
+}
+
 model Subscription {
   id     String @id @default(cuid())
   userId String @unique
@@ -447,6 +460,9 @@ model WhatsAppAccount {
   coexistenceSyncLogs CoexistenceSyncStatus[]
   aiConfigs           WhatsAppAccountAIConfig[]
 
+  // Conversation Memory Relations
+  conversationMemories ConversationMemory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -559,6 +575,9 @@ model User {
   // Auto Tagging Relations
   autoTagRules AutoTagRule[]
 
+  // Conversation Memory Relations
+  conversationMemories ConversationMemory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -635,6 +654,9 @@ model Customer {
 
   // Template Variable History
   templateVariableHistory TemplateVariableHistory[]
+
+  // Conversation Memory Relations
+  conversationMemories ConversationMemory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1031,6 +1053,9 @@ model AIAgent {
   // Conversation assignments where this AI Agent is assigned
   conversationAssignments ConversationAssignment[]
 
+  // Conversation Memory Relations
+  conversationMemories ConversationMemory[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1071,6 +1096,49 @@ model DocumentChunk {
   createdAt DateTime @default(now())
 
   @@index([documentId])
+}
+
+model ConversationMemory {
+  id                 String        @id @default(cuid())
+
+  // Isolation keys
+  userId             String
+  customerId         String
+  whatsappAccountId  String
+
+  // Optional: AI Agent that responded
+  aiAgentId          String?
+
+  // Memory content
+  memoryType         MemoryType
+  customerMessage    String        @db.Text
+  responseMessage    String        @db.Text
+
+  // Embedding
+  embedding          Unsupported("vector(1536)")?
+  embeddingText      String?       @db.Text
+  status             MemoryStatus  @default(PENDING)
+  retryCount         Int           @default(0)
+
+  // Message references
+  inboundMessageId   String?
+  outboundMessageId  String?
+
+  // Metadata & timestamps
+  metadata           Json?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer           Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  whatsappAccount    WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  aiAgent            AIAgent?      @relation(fields: [aiAgentId], references: [id], onDelete: SetNull)
+
+  // Indexes
+  @@index([userId, customerId, whatsappAccountId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // CRM Models

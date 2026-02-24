@@ -7,7 +7,7 @@ import { openMessageWindow } from '../utils/messageWindow.js'
 import { AIOrchestrator } from '../services/ai/AIOrchestrator.js'
 import WhatsAppAPI from '../utils/whatsapp.js'
 import { TokenEncryptionService } from '../utils/tokenEncryption.js'
-import { QUEUE_NAMES } from '../utils/queue.js'
+import { QUEUE_NAMES, memoryQueue } from '../utils/queue.js'
 import { LeadScoringService } from '../services/lead-scoring.js'
 import { ActivityService } from '../services/activity-service.js'
 import { webhookService } from '../services/webhook-service.js'
@@ -15,6 +15,8 @@ import { eventEmitter } from '../websocket/index.js'
 import { mediaDownloadService } from '../services/media-download-service.js'
 import { AuditLogService } from '../services/audit-log-service.js'
 import { AutoTaggingService } from '../services/auto-tagging-service.js'
+import { createMemoryVectorStore } from '../services/ai/memory/index.js'
+import { OpenAIProvider } from '../services/ai/providers/OpenAIProvider.js'
 
 console.log('📦 webhookWorker imports loaded')
 
@@ -65,6 +67,17 @@ const redisConnection = new Redis({
 
 // AI Orchestrator instance
 const aiOrchestrator = new AIOrchestrator()
+
+/**
+ * Check if user has AI chatbot feature (non-FREE subscription tier)
+ */
+async function hasAIChatbotFeature(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { subscriptionTier: true }
+  });
+  return user?.subscriptionTier !== 'FREE';
+}
 
 // Webhook job data interface
 interface WebhookJobData {
@@ -694,6 +707,44 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                         responseLength: response.length,
                         inReplyTo: message.id,
                     }).catch(err => console.error('Failed to log AI response:', err))
+
+                    // Queue memory embedding for AI reply (non-blocking)
+                    try {
+                        const lastInboundMessage = await prisma.message.findFirst({
+                            where: {
+                                customerId: customer.id,
+                                direction: 'INBOUND',
+                                messageType: 'TEXT',
+                            },
+                            orderBy: { timestamp: 'desc' },
+                        });
+
+                        if (lastInboundMessage?.content && whatsappAccount?.id) {
+                            const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '');
+                            const memoryStore = createMemoryVectorStore(openaiProvider);
+
+                            const memory = await memoryStore.createMemory({
+                                userId: user.id,
+                                customerId: customer.id,
+                                whatsappAccountId: whatsappAccount.id,
+                                aiAgentId: undefined, // Could pass from decision.aiAgentId
+                                memoryType: 'AI_REPLY',
+                                customerMessage: lastInboundMessage.content,
+                                responseMessage: response,
+                                inboundMessageId: lastInboundMessage.id,
+                                outboundMessageId: aiReplyMessage.id,
+                            });
+
+                            await memoryQueue.add('embed-memory', {
+                                type: 'embed-memory',
+                                memoryId: memory.id
+                            });
+                            console.log('🧠 Memory queued for embedding:', memory.id);
+                        }
+                    } catch (memoryError) {
+                        console.error('Failed to queue AI reply memory:', memoryError);
+                        // Don't throw - memory failure shouldn't affect main flow
+                    }
 
                     // Emit webhook event for message.sent (Requirement 3.1, 8.1, 8.2, 8.4)
                     webhookService.emitEvent(

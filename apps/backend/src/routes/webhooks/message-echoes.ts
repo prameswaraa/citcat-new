@@ -6,6 +6,9 @@
 
 import { prisma } from '../../utils/database.js'
 import type { MessageType, MessageDirection, MessageStatus, MessageSource } from '@prisma/client'
+import { memoryQueue } from '../../utils/queue.js'
+import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
+import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
 
 interface MessageEchoPayload {
   messaging_product: string
@@ -21,6 +24,17 @@ interface MessageEchoPayload {
     type: string
     [key: string]: any // Message content based on type
   }>
+}
+
+/**
+ * Check if user has AI chatbot feature (non-FREE subscription tier)
+ */
+async function hasAIChatbotFeature(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { subscriptionTier: true }
+  });
+  return user?.subscriptionTier !== 'FREE';
 }
 
 /**
@@ -98,6 +112,53 @@ export async function handleMessageEchoes(
         })
 
         console.log(`✅ Mirrored WhatsApp Business App message ${message.id} (wamId: ${echoMessage.id})`)
+
+        // Queue memory for SMB echo if user has AI chatbot feature
+        if (await hasAIChatbotFeature(user.id) && content) {
+          try {
+            // Get last customer inbound message
+            const lastInboundMessage = await prisma.message.findFirst({
+              where: {
+                customerId: customer.id,
+                direction: 'INBOUND',
+                messageType: 'TEXT',
+                content: { not: null },
+              },
+              orderBy: { timestamp: 'desc' },
+            });
+
+            // Get WhatsApp account for this phone number
+            const phoneNumber = await prisma.phoneNumber.findFirst({
+              where: { phoneNumberId: payload.metadata.phone_number_id },
+              select: { whatsappAccountId: true }
+            });
+
+            if (lastInboundMessage?.content && phoneNumber?.whatsappAccountId) {
+              const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '');
+              const memoryStore = createMemoryVectorStore(openaiProvider);
+
+              const memory = await memoryStore.createMemory({
+                userId: user.id,
+                customerId: customer.id,
+                whatsappAccountId: phoneNumber.whatsappAccountId,
+                memoryType: 'SMB_ECHO',
+                customerMessage: lastInboundMessage.content,
+                responseMessage: content,
+                inboundMessageId: lastInboundMessage.id,
+                outboundMessageId: message.id,
+              });
+
+              await memoryQueue.add('embed-memory', {
+                type: 'embed-memory',
+                memoryId: memory.id
+              });
+              console.log('🧠 Memory queued for SMB echo embedding:', memory.id);
+            }
+          } catch (memoryError) {
+            console.error('Failed to queue SMB echo memory:', memoryError);
+            // Don't throw - memory failure shouldn't affect main flow
+          }
+        }
       } catch (msgError) {
         console.error(`❌ Failed to process message echo ${echoMessage.id}:`, msgError)
       }

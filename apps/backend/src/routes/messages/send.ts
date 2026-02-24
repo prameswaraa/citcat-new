@@ -18,8 +18,22 @@ import { WhatsAppErrorService } from '../../services/whatsapp-error-service.js'
 import { wabaHealthService, WABAHealthService } from '../../services/waba/health-service.js'
 import { disconnectService } from '../../services/disconnect-service.js'
 import { AuditLogService } from '../../services/audit-log-service.js'
+import { memoryQueue } from '../../utils/queue.js'
+import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
+import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
 
 const app = new Hono()
+
+/**
+ * Check if user has AI Chatbot feature (non-FREE tier)
+ */
+async function hasAIChatbotFeature(userId: string): Promise<boolean> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { subscriptionTier: true }
+  });
+  return user?.subscriptionTier !== 'FREE';
+}
 
 /**
  * Helper function to convert DB template to WhatsAppTemplate format
@@ -706,6 +720,53 @@ app.post('/send', async (c: Context) => {
       source: actingAgentId ? 'AGENT' : 'INBOX',
       channel: 'whatsapp',
     }).catch(err => console.error('Failed to log message sent:', err))
+
+    // Queue memory for human agent reply (non-blocking)
+    if (data.type === 'text' && content && await hasAIChatbotFeature(targetUserId)) {
+      try {
+        // Get last customer inbound message
+        const lastInboundMessage = await prisma.message.findFirst({
+          where: {
+            customerId: customer.id,
+            direction: 'INBOUND',
+            messageType: 'TEXT',
+            content: { not: null },
+          },
+          orderBy: { timestamp: 'desc' },
+        });
+
+        // Get WhatsApp account ID
+        const phoneRecord = await prisma.phoneNumber.findUnique({
+          where: { phoneNumberId: credentials.phoneNumberId },
+          select: { whatsappAccountId: true }
+        });
+
+        if (lastInboundMessage?.content && phoneRecord?.whatsappAccountId) {
+          const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '');
+          const memoryStore = createMemoryVectorStore(openaiProvider);
+
+          const memory = await memoryStore.createMemory({
+            userId: targetUserId,
+            customerId: customer.id,
+            whatsappAccountId: phoneRecord.whatsappAccountId,
+            memoryType: 'HUMAN_REPLY',
+            customerMessage: lastInboundMessage.content,
+            responseMessage: content,
+            inboundMessageId: lastInboundMessage.id,
+            outboundMessageId: message.id,
+          });
+
+          await memoryQueue.add('embed-memory', {
+            type: 'embed-memory',
+            memoryId: memory.id
+          });
+          console.log('🧠 Memory queued for human reply embedding:', memory.id);
+        }
+      } catch (memoryError) {
+        console.error('Failed to queue human reply memory:', memoryError);
+        // Don't throw - memory failure shouldn't affect main flow
+      }
+    }
 
     // Mark WABA health issues as resolved since message was sent successfully
     if (credentials.wabaId) {

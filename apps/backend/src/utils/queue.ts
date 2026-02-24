@@ -18,6 +18,7 @@ export const QUEUE_NAMES = {
     WEBHOOK: 'webhook-processing',
     MESSAGE: 'message-processing',
     WEBHOOK_OUTBOUND: 'webhook-outbound',
+    MEMORY: 'memory-processing',
 } as const
 
 // Webhook Queue - for processing incoming webhooks
@@ -77,6 +78,25 @@ export const webhookOutboundQueue = new Queue(QUEUE_NAMES.WEBHOOK_OUTBOUND, {
     },
 })
 
+// Memory Queue - for processing conversation memory embeddings
+export const memoryQueue = new Queue(QUEUE_NAMES.MEMORY, {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 1000, // 1s, 2s, 4s
+        },
+        removeOnComplete: {
+            count: 100,
+            age: 3600, // Remove after 1 hour
+        },
+        removeOnFail: {
+            count: 500, // Keep last 500 failed jobs for debugging
+        },
+    },
+})
+
 // Queue Events for monitoring
 export const webhookQueueEvents = new QueueEvents(QUEUE_NAMES.WEBHOOK, {
     connection: redisConnection,
@@ -90,15 +110,21 @@ export const webhookOutboundQueueEvents = new QueueEvents(QUEUE_NAMES.WEBHOOK_OU
     connection: redisConnection,
 })
 
+export const memoryQueueEvents = new QueueEvents(QUEUE_NAMES.MEMORY, {
+    connection: redisConnection,
+})
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('📦 Closing queues...')
     await webhookQueue.close()
     await messageQueue.close()
     await webhookOutboundQueue.close()
+    await memoryQueue.close()
     await webhookQueueEvents.close()
     await messageQueueEvents.close()
     await webhookOutboundQueueEvents.close()
+    await memoryQueueEvents.close()
     await redisConnection.quit()
     console.log('✅ Queues closed')
 })
@@ -116,6 +142,10 @@ webhookOutboundQueueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`❌ Webhook outbound job ${jobId} failed:`, failedReason)
 })
 
+memoryQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    console.error(`❌ Memory job ${jobId} failed:`, failedReason)
+})
+
 // Success logging
 webhookQueueEvents.on('completed', ({ jobId }) => {
     console.log(`✅ Webhook job ${jobId} completed`)
@@ -127,4 +157,8 @@ messageQueueEvents.on('completed', ({ jobId }) => {
 
 webhookOutboundQueueEvents.on('completed', ({ jobId }) => {
     console.log(`✅ Webhook outbound job ${jobId} completed`)
+})
+
+memoryQueueEvents.on('completed', ({ jobId }) => {
+    console.log(`✅ Memory job ${jobId} completed`)
 })

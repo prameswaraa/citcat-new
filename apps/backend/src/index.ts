@@ -74,10 +74,12 @@ import { startSubscriptionExpiryCheckJob } from './cron/subscriptionExpiryCheck.
 import { startPaymentExpiryCheckJob } from './cron/paymentExpiryCheck.js'
 import { startWABAHealthCheckJob } from './cron/wabaHealthCheck.js'
 import { startPhoneNumberStatusCheckJob } from './cron/phoneNumberStatusCheck.js'
+import { startMemoryCleanupJobs } from './cron/memoryCleanup.js'
 
 // Import webhook workers
 import './workers/webhookWorker.js'
 import './workers/webhookOutboundWorker.js'
+import './workers/memoryWorker.js'
 
 // Import WebSocket server and event emitter
 import { initializeWebSocket, eventEmitter } from './websocket/index.js'
@@ -102,6 +104,7 @@ startSubscriptionExpiryCheckJob()
 startPaymentExpiryCheckJob()
 startWABAHealthCheckJob()
 startPhoneNumberStatusCheckJob()
+startMemoryCleanupJobs() // Memory cleanup and retry failed embeddings
 // Monitoring check disabled - use new monitoring service instead
 
 // Security headers middleware (apply to all routes)
