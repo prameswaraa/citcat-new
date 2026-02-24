@@ -166,12 +166,14 @@ export const auth = betterAuth({
       // yang dihitung dari relasi whatsappAccounts, bukan disimpan di database
     },
   },
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://kirim.chat",
-    "https://api.kirim.chat"
-  ],
+  trustedOrigins: process.env.CORS_ALLOWED_ORIGINS
+    ? process.env.CORS_ALLOWED_ORIGINS.split(",").map(origin => origin.trim())
+    : [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://kirim.chat",
+        "https://api.kirim.chat"
+      ],
   advanced: {
     crossSubDomainCookies: {
       enabled: true,  // Always enable for cross-subdomain support

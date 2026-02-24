@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,7 @@ import {
   IconUnlink,
   IconStar,
   IconStarFilled,
+  IconWebhook,
 } from "@tabler/icons-react"
 import {
   wabaApi,
@@ -39,6 +41,7 @@ import {
   type BusinessProfile,
   type PhoneNumberStats,
 } from "@/lib/api/waba"
+import { WebhookInfoDialog } from "./webhook-info-dialog"
 
 interface DeviceInfoCardProps {
   account: WhatsAppAccountWithPhoneNumbers
@@ -59,6 +62,7 @@ export function DeviceInfoCard({
 }: DeviceInfoCardProps) {
   const [profile, setProfile] = useState<BusinessProfile | null>(null)
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const [webhookDialogOpen, setWebhookDialogOpen] = useState(false)
 
   useEffect(() => {
     if (account.connectionStatus === "connected") {
@@ -132,6 +136,7 @@ export function DeviceInfoCard({
     )
   }
 
+  const isManualLogin = account.isManualLogin || !account.isCoexistence
   const signupType = account.isCoexistence ? "Embedded" : "Manual"
   const isConnected = account.connectionStatus === "connected"
 
@@ -190,6 +195,16 @@ export function DeviceInfoCard({
                   Set as Primary
                 </DropdownMenuItem>
               )}
+              {isManualLogin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setWebhookDialogOpen(true)}>
+                    <IconWebhook className="h-4 w-4 mr-2" />
+                    Webhook Info
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={onDisconnect}
                 className="text-red-600 focus:text-red-600"
@@ -332,6 +347,16 @@ export function DeviceInfoCard({
           </div>
         )}
       </CardContent>
+
+      {/* Webhook Info Dialog for Manual Login */}
+      {isManualLogin && (
+        <WebhookInfoDialog
+          open={webhookDialogOpen}
+          onOpenChange={setWebhookDialogOpen}
+          accountId={account.id}
+          wabaName={account.wabaName}
+        />
+      )}
     </Card>
   )
 }

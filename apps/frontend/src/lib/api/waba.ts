@@ -47,6 +47,7 @@ export interface WhatsAppAccountWithPhoneNumbers {
   connectedAt?: string | null
   lastSyncAt?: string | null
   isCoexistence?: boolean
+  isManualLogin?: boolean
   phoneNumbers: {
     id: string
     phoneNumberId: string
@@ -80,6 +81,17 @@ export interface PhoneNumberStats {
   unread: number
   contacts: number
   chats: number
+}
+
+export interface WebhookInfo {
+  accountId: string
+  wabaId: string
+  wabaName: string | null
+  webhook: {
+    url: string
+    verifyToken: string
+    instructions: string[]
+  }
 }
 
 export const wabaApi = {
@@ -247,6 +259,43 @@ export const wabaApi = {
 
     const result = await response.json()
     return result.data || {}
+  },
+
+  async getWebhookInfo(accountId: string): Promise<WebhookInfo> {
+    const response = await fetch(
+      `${API_URL}/api/v1/waba/manual/webhook-info/${accountId}`,
+      {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.error?.message || "Failed to fetch webhook info")
+    }
+
+    const result = await response.json()
+    return result.data
+  },
+
+  async regenerateVerifyToken(accountId: string): Promise<{ webhook: { url: string; verifyToken: string; message: string } }> {
+    const response = await fetch(
+      `${API_URL}/api/v1/waba/manual/regenerate-verify-token/${accountId}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}))
+      throw new Error(error.error?.message || "Failed to regenerate verify token")
+    }
+
+    const result = await response.json()
+    return result.data
   },
 }
 

@@ -142,6 +142,11 @@ uploads/
 .claude/*.local.*
 
 # ========================
+# Documentation (local dev)
+# ========================
+docs/
+
+# ========================
 # Local development tools
 # ========================
 .kiro/
