@@ -12,6 +12,7 @@ import type { Context } from 'hono';
 import { paymentService, isValidDurationMonths } from '../services/payment-service.js';
 import { adminSubscriptionPlansService } from '../services/admin/subscription-plans-service.js';
 import { paymentGatewayManager, ProviderNotFoundError } from '../services/payment/index.js';
+import { prorateCalculationService } from '../services/prorate-calculation-service.js';
 import { logger } from '../utils/logger.js';
 
 const app = new Hono();
@@ -308,6 +309,89 @@ app.get('/pricing', async (c: Context) => {
     logger.error('Payment pricing error:', { error: error instanceof Error ? error.message : 'Unknown error' });
     return c.json({
       error: { code: 'InternalError', message: 'Failed to get pricing' },
+    }, 500);
+  }
+});
+
+// =============================================================================
+// GET /api/v1/payment/prorate
+// Get proration info for subscription upgrade
+// =============================================================================
+
+app.get('/prorate', async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({
+        error: { code: 'Unauthorized', message: 'Authentication required' },
+      }, 401);
+    }
+
+    const targetTier = c.req.query('targetTier');
+    const durationMonthsStr = c.req.query('durationMonths');
+
+    // Validate targetTier
+    if (!targetTier || !['BASIC', 'LITE', 'PRO'].includes(targetTier)) {
+      return c.json({
+        error: { code: 'InvalidRequest', message: 'Invalid target tier. Must be BASIC, LITE or PRO' },
+      }, 400);
+    }
+
+    // Validate durationMonths
+    const durationMonths = parseInt(durationMonthsStr || '1', 10);
+    if (!isValidDurationMonths(durationMonths)) {
+      return c.json({
+        error: { code: 'InvalidRequest', message: 'Invalid duration. Must be 1, 3, 6, or 12 months' },
+      }, 400);
+    }
+
+    // Calculate proration
+    const prorateInfo = await prorateCalculationService.calculateProrate({
+      userId: c.user.id,
+      targetTier: targetTier as 'BASIC' | 'LITE' | 'PRO',
+      durationMonths: durationMonths as 1 | 3 | 6 | 12,
+    });
+
+    // No proration applies
+    if (!prorateInfo) {
+      // Get target tier pricing for the response
+      const planPricing = await adminSubscriptionPlansService.getPlanPricing(
+        targetTier.toLowerCase() as 'basic' | 'lite' | 'pro'
+      );
+      const targetDuration = planPricing.durations.find(d => d.months === durationMonths);
+      const originalPrice = targetDuration?.totalPrice ?? planPricing.basePrice;
+
+      return c.json({
+        success: true,
+        data: {
+          hasProration: false,
+          targetTier,
+          originalPrice,
+          effectivePrice: originalPrice,
+        },
+      });
+    }
+
+    // Proration applies
+    return c.json({
+      success: true,
+      data: {
+        hasProration: true,
+        currentTier: prorateInfo.currentTier,
+        targetTier: prorateInfo.targetTier,
+        currentTierPrice: prorateInfo.currentTierPrice,
+        targetTierPrice: prorateInfo.targetTierPrice,
+        daysRemaining: prorateInfo.daysRemaining,
+        totalDays: prorateInfo.totalDays,
+        prorateCredit: prorateInfo.prorateCredit,
+        originalPrice: prorateInfo.originalPrice,
+        effectivePrice: prorateInfo.effectivePrice,
+        savings: prorateInfo.savings,
+      },
+    });
+  } catch (error) {
+    logger.error('Payment prorate error:', { error: error instanceof Error ? error.message : 'Unknown error' });
+    return c.json({
+      error: { code: 'InternalError', message: 'Failed to calculate proration' },
     }, 500);
   }
 });

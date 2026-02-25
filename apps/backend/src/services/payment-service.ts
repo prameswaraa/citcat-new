@@ -18,6 +18,7 @@ import { emailService } from './email/EmailService.js';
 import { paymentGatewayManager } from './payment/gateway-manager.js';
 import { duitkuProvider } from './payment/providers/duitku-provider.js';
 import { notificationService } from './notification-service.js';
+import { prorateCalculationService, type ProrateInfo } from './prorate-calculation-service.js';
 import type { DuitkuSettings } from '../types/admin-settings.js';
 import type { PaymentProvider, PaymentMethod } from './payment/types.js';
 
@@ -67,6 +68,15 @@ export interface CreatePaymentResponse {
   providerId?: string; // Provider that processed the payment
   error?: string;
   errorCode?: string;
+  // Proration info when upgrading from a paid tier
+  proration?: {
+    originalAmount: number;
+    prorateCredit: number;
+    effectiveAmount: number;
+    currentTier: string;
+    daysRemaining: number;
+    savings: number;
+  };
 }
 
 export interface PaymentHistoryItem {
@@ -330,6 +340,28 @@ export class PaymentService {
         };
       }
 
+      // Calculate proration if user is upgrading from a paid tier
+      const prorateInfo = await prorateCalculationService.calculateProrate({
+        userId,
+        targetTier,
+        durationMonths,
+      });
+
+      let prorateCredit = 0;
+      if (prorateInfo) {
+        prorateCredit = prorateInfo.prorateCredit;
+        
+        logger.info('Proration calculated for upgrade', {
+          userId,
+          currentTier: prorateInfo.currentTier,
+          targetTier,
+          originalAmount: prorateInfo.originalPrice,
+          prorateCredit,
+          effectiveAmount: prorateInfo.effectivePrice,
+          daysRemaining: prorateInfo.daysRemaining,
+        });
+      }
+
       // Get pricing with duration options from subscription plans service
       const tier = targetTier.toLowerCase() as 'basic' | 'lite' | 'pro';
       const planPricing = await adminSubscriptionPlansService.getPlanPricing(tier);
@@ -355,7 +387,10 @@ export class PaymentService {
       }
 
       // Use calculated total price from duration config
-      const amount = selectedDuration.totalPrice;
+      // Apply proration if applicable (effectivePrice from prorateInfo or original price)
+      const originalAmount = selectedDuration.totalPrice;
+      const effectiveAmount = prorateInfo ? prorateInfo.effectivePrice : originalAmount;
+      const amount = effectiveAmount; // Use effective amount for payment
       const durationDays = selectedDuration.days;
 
       // Generate order ID
@@ -363,7 +398,7 @@ export class PaymentService {
       const expiryMinutes = 15;
       const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
-      // Create transaction record with PENDING status, correct durationDays, and providerId
+      // Create transaction record with PENDING status, correct durationDays, providerId, and prorateCredit
       // Note: Using type assertion for providerId as Prisma client may need regeneration after migration
       const transaction = await (prisma.paymentTransaction.create as any)({
         data: {
@@ -376,6 +411,8 @@ export class PaymentService {
           durationDays,
           status: 'PENDING',
           expiresAt,
+          // Store prorate credit if applicable
+          ...(prorateCredit > 0 && { prorateCredit }),
         },
       });
 
@@ -438,12 +475,15 @@ export class PaymentService {
         targetTier,
         durationMonths,
         durationDays,
-        amount,
+        originalAmount,
+        prorateCredit: prorateCredit > 0 ? prorateCredit : undefined,
+        effectiveAmount: amount,
         providerId,
         paymentMethod,
       });
 
-      return {
+      // Build response with optional proration info
+      const response: CreatePaymentResponse = {
         success: true,
         orderId,
         qrString: providerResponse.qrString,
@@ -454,6 +494,20 @@ export class PaymentService {
         expiresAt,
         providerId,
       };
+
+      // Include proration details when applicable
+      if (prorateInfo && prorateCredit > 0) {
+        response.proration = {
+          originalAmount,
+          prorateCredit,
+          effectiveAmount: amount,
+          currentTier: prorateInfo.currentTier,
+          daysRemaining: prorateInfo.daysRemaining,
+          savings: prorateInfo.savings,
+        };
+      }
+
+      return response;
     } catch (error) {
       logger.error('Failed to create payment', {
         userId,

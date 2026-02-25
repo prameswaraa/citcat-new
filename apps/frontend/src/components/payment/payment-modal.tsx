@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * Payment Modal Component - Simplified
+ * Payment Modal Component
  * 
  * Flow:
  * 1. Modal opens → show loading
- * 2. Create Xendit Invoice → get paymentUrl
- * 3. Redirect to Xendit payment page
- * 4. User pays on Xendit → callback updates subscription
+ * 2. Fetch prorate info → show price breakdown (with proration if applicable)
+ * 3. User clicks "Lanjut Bayar" → Create Xendit Invoice
+ * 4. Redirect to Xendit payment page
+ * 5. User pays on Xendit → callback updates subscription
  * 
  * No method selection needed - Xendit handles all payment methods.
  */
@@ -26,6 +27,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { invalidateSubscriptionCache } from '@/hooks/use-subscription-query'
+import { subscriptionApi, type ProrateInfo } from '@/lib/api/subscription-api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
 
@@ -33,7 +35,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
 export type SubscriptionTier = 'BASIC' | 'LITE' | 'PRO'
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'EXPIRED' | 'CANCELLED'
 
-type ModalStep = 'loading' | 'success' | 'error' | 'expired'
+type ModalStep = 'loading' | 'prorate' | 'success' | 'error' | 'expired'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -86,10 +88,11 @@ export function PaymentModal({
 
   const [step, setStep] = useState<ModalStep>('loading')
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
+  const [prorateInfo, setProrateInfo] = useState<ProrateInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const hasCreatedPayment = useRef(false)
+  const hasFetchedProrate = useRef(false)
 
   // Create payment and redirect
   const createPaymentAndRedirect = useCallback(async () => {
@@ -147,19 +150,46 @@ export function PaymentModal({
     onClose()
   }, [onClose])
 
-  // Auto-create payment when modal opens
+  // Fetch prorate info
+  const fetchProrateInfo = useCallback(async () => {
+    setStep('loading')
+    setError(null)
+
+    try {
+      const info = await subscriptionApi.getProrate(targetTier, durationMonths)
+      setProrateInfo(info)
+      setStep('prorate')
+    } catch (err) {
+      // If prorate fetch fails, still allow payment but without prorate info
+      setProrateInfo({
+        hasProration: false,
+        targetTier,
+        originalPrice: tierPrice,
+        effectivePrice: tierPrice,
+      })
+      setStep('prorate')
+    }
+  }, [targetTier, durationMonths, tierPrice])
+
+  // Auto-fetch prorate when modal opens
   useEffect(() => {
-    if (isOpen && !hasCreatedPayment.current) {
-      hasCreatedPayment.current = true
+    if (isOpen && !hasFetchedProrate.current) {
+      hasFetchedProrate.current = true
       setStep('loading')
       setPaymentData(null)
+      setProrateInfo(null)
       setError(null)
-      createPaymentAndRedirect()
+      fetchProrateInfo()
     } else if (!isOpen) {
-      hasCreatedPayment.current = false
+      hasFetchedProrate.current = false
       if (pollingRef.current) clearInterval(pollingRef.current)
     }
-  }, [isOpen, createPaymentAndRedirect])
+  }, [isOpen, fetchProrateInfo])
+
+  // Handle proceed to payment
+  const handleProceedToPayment = useCallback(() => {
+    createPaymentAndRedirect()
+  }, [createPaymentAndRedirect])
 
   // Handle success completion
   const handleSuccessClose = useCallback(() => {
@@ -170,10 +200,11 @@ export function PaymentModal({
 
   // Handle retry
   const handleRetry = () => {
-    hasCreatedPayment.current = false
+    hasFetchedProrate.current = false
     setPaymentData(null)
+    setProrateInfo(null)
     setError(null)
-    createPaymentAndRedirect()
+    fetchProrateInfo()
   }
 
   // Get duration label
@@ -213,6 +244,87 @@ export function PaymentModal({
       </DialogFooter>
     </>
   )
+
+  // Render prorate info step
+  const renderProrate = () => {
+    const info = prorateInfo
+    const displayPrice = info?.effectivePrice ?? tierPrice
+    const originalPrice = info?.originalPrice ?? tierPrice
+    const hasDiscount = info?.hasProration && info.prorateCredit && info.prorateCredit > 0
+
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>
+            Upgrade ke {targetTier} - {getDurationLabel(durationMonths)}
+          </DialogTitle>
+          <DialogDescription>
+            Konfirmasi detail pembayaran
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 space-y-4">
+          {/* Price Breakdown */}
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            {/* Original Price */}
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Harga Normal</span>
+              <span className="text-sm font-medium">{formatPrice(originalPrice)}</span>
+            </div>
+
+            {/* Prorate Credit - only show if applicable */}
+            {hasDiscount && (
+              <>
+                <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+                  <span className="text-sm">
+                    Kredit Prorata
+                    {info?.daysRemaining !== undefined && (
+                      <span className="text-xs text-muted-foreground ml-1">
+                        ({info.daysRemaining} hari tersisa dari {info.currentTier})
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm font-medium">-{formatPrice(info?.prorateCredit ?? 0)}</span>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-dashed" />
+              </>
+            )}
+
+            {/* Total */}
+            <div className="flex justify-between items-center">
+              <span className="font-semibold">Total Bayar</span>
+              <span className="text-lg font-bold text-primary">{formatPrice(displayPrice)}</span>
+            </div>
+
+            {/* Savings */}
+            {hasDiscount && info?.savings && info.savings > 0 && (
+              <div className="flex justify-center">
+                <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                  Hemat {formatPrice(info.savings)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Info text */}
+          <p className="text-xs text-muted-foreground text-center">
+            Anda akan diarahkan ke halaman pembayaran Xendit
+          </p>
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={handleClose}>
+            {tCommon('cancel')}
+          </Button>
+          <Button onClick={handleProceedToPayment}>
+            Lanjut Bayar
+          </Button>
+        </DialogFooter>
+      </>
+    )
+  }
 
   // Render success state
   const renderSuccess = () => (
@@ -286,6 +398,7 @@ export function PaymentModal({
   const renderContent = () => {
     switch (step) {
       case 'loading': return renderLoading()
+      case 'prorate': return renderProrate()
       case 'success': return renderSuccess()
       case 'error': return renderError()
       case 'expired': return renderExpired()

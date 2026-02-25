@@ -109,6 +109,20 @@ function convertToLegacyPricing(data: PricingDataWithDurations): PricingData {
   }
 }
 
+export interface ProrateInfo {
+  hasProration: boolean
+  currentTier?: string
+  targetTier: string
+  currentTierPrice?: number
+  targetTierPrice?: number
+  daysRemaining?: number
+  totalDays?: number
+  prorateCredit?: number
+  originalPrice: number
+  effectivePrice: number
+  savings?: number
+}
+
 export const subscriptionApi = {
   async get(): Promise<SubscriptionData> {
     const response = await fetch(`${API_URL}/api/v1/subscription`, {
@@ -144,5 +158,23 @@ export const subscriptionApi = {
     const pricing = convertToLegacyPricing(pricingWithDurations)
 
     return { pricing, pricingWithDurations }
+  },
+
+  async getProrate(targetTier: SubscriptionTier, durationMonths: number): Promise<ProrateInfo> {
+    const response = await fetch(
+      `${API_URL}/api/v1/payment/prorate?targetTier=${targetTier}&durationMonths=${durationMonths}`,
+      {
+        method: 'GET',
+        credentials: 'include',
+      }
+    )
+
+    const result = await response.json()
+
+    if (!result.success) {
+      throw new Error(result.error?.message || 'Failed to fetch prorate info')
+    }
+
+    return result.data
   },
 }

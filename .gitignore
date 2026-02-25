@@ -40,6 +40,9 @@ next-env.d.ts
 # ========================
 coverage/
 .nyc_output/
+**/__tests__/
+**/*.test.ts
+**/*.spec.ts
 
 # ========================
 # Logs
