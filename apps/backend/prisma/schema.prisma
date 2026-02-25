@@ -613,6 +613,7 @@ model Customer {
   id                String    @id @default(cuid())
   phoneNumber       String
   name              String?
+  email             String?
   consentStatus     Boolean   @default(false)
   consentCapturedAt DateTime?
   consentSource     String?

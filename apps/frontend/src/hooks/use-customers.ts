@@ -124,7 +124,8 @@ export interface UpdateCustomerInput {
   id: string
   data: {
     name?: string
-    pipelineStageId?: string
+    email?: string | null
+    pipelineStageId?: string | null
   }
 }
 

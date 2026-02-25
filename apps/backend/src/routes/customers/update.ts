@@ -12,6 +12,7 @@ const app = new Hono()
 
 const updateCustomerSchema = z.object({
   name: z.string().optional(),
+  email: z.string().email().nullable().optional(),
   consentStatus: z.boolean().optional(),
   blacklisted: z.boolean().optional(),
   // CRM Fields

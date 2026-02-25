@@ -135,7 +135,7 @@ export const customersApi = {
         return result
     },
 
-    async updateCustomer(id: string, data: { name?: string; pipelineStageId?: string }) {
+    async updateCustomer(id: string, data: { name?: string; email?: string | null; pipelineStageId?: string | null }) {
         const response = await fetch(`${API_URL}/api/v1/customers/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },

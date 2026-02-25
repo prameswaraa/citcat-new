@@ -203,7 +203,8 @@ export function CustomersMutateDrawer({
           id: currentRow.id,
           data: {
             name: data.name,
-            pipelineStageId: data.pipelineStageId,
+            email: data.email || null,
+            pipelineStageId: data.pipelineStageId || null,
           }
         })
         toast({
