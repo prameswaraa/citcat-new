@@ -36,20 +36,10 @@ Baca dokumentasi sesuai urutan untuk deployment yang sukses:
 
 ### Opsional
 
-4. **[04-OPSIONAL-BUILD-AND-PUSH.md](04-OPSIONAL-BUILD-AND-PUSH.md)** - Build & Push Docker Image
-   - Build Docker image backend + frontend
-   - Push to your own GHCR
-   - Setup CI/CD with GitHub Actions
-
-5. **[05-OPSIONAL-EASYPANEL-DEPLOYMENT.md](05-OPSIONAL-EASYPANEL-DEPLOYMENT.md)** - Easypanel Deployment
-   - One-click deployment dengan Easypanel
-   - PostgreSQL + pgvector + Redis setup
-   - Domain & SSL configuration
-
-6. **[06-OPSIONAL-UPGRADE-GUIDE.md](06-OPSIONAL-UPGRADE-GUIDE.md)** - Upgrade Procedures
-   - Safe upgrade procedures
-   - Schema changes handling
-   - Rollback procedures
+4. **[04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md](04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md)** - PM2 Monorepo Deployment
+   - Deploy backend + frontend dengan PM2 dari root folder
+   - Cluster mode, auto-restart, logging
+   - Monitoring dan auto-start on boot
 
 ---
 
@@ -65,6 +55,4 @@ Baca dokumentasi sesuai urutan untuk deployment yang sukses:
 
 - **Backend Issues**: See [02-BACKEND-DEPLOYMENT.md](02-BACKEND-DEPLOYMENT.md#troubleshooting)
 - **Frontend Issues**: See [03-FRONTEND-DEPLOYMENT.md](03-FRONTEND-DEPLOYMENT.md#troubleshooting)
-- **Build & Push Issues**: See [04-OPSIONAL-BUILD-AND-PUSH.md](04-OPSIONAL-BUILD-AND-PUSH.md#troubleshooting)
-- **Easypanel Issues**: See [05-OPSIONAL-EASYPANEL-DEPLOYMENT.md](05-OPSIONAL-EASYPANEL-DEPLOYMENT.md#troubleshooting)
-- **Upgrade Help**: See [06-OPSIONAL-UPGRADE-GUIDE.md](06-OPSIONAL-UPGRADE-GUIDE.md)
+- **PM2 Monorepo Issues**: See [04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md](04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md#troubleshooting)

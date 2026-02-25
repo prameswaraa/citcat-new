@@ -161,3 +161,8 @@ test-*.js
 check-*.js
 run-*.sh
 run-*.ps1
+
+# ========================
+# PM2 runtime files
+# ========================
+.pm2/
