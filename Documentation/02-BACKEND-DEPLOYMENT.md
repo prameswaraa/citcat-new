@@ -267,7 +267,6 @@ CORS_ALLOWED_ORIGINS="https://yourdomain.com,https://www.yourdomain.com,https://
 # Meta/WhatsApp Configuration (Opsional bisa setting nanti)
 META_APP_ID="your-meta-app-id"
 META_APP_SECRET="your-meta-app-secret"
-META_ACCESS_TOKEN="your-meta-access-token"
 META_VERIFY_TOKEN="your-meta-webhook-verify-token"
 META_CONFIG_ID="your-meta-embedded-signup-config-id"
 
@@ -533,6 +532,38 @@ sudo ufw status
 ## Post-Deployment
 
 ### Step 18: Create Admin User
+
+Ada 2 cara untuk membuat user:
+
+#### Option A: Menggunakan Script (Recommended)
+
+```bash
+cd /var/www/kirimchat/apps/backend
+
+# Buat admin user
+pnpm exec tsx scripts/create-user.ts admin@example.com SecurePass123! "Admin User" ADMIN
+
+# Buat business owner (user biasa)
+pnpm exec tsx scripts/create-user.ts user@example.com MyPass123! "John Doe" BUSINESS_OWNER
+
+# Buat agent
+pnpm exec tsx scripts/create-user.ts agent@example.com AgentPass123! "Agent Name" AGENT
+```
+
+**Available roles:** `ADMIN`, `BUSINESS_OWNER`, `AGENT`
+
+#### Option B: Update Role User yang Sudah Ada
+
+Jika user sudah register dan ingin dijadikan admin:
+
+```bash
+cd /var/www/kirimchat/apps/backend
+
+# Change role ke ADMIN
+pnpm exec tsx scripts/change-role.ts user@example.com ADMIN
+```
+
+#### Option C: Manual via Database
 
 ```bash
 # Connect ke database
