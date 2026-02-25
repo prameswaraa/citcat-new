@@ -161,11 +161,12 @@ export async function handleMessageStatus(
     }
 
     // Update broadcast job statistics if this message is part of a bulk send
-    // Only update when message was previously PENDING (not yet confirmed)
-    if (message?.bulkSendJobId && message.status === 'PENDING') {
+    if (message?.bulkSendJobId) {
       const statusLower = status.status.toLowerCase()
+      const previousStatus = message.status
 
-      if (statusLower === 'failed') {
+      // Handle failed status - only update when message was previously PENDING
+      if (statusLower === 'failed' && previousStatus === 'PENDING') {
         // Message failed - decrement successCount (was counted at API call time) and increment failedCount
         await prisma.bulkTemplateSend.update({
           where: { id: message.bulkSendJobId },
@@ -176,7 +177,41 @@ export async function handleMessageStatus(
         })
         console.log(`📊 Updated broadcast job ${message.bulkSendJobId}: successCount--, failedCount++`)
       }
-      // For 'sent' or 'delivered' status, no need to update counts as it was already counted as success
+
+      // Increment delivery tracking counters based on status
+      // WhatsApp may skip statuses (e.g., PENDING → READ directly), so we need to increment all skipped counters
+      // Status progression: PENDING → SENT → DELIVERED → READ
+      const statusProgression = ['PENDING', 'SENT', 'DELIVERED', 'READ']
+      const previousIndex = statusProgression.indexOf(previousStatus)
+      const newIndex = statusProgression.indexOf(statusLower.toUpperCase())
+
+      // Only process if this is a forward progression (not failed, not going backward)
+      if (newIndex > previousIndex && newIndex > 0) {
+        const incrementData: Record<string, { increment: number }> = {}
+        const incrementedCounters: string[] = []
+
+        // Increment all counters from previousIndex+1 to newIndex (inclusive)
+        for (let i = previousIndex + 1; i <= newIndex; i++) {
+          if (i === 1) {
+            incrementData.sentCount = { increment: 1 }
+            incrementedCounters.push('sentCount')
+          } else if (i === 2) {
+            incrementData.deliveredCount = { increment: 1 }
+            incrementedCounters.push('deliveredCount')
+          } else if (i === 3) {
+            incrementData.readCount = { increment: 1 }
+            incrementedCounters.push('readCount')
+          }
+        }
+
+        if (Object.keys(incrementData).length > 0) {
+          await prisma.bulkTemplateSend.update({
+            where: { id: message.bulkSendJobId },
+            data: incrementData,
+          })
+          console.log(`📊 Updated broadcast job ${message.bulkSendJobId}: ${incrementedCounters.join(', ')}++`)
+        }
+      }
     }
 
     // Emit real-time event to user's OneInbox via WebSocket

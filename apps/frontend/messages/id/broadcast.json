@@ -96,6 +96,9 @@
   "jobCard": {
     "recipients": "Penerima",
     "success": "Berhasil",
+    "sent": "Terkirim",
+    "delivered": "Diterima",
+    "read": "Dibaca",
     "failed": "Gagal",
     "progress": "Progress",
     "cancelJob": "Batalkan Job",
@@ -113,6 +116,8 @@
     "detailedResults": "Hasil Detail",
     "recipients": "penerima",
     "sent": "Terkirim",
+    "delivered": "Diterima",
+    "read": "Dibaca",
     "failedBadge": "Gagal"
   },
   "errors": {

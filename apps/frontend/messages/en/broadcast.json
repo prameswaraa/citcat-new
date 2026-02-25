@@ -96,6 +96,9 @@
   "jobCard": {
     "recipients": "Recipients",
     "success": "Success",
+    "sent": "Sent",
+    "delivered": "Delivered",
+    "read": "Read",
     "failed": "Failed",
     "progress": "Progress",
     "cancelJob": "Cancel Job",
@@ -113,6 +116,8 @@
     "detailedResults": "Detailed Results",
     "recipients": "recipients",
     "sent": "Sent",
+    "delivered": "Delivered",
+    "read": "Read",
     "failedBadge": "Failed"
   },
   "errors": {

@@ -1759,6 +1759,9 @@ model BulkTemplateSend {
   totalRecipients Int
   successCount    Int            @default(0)
   failedCount     Int            @default(0)
+  sentCount       Int            @default(0)
+  deliveredCount  Int            @default(0)
+  readCount       Int            @default(0)
   csvData         Json // Store CSV data
   results         Json? // Store results per recipient
   completedAt     DateTime?

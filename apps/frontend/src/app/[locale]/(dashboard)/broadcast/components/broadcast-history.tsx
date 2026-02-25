@@ -58,6 +58,9 @@ interface BroadcastJob {
   totalRecipients: number
   successCount: number
   failedCount: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
   createdAt: string
   updatedAt: string
   completedAt: string | null
@@ -69,6 +72,7 @@ interface JobDetail extends BroadcastJob {
     success: boolean
     messageId?: string
     error?: string
+    status?: "sent" | "delivered" | "read" | "failed"
   }>
 }
 
@@ -296,12 +300,18 @@ export function BroadcastHistory() {
                     <span className="font-medium">{job.templateName}</span>
                     {getStatusBadge(job)}
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     <span>
                       {t("jobCard.recipients")}: {job.totalRecipients}
                     </span>
                     <span className="text-green-600">
-                      {t("jobCard.success")}: {job.successCount}
+                      {t("jobCard.sent")}: {job.sentCount ?? job.successCount}
+                    </span>
+                    <span className="text-blue-600">
+                      {t("jobCard.delivered")}: {job.deliveredCount ?? 0}
+                    </span>
+                    <span className="text-purple-600">
+                      {t("jobCard.read")}: {job.readCount ?? 0}
                     </span>
                     <span className="text-destructive">
                       {t("jobCard.failed")}: {job.failedCount}
@@ -455,34 +465,54 @@ function JobDetailContent({
         />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold">
+      {/* Summary Cards - 5 cards */}
+      <div className="grid grid-cols-5 gap-3">
+        <Card className="border-gray-200 dark:border-gray-700">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold text-gray-700 dark:text-gray-300">
               {job.totalRecipients}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("jobCard.recipients")}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-green-600">
-              {job.successCount}
+        <Card className="border-green-200 dark:border-green-800">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold text-green-600">
+              {job.sentCount ?? job.successCount}
             </p>
-            <p className="text-sm text-muted-foreground">
-              {t("jobCard.success")}
+            <p className="text-xs text-muted-foreground">
+              {t("jobCard.sent")}
             </p>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-2xl font-bold text-destructive">
+        <Card className="border-blue-200 dark:border-blue-800">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold text-blue-600">
+              {job.deliveredCount ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("jobCard.delivered")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-purple-200 dark:border-purple-800">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold text-purple-600">
+              {job.readCount ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("jobCard.read")}
+            </p>
+          </CardContent>
+        </Card>
+        <Card className="border-red-200 dark:border-red-800">
+          <CardContent className="p-3 text-center">
+            <p className="text-xl font-bold text-destructive">
               {job.failedCount}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t("jobCard.failed")}
             </p>
           </CardContent>
@@ -555,32 +585,63 @@ function JobDetailContent({
         <div className="space-y-2">
           <h4 className="font-medium">{t("jobDetail.detailedResults")}</h4>
           <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
-            {job.results.map((result, index) => (
-              <div
-                key={index}
-                className="flex items-center justify-between rounded-md bg-muted/50 p-2 text-sm"
-              >
-                <span className="font-mono">{result.phoneNumber}</span>
-                {result.success ? (
-                  <Badge variant="default" className="bg-green-500">
-                    <IconCheck className="mr-1 h-3 w-3" />
-                    {t("jobDetail.sent")}
-                  </Badge>
-                ) : (
-                  <div className="flex flex-col items-end gap-1">
-                    <Badge variant="destructive">
-                      <IconX className="mr-1 h-3 w-3" />
-                      {t("jobDetail.failedBadge")}
-                    </Badge>
-                    {result.error && (
-                      <span className="text-xs text-muted-foreground max-w-[300px] text-right">
-                        {result.error}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
+            {job.results.map((result, index) => {
+              // Determine the display status and badge color
+              const getStatusBadge = () => {
+                if (!result.success) {
+                  return (
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant="destructive" className="bg-red-500">
+                        <IconX className="mr-1 h-3 w-3" />
+                        {t("jobDetail.failedBadge")}
+                      </Badge>
+                      {result.error && (
+                        <span className="text-xs text-muted-foreground max-w-[300px] text-right">
+                          {result.error}
+                        </span>
+                      )}
+                    </div>
+                  )
+                }
+
+                // Success case - show status-based badge
+                const status = result.status || "sent"
+                switch (status) {
+                  case "read":
+                    return (
+                      <Badge variant="default" className="bg-purple-500">
+                        <IconCheck className="mr-1 h-3 w-3" />
+                        {t("jobDetail.read")}
+                      </Badge>
+                    )
+                  case "delivered":
+                    return (
+                      <Badge variant="default" className="bg-blue-500">
+                        <IconCheck className="mr-1 h-3 w-3" />
+                        {t("jobDetail.delivered")}
+                      </Badge>
+                    )
+                  case "sent":
+                  default:
+                    return (
+                      <Badge variant="default" className="bg-green-500">
+                        <IconCheck className="mr-1 h-3 w-3" />
+                        {t("jobDetail.sent")}
+                      </Badge>
+                    )
+                }
+              }
+
+              return (
+                <div
+                  key={index}
+                  className="flex items-center justify-between rounded-md bg-muted/50 p-2 text-sm"
+                >
+                  <span className="font-mono">{result.phoneNumber}</span>
+                  {getStatusBadge()}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

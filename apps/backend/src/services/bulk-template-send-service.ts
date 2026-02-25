@@ -107,6 +107,9 @@ export interface BulkSendJob {
   totalRecipients: number;
   successCount: number;
   failedCount: number;
+  sentCount: number;
+  deliveredCount: number;
+  readCount: number;
   csvData: CsvRow[];
   results: RecipientResult[] | null;
   createdAt: Date;
@@ -1025,6 +1028,9 @@ export class BulkTemplateSendService {
       totalRecipients: job.totalRecipients,
       successCount: job.successCount,
       failedCount: job.failedCount,
+      sentCount: job.sentCount ?? 0,
+      deliveredCount: job.deliveredCount ?? 0,
+      readCount: job.readCount ?? 0,
       csvData: job.csvData as CsvRow[],
       results: job.results as RecipientResult[] | null,
       createdAt: job.createdAt,

@@ -333,6 +333,9 @@ app.get('/jobs', async (c: Context) => {
           totalRecipients: true,
           successCount: true,
           failedCount: true,
+          sentCount: true,
+          deliveredCount: true,
+          readCount: true,
           createdAt: true,
           updatedAt: true,
           completedAt: true
