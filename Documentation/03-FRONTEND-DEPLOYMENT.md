@@ -14,149 +14,40 @@
 
 ---
 
-Panduan lengkap deployment frontend KirimChat ke Cloudflare Workers/Pages.
+Panduan deployment frontend KirimChat ke Cloudflare Workers.
 
 ## 📋 Table of Contents
 
-1. [Prerequisites](#prerequisites)
-2. [Local Setup](#local-setup)
-3. [Build Configuration](#build-configuration)
-4. [Cloudflare Pages Deployment](#cloudflare-pages-deployment)
-5. [DNS Configuration](#dns-configuration)
-6. [Verification](#verification)
-7. [Troubleshooting](#troubleshooting)
+1. [Fork Repository](#fork-repository)
+2. [Cloudflare Pages Deployment](#cloudflare-pages-deployment)
+3. [DNS Configuration](#dns-configuration)
+4. [Verification](#verification)
+5. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Prerequisites
+## Fork Repository
 
-- Cloudflare account (free tier works)
-- Domain added to Cloudflare
-- Node.js 18+ installed locally
-- Git repository (GitHub, GitLab, or Bitbucket)
-- Backend API already deployed
-
----
-
-## Local Setup (skip aja kalau mau langsung fork)
-Langsung ke  4. [Cloudflare Pages Deployment](#cloudflare-pages-deployment)
-### Step 1: Prepare Local Environment
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/kirimchat.git
-cd kirimchat
-
-# Install dependencies
-npm install -g pnpm
-pnpm install
-```
-
-### Step 2: Configure Environment Variables
-
-```bash
-cd apps/frontend
-
-# Copy environment file
-cp .env.example .env
-
-# Edit environment variables
-nano .env
-```
-
-**Frontend .env:**
-```env
-# API URLs
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
-
-# Environment
-NODE_ENV=production
-```
-
-**Important:** 
-- `NEXT_PUBLIC_API_URL` - URL backend API Anda (sudah deployed)
-- `NEXT_PUBLIC_APP_URL` - URL frontend Anda
-
----
-
-## Build Configuration
-
-### Step 3: Update Wrangler Config
-
-```bash
-nano wrangler.jsonc
-```
-
-**wrangler.jsonc:**
-```jsonc
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kirimchat-frontend",
-  "main": ".open-next/worker.js",
-  "compatibility_date": "2024-12-01",
-  "compatibility_flags": ["nodejs_compat"],
-  
-  "keep_names": false,
-  
-  "assets": {
-    "binding": "ASSETS",
-    "directory": ".open-next/assets"
-  },
-  
-  "vars": {
-    "NEXT_PUBLIC_API_URL": "https://api.yourdomain.com",
-    "NEXT_PUBLIC_APP_URL": "https://yourdomain.com"
-  }
-}
-```
-
-### Step 4: Build for Cloudflare Workers
-
-```bash
-# Build for Cloudflare Workers
-pnpm build:worker
-
-# Verify build output
-ls -la .open-next/
-```
-
-**Expected output:**
-```
-.open-next/
-├── assets/
-├── worker.js
-└── ...
-```
+1. Fork repository KirimChat ke GitHub account Anda
+2. Pastikan repository tetap **PRIVATE**
 
 ---
 
 ## Cloudflare Pages Deployment
 
-### GitHub Integration
-
-#### 1. Push to GitHub
-
-```bash
-git add .
-git commit -m "Ready for deployment"
-git push origin main
-```
-
-#### 2. Connect to Cloudflare Pages
+### 1. Connect to Cloudflare Pages
 
 1. Go to [Cloudflare Dashboard](https://dash.cloudflare.com)
 2. Navigate to **Workers & Pages** → **Create application**
 3. Click **Connect to Git**
-4. Select your repository: `kirimchat`
+4. Select your forked repository
 5. Configure build settings:
 
 **Build Configuration:**
 ```
 Framework preset: None
 Build command: pnpm build:worker
-Deploy command : npx wrangler deploy
-
+Deploy command: npx wrangler deploy
 Root directory: /apps/frontend
 ```
 
@@ -164,16 +55,17 @@ Root directory: /apps/frontend
 ```
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXT_PUBLIC_APP_NAME=Chat.Kirim
 NODE_ENV=production
 ```
 
-#### 3. Deploy
+### 2. Deploy
 
 - Click **Save and Deploy**
 - Wait for build to complete (~2-5 minutes)
 - You'll get a temporary URL like: `your-project.pages.dev`
 
-#### 4. Setup Custom Domain
+### 3. Setup Custom Domain
 
 1. Go to **Custom domains** tab
 2. Click **Set up a custom domain**
@@ -211,14 +103,7 @@ CNAME   www     your-pages.pages.dev    Yes     Auto
 
 ## Verification
 
-### Step 5: Verify Frontend Deployment
-
-```bash
-# Test frontend
-curl https://yourdomain.com
-
-# Should return HTML
-```
+### Verify Frontend Deployment
 
 **Visit in browser:**
 - https://yourdomain.com
@@ -230,14 +115,6 @@ curl https://yourdomain.com
 - [ ] API connection working
 - [ ] No console errors
 - [ ] SSL certificate valid
-
-### Test API Connection
-
-Open browser console and check:
-```javascript
-// Should show your API URL
-console.log(process.env.NEXT_PUBLIC_API_URL)
-```
 
 ---
 
@@ -251,20 +128,11 @@ console.log(process.env.NEXT_PUBLIC_API_URL)
 3. View build logs
 
 **Common issues:**
-```bash
-# Missing dependencies
-pnpm install
-
-# Node version mismatch
-# Set in Cloudflare Pages: NODE_VERSION=18
-
-# Build command wrong
-# Should be: pnpm build:worker
-```
+- Node version mismatch → Set `NODE_VERSION=18` in environment variables
+- Build command wrong → Should be `pnpm build:worker`
 
 ### Environment variables not working
 
-**Solution:**
 1. Go to **Settings** → **Environment variables**
 2. Add variables for **Production** environment
 3. Redeploy: **Deployments** → **Retry deployment**
@@ -272,20 +140,12 @@ pnpm install
 ### API connection fails
 
 **Check:**
-```bash
-# 1. Backend is running
-curl https://api.yourdomain.com/health
-
-# 2. CORS configured correctly in backend .env
-CORS_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-
-# 3. Frontend env variables correct
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-```
+1. Backend is running: `curl https://api.yourdomain.com/health`
+2. CORS configured correctly in backend
+3. Frontend env variables correct
 
 ### Custom domain not working
 
-**Steps:**
 1. Check DNS propagation: https://dnschecker.org
 2. Verify CNAME records in Cloudflare DNS
 3. Check SSL/TLS mode (should be Full)
@@ -293,60 +153,15 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 
 ### 404 errors on page refresh
 
-**Solution:**
 This is handled by OpenNext adapter automatically. If still occurs:
-1. Check `next.config.ts` has correct output
-2. Verify `wrangler.jsonc` points to correct worker.js
-3. Redeploy
-
-### Slow page loads
-
-**Optimize:**
-1. Enable Cloudflare caching
-2. Use Cloudflare CDN (orange cloud)
-3. Enable **Auto Minify** in Cloudflare
-4. Enable **Brotli** compression
+1. Verify `wrangler.jsonc` points to correct worker.js
+2. Redeploy
 
 ---
 
 ## 🔄 Updating Frontend
 
-```bash
-# Make changes
-git add .
-git commit -m "Update frontend"
-git push origin main
-
-# Cloudflare Pages will auto-deploy
-```
-
----
-
-## 🛠️ Common Commands
-
-```bash
-# Local development
-pnpm dev
-
-# Build for production
-pnpm build
-
-# Build for Cloudflare Workers
-pnpm build:worker
-
-# Check Wrangler version
-npx wrangler --version
-```
-
----
-
-## 📊 Performance Tips
-
-1. **Enable Cloudflare CDN** - Use proxied DNS (orange cloud)
-2. **Enable Auto Minify** - CSS, JS, HTML
-3. **Enable Brotli** - Better compression than gzip
-4. **Use Cloudflare Images** - Optimize images automatically
-5. **Enable Argo Smart Routing** - Faster routing (paid)
+Push changes to your forked repository - Cloudflare Pages will auto-deploy.
 
 ---
 
@@ -357,7 +172,6 @@ npx wrangler --version
 - [ ] HSTS enabled
 - [ ] Security headers configured
 - [ ] API URL uses HTTPS
-- [ ] No sensitive data in client-side code
 - [ ] Environment variables properly set
 
 ---
