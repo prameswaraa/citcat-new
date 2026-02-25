@@ -413,9 +413,10 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
             }
         ).catch(err => console.error('Failed to emit message.received webhook:', err))
 
-        // Emit WebSocket event for real-time UI update (Requirement 2.1)
-        console.log(`[WebhookWorker] Emitting new_message event for user ${user.id}`)
-        const emitResult = eventEmitter.emitNewMessage(user.id, {
+        // Emit WebSocket event for real-time UI update to ALL team members (business owner + agents)
+        // Requirements: 2.1, 5.3, 6.2 - Broadcast to business room for team-wide visibility
+        console.log(`[WebhookWorker] Emitting new_message event to business room for user ${user.id}`)
+        const emitResult = eventEmitter.emitNewMessageToBusinessRoom(user.id, {
             conversationId: customer.id, // Using customerId as conversationId for WhatsApp
             channel: 'whatsapp',
             participantId: customer.phoneNumber,
@@ -428,41 +429,6 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
             },
         })
         console.log(`[WebhookWorker] Emit result: ${emitResult}`)
-
-        // Also emit to assigned agent if conversation is assigned to a human agent
-        // Requirements: 5.3, 6.2 - Agents should receive real-time updates for their assigned conversations
-        try {
-            const assignment = await prisma.conversationAssignment.findFirst({
-                where: {
-                    businessOwnerId: user.id,
-                    conversationType: 'WHATSAPP',
-                    conversationId: customer.id,
-                    assigneeType: 'HUMAN',
-                    unassignedAt: null,
-                },
-                select: {
-                    assigneeId: true,
-                }
-            })
-
-            if (assignment?.assigneeId && assignment.assigneeId !== user.id) {
-                console.log(`[WebhookWorker] Emitting new_message event to assigned agent ${assignment.assigneeId}`)
-                eventEmitter.emitNewMessage(assignment.assigneeId, {
-                    conversationId: customer.id,
-                    channel: 'whatsapp',
-                    participantId: customer.phoneNumber,
-                    participantName: customer.name,
-                    message: {
-                        id: savedMessage.id,
-                        preview: (content || getMessagePreview(message.type)).substring(0, 100),
-                        timestamp: savedMessage.timestamp.toISOString(),
-                        direction: 'inbound',
-                    },
-                })
-            }
-        } catch (err) {
-            console.error('[WebhookWorker] Failed to emit to assigned agent:', err)
-        }
 
         // Calculate and emit unread count update (Requirements: 1.2, 4.1)
         try {

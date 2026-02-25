@@ -120,6 +120,7 @@ export class AssignmentService {
 
   /**
    * Emit assignment changed WebSocket event to all users in business owner context
+   * Uses business room broadcast for efficient delivery to all team members
    * 
    * @param businessOwnerId - The business owner's user ID
    * @param conversationId - The conversation ID
@@ -139,15 +140,13 @@ export class AssignmentService {
     assignedById: string,
     action: 'assigned' | 'unassigned'
   ): Promise<void> {
-    const userIds = await this.getUserIdsInContext(businessOwnerId);
-    
-    eventEmitter.emitAssignmentChangedToUsers(userIds, {
+    eventEmitter.emitAssignmentChangedToBusinessRoom(businessOwnerId, {
       conversationId,
       conversationType: conversationType.toLowerCase() as 'whatsapp' | 'instagram' | 'messenger',
       assigneeId,
       assigneeName,
       assignedById,
-      action,
+      action
     });
   }
 
@@ -749,7 +748,7 @@ export class AssignmentService {
       return true;
     }
 
-    // Agent permissions
+    // Agent permissions - NEW RULES
     if (userRole === 'AGENT') {
       const currentAssignment = await this.getAssignment(
         conversationId,
@@ -757,16 +756,24 @@ export class AssignmentService {
         businessOwnerId
       );
 
-      // Agent can self-assign unassigned conversations (Requirement 7.2)
-      if (!currentAssignment && targetAssigneeId === userId) {
+      // Check if conversation is available for agent to claim
+      // Available = unassigned OR assigned to AI Agent
+      const isUnassigned = !currentAssignment;
+      const isAssignedToAI = currentAssignment?.assigneeType === 'AI_AGENT';
+      const isAvailable = isUnassigned || isAssignedToAI;
+
+      // Agent can only assign if conversation is available
+      if (!isAvailable) {
+        // Conversation is assigned to another human - agent cannot take over
+        return false;
+      }
+
+      // Agent can assign to self
+      if (targetAssigneeId === userId) {
         return true;
       }
 
-      // Agent can re-assign their own assigned conversations (Requirement 7.3)
-      if (currentAssignment?.assigneeId === userId) {
-        return true;
-      }
-
+      // Agent cannot assign to other humans
       return false;
     }
 

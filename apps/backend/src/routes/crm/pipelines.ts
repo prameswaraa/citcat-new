@@ -2,18 +2,20 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { prisma } from '../../utils/database.js'
 import { auditLog } from '../../utils/auditLog.js'
+import { resolveContext, getEffectiveUserId } from '../../middleware/resolveContext.js'
 
 const app = new Hono()
 
 // --- Pipelines ---
 
 // GET /api/v1/crm/pipelines - List all pipelines
-app.get('/pipelines', async (c: Context) => {
+app.get('/pipelines', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
 
+        const effectiveUserId = getEffectiveUserId(c)
         const pipelines = await prisma.pipeline.findMany({
-            where: { userId: c.user.id },
+            where: { userId: effectiveUserId },
             include: {
                 stages: {
                     orderBy: { order: 'asc' }
@@ -29,16 +31,17 @@ app.get('/pipelines', async (c: Context) => {
 })
 
 // POST /api/v1/crm/pipelines - Create pipeline
-app.post('/pipelines', async (c: Context) => {
+app.post('/pipelines', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
 
         const body = await c.req.json()
         const { name, description, isDefault, stages } = body
 
+        const effectiveUserId = getEffectiveUserId(c)
         const pipeline = await prisma.pipeline.create({
             data: {
-                userId: c.user.id,
+                userId: effectiveUserId,
                 name,
                 description,
                 isDefault: isDefault || false,
@@ -63,16 +66,18 @@ app.post('/pipelines', async (c: Context) => {
 })
 
 // PUT /api/v1/crm/pipelines/:id - Update pipeline
-app.put('/pipelines/:id', async (c: Context) => {
+app.put('/pipelines/:id', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
         const id = c.req.param('id')
         const body = await c.req.json()
         const { name, description, isDefault, stages } = body
 
+        const effectiveUserId = getEffectiveUserId(c)
+
         // Verify ownership
         const existingPipeline = await prisma.pipeline.findUnique({
-            where: { id, userId: c.user.id },
+            where: { id, userId: effectiveUserId },
             include: { stages: true }
         })
         if (!existingPipeline) {
@@ -83,7 +88,7 @@ app.put('/pipelines/:id', async (c: Context) => {
         const pipeline = await prisma.$transaction(async (tx) => {
             // Update pipeline basic info
             const updatedPipeline = await tx.pipeline.update({
-                where: { id, userId: c.user.id },
+                where: { id, userId: effectiveUserId },
                 data: { name, description, isDefault }
             })
 
@@ -143,13 +148,14 @@ app.put('/pipelines/:id', async (c: Context) => {
 })
 
 // DELETE /api/v1/crm/pipelines/:id - Delete pipeline
-app.delete('/pipelines/:id', async (c: Context) => {
+app.delete('/pipelines/:id', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
         const id = c.req.param('id')
 
+        const effectiveUserId = getEffectiveUserId(c)
         await prisma.pipeline.delete({
-            where: { id, userId: c.user.id }
+            where: { id, userId: effectiveUserId }
         })
 
         await auditLog('PIPELINE_DELETED', 'Pipeline', id, {}, c.user.id)
@@ -164,16 +170,18 @@ app.delete('/pipelines/:id', async (c: Context) => {
 // --- Stages ---
 
 // POST /api/v1/crm/pipelines/:id/stages - Add stage
-app.post('/pipelines/:id/stages', async (c: Context) => {
+app.post('/pipelines/:id/stages', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
         const pipelineId = c.req.param('id')
         const body = await c.req.json()
         const { name, color, order } = body
 
+        const effectiveUserId = getEffectiveUserId(c)
+
         // Verify pipeline ownership
         const pipeline = await prisma.pipeline.findUnique({
-            where: { id: pipelineId, userId: c.user.id }
+            where: { id: pipelineId, userId: effectiveUserId }
         })
         if (!pipeline) return c.json({ error: { code: 'NotFound', message: 'Pipeline not found' } }, 404)
 
@@ -194,19 +202,21 @@ app.post('/pipelines/:id/stages', async (c: Context) => {
 })
 
 // PUT /api/v1/crm/stages/:id - Update stage
-app.put('/stages/:id', async (c: Context) => {
+app.put('/stages/:id', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
         const id = c.req.param('id')
         const body = await c.req.json()
         const { name, color, order } = body
 
+        const effectiveUserId = getEffectiveUserId(c)
+
         // Verify ownership via pipeline
         const stage = await prisma.pipelineStage.findUnique({
             where: { id },
             include: { pipeline: true }
         })
-        if (!stage || stage.pipeline.userId !== c.user.id) {
+        if (!stage || stage.pipeline.userId !== effectiveUserId) {
             return c.json({ error: { code: 'NotFound', message: 'Stage not found' } }, 404)
         }
 
@@ -223,17 +233,19 @@ app.put('/stages/:id', async (c: Context) => {
 })
 
 // DELETE /api/v1/crm/stages/:id - Delete stage
-app.delete('/stages/:id', async (c: Context) => {
+app.delete('/stages/:id', resolveContext, async (c: Context) => {
     try {
         if (!c.user) return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
         const id = c.req.param('id')
+
+        const effectiveUserId = getEffectiveUserId(c)
 
         // Verify ownership
         const stage = await prisma.pipelineStage.findUnique({
             where: { id },
             include: { pipeline: true }
         })
-        if (!stage || stage.pipeline.userId !== c.user.id) {
+        if (!stage || stage.pipeline.userId !== effectiveUserId) {
             return c.json({ error: { code: 'NotFound', message: 'Stage not found' } }, 404)
         }
 

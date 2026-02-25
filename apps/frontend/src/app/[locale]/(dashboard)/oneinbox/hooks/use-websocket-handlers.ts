@@ -9,6 +9,7 @@ import type {
   ConversationUpdatedEvent,
   UnreadCountUpdatedEvent,
   AssignmentChangedEvent,
+  OutboundMessageEvent,
 } from "@/hooks/use-websocket"
 import type { UnifiedConversation, Customer } from "./unified-inbox-types"
 
@@ -157,10 +158,37 @@ export function useWebSocketHandlers({
     })
   }, [setConversations, setSelectedConversation])
 
+  // Handle outbound message from WebSocket
+  // This ensures all team members see messages sent by colleagues
+  const handleOutboundMessage = useCallback((event: OutboundMessageEvent) => {
+    const { conversationId, channel } = event.payload
+    
+    // Refresh conversations to get the new message
+    loadConversations()
+
+    // If the message is for the currently selected conversation, refresh messages
+    const currentConversation = selectedConversationRef.current
+    if (currentConversation) {
+      // Build the prefixed conversation ID to match our internal format
+      const prefixMap: Record<string, string> = {
+        whatsapp: "wa-",
+        instagram: "ig-",
+        messenger: "msg-"
+      }
+      const prefix = prefixMap[channel] || "wa-"
+      const prefixedConversationId = `${prefix}${conversationId}`
+
+      if (currentConversation.id === prefixedConversationId) {
+        refreshSelectedConversationMessages()
+      }
+    }
+  }, [loadConversations, refreshSelectedConversationMessages])
+
   return {
     handleNewMessage,
     handleConversationUpdated,
     handleUnreadCountUpdated,
     handleAssignmentChanged,
+    handleOutboundMessage,
   }
 }

@@ -17,6 +17,7 @@ export type WebSocketEventType =
   | "typing_indicator"
   | "unread_count_updated"
   | "assignment_changed"
+  | "outbound_message"
 
 export interface NewMessagePayload {
   conversationId: string
@@ -120,6 +121,32 @@ export interface AssignmentChangedEvent extends BaseEvent {
   payload: AssignmentChangedPayload
 }
 
+/**
+ * Payload for outbound_message event
+ * Emitted when an outbound message is sent (by human or AI agent)
+ */
+export interface OutboundMessagePayload {
+  conversationId: string
+  channel: "whatsapp" | "instagram" | "messenger"
+  message: {
+    id: string
+    content: string
+    contentType: "text" | "image" | "video" | "audio" | "document" | "template" | "interactive"
+    timestamp: string
+    senderId: string
+    senderName: string
+    senderType: "human" | "ai_agent"
+  }
+}
+
+/**
+ * Event for outbound messages
+ */
+export interface OutboundMessageEvent extends BaseEvent {
+  type: "outbound_message"
+  payload: OutboundMessagePayload
+}
+
 // ============================================
 // Hook Types
 // ============================================
@@ -141,6 +168,7 @@ export interface UseWebSocketOptions {
   onTypingIndicator?: (event: TypingIndicatorEvent) => void
   onUnreadCountUpdated?: (event: UnreadCountUpdatedEvent) => void
   onAssignmentChanged?: (event: AssignmentChangedEvent) => void
+  onOutboundMessage?: (event: OutboundMessageEvent) => void
   onConnectionChange?: (state: WebSocketState) => void
   enabled?: boolean
 }
@@ -172,6 +200,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     onTypingIndicator,
     onUnreadCountUpdated,
     onAssignmentChanged,
+    onOutboundMessage,
     onConnectionChange,
     enabled = true,
   } = options
@@ -199,6 +228,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const onTypingIndicatorRef = useRef(onTypingIndicator)
   const onUnreadCountUpdatedRef = useRef(onUnreadCountUpdated)
   const onAssignmentChangedRef = useRef(onAssignmentChanged)
+  const onOutboundMessageRef = useRef(onOutboundMessage)
 
   // Update refs when callbacks change
   useEffect(() => {
@@ -208,7 +238,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     onTypingIndicatorRef.current = onTypingIndicator
     onUnreadCountUpdatedRef.current = onUnreadCountUpdated
     onAssignmentChangedRef.current = onAssignmentChanged
-  }, [onNewMessage, onConversationUpdated, onMessageStatus, onTypingIndicator, onUnreadCountUpdated, onAssignmentChanged])
+    onOutboundMessageRef.current = onOutboundMessage
+  }, [onNewMessage, onConversationUpdated, onMessageStatus, onTypingIndicator, onUnreadCountUpdated, onAssignmentChanged, onOutboundMessage])
 
   // Update enabled ref when prop changes
   useEffect(() => {
@@ -282,6 +313,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       socket.on("assignment_changed", (event: AssignmentChangedEvent) => {
         updateState({ lastEventAt: new Date() })
         onAssignmentChangedRef.current?.(event)
+      })
+
+      // Outbound message event
+      socket.on("outbound_message", (event: OutboundMessageEvent) => {
+        updateState({ lastEventAt: new Date() })
+        onOutboundMessageRef.current?.(event)
       })
     },
     [updateState]

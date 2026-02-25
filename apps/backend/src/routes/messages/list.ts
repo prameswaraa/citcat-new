@@ -22,8 +22,6 @@ app.get('/', async (c: Context) => {
     // Requirements: 5.3, 6.2
     const effectiveUserId = getEffectiveUserId(c)
     const customerId = c.req.query('customerId')
-    const isAgent = c.user.role === 'AGENT'
-    const agentUserId = c.user.id
 
     // Get phone numbers from connected WhatsApp accounts only
     const connectedPhoneNumbers = await prisma.phoneNumber.findMany({
@@ -37,42 +35,10 @@ app.get('/', async (c: Context) => {
     })
     const connectedPhoneNumberIds = connectedPhoneNumbers.map(p => p.id)
 
-    // For agents, first get the list of customer IDs assigned to them
-    let assignedCustomerIds: string[] = []
-    if (isAgent) {
-      const agentAssignments = await prisma.conversationAssignment.findMany({
-        where: {
-          businessOwnerId: effectiveUserId,
-          conversationType: 'WHATSAPP',
-          assigneeId: agentUserId,
-          assigneeType: 'HUMAN',
-          unassignedAt: null, // Only active assignments
-        },
-        select: {
-          conversationId: true, // This is the customer ID for WhatsApp
-        }
-      })
-      assignedCustomerIds = agentAssignments.map(a => a.conversationId)
-      
-      // If agent has no assignments, return empty result
-      if (assignedCustomerIds.length === 0) {
-        return c.json({ 
-          success: true, 
-          data: [],
-          unreadCounts: {},
-          assignments: {}
-        })
-      }
-    }
-
     // Build the where clause
     const where: any = { userId: effectiveUserId }
     if (customerId) {
       where.customerId = customerId
-    }
-    // For agents, filter to only show messages from assigned customers
-    if (isAgent && assignedCustomerIds.length > 0) {
-      where.customerId = { in: assignedCustomerIds }
     }
     
     // Filter to only show messages from customers linked to connected WhatsApp numbers
@@ -160,8 +126,6 @@ app.get('/', async (c: Context) => {
           userId: effectiveUserId,
           direction: 'INBOUND',
           status: { not: 'READ' },
-          // For agents, only count unread from assigned customers
-          ...(isAgent && assignedCustomerIds.length > 0 ? { customerId: { in: assignedCustomerIds } } : {})
         },
         _count: { id: true }
       }),
@@ -171,8 +135,6 @@ app.get('/', async (c: Context) => {
           businessOwnerId: effectiveUserId,
           conversationType: 'WHATSAPP',
           unassignedAt: null, // Only active assignments
-          // For agents, only show assignments for their assigned customers
-          ...(isAgent && assignedCustomerIds.length > 0 ? { conversationId: { in: assignedCustomerIds } } : {})
         },
         include: {
           assignee: {

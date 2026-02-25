@@ -6,6 +6,7 @@ export interface AuthenticatedSocket extends Socket {
   userId: string
   sessionId: string
   userAgent?: string
+  businessOwnerId: string
 }
 
 // WebSocket event types
@@ -15,6 +16,7 @@ export type WebSocketEventType =
   | 'conversation_updated'
   | 'typing_indicator'
   | 'assignment_changed'
+  | 'outbound_message'
 
 // ============================================
 // Zod Validation Schemas
@@ -85,6 +87,21 @@ export const assignmentChangedPayloadSchema = z.object({
   action: assignmentActionSchema
 })
 
+// Outbound message event payload schema
+export const outboundMessagePayloadSchema = z.object({
+  conversationId: z.string().min(1),
+  channel: channelSchema,
+  message: z.object({
+    id: z.string().min(1),
+    content: z.string(),
+    contentType: z.enum(['text', 'image', 'video', 'audio', 'document', 'template', 'interactive']),
+    timestamp: z.string().datetime(),
+    senderId: z.string().min(1),
+    senderName: z.string(),
+    senderType: z.enum(['human', 'ai_agent'])
+  })
+})
+
 // Full event schemas with type discriminator
 export const newMessageEventSchema = z.object({
   type: z.literal('new_message'),
@@ -121,13 +138,21 @@ export const assignmentChangedEventSchema = z.object({
   payload: assignmentChangedPayloadSchema
 })
 
+export const outboundMessageEventSchema = z.object({
+  type: z.literal('outbound_message'),
+  timestamp: z.string().datetime(),
+  userId: z.string().min(1),
+  payload: outboundMessagePayloadSchema
+})
+
 // Union schema for all WebSocket events
 export const webSocketEventSchema = z.discriminatedUnion('type', [
   newMessageEventSchema,
   conversationUpdatedEventSchema,
   messageStatusEventSchema,
   typingIndicatorEventSchema,
-  assignmentChangedEventSchema
+  assignmentChangedEventSchema,
+  outboundMessageEventSchema
 ])
 
 // ============================================
@@ -171,6 +196,12 @@ export interface AssignmentChangedEvent extends BaseEvent {
   payload: z.infer<typeof assignmentChangedPayloadSchema>
 }
 
+// Outbound message event payload
+export interface OutboundMessageEvent extends BaseEvent {
+  type: 'outbound_message'
+  payload: z.infer<typeof outboundMessagePayloadSchema>
+}
+
 // Union type for all WebSocket events
 export type WebSocketEvent = 
   | NewMessageEvent 
@@ -178,6 +209,7 @@ export type WebSocketEvent =
   | MessageStatusEvent
   | TypingIndicatorEvent
   | AssignmentChangedEvent
+  | OutboundMessageEvent
 
 // ============================================
 // Server Configuration & Connection Types
@@ -197,6 +229,7 @@ export interface WebSocketServerConfig {
 export interface UserConnection {
   socketId: string
   userId: string
+  businessOwnerId: string
   connectedAt: Date
   lastHeartbeat: Date
   userAgent?: string

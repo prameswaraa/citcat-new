@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../../utils/database.js'
 import { auditLog } from '../../utils/auditLog.js'
+import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 import { handleValidationError, logDetailedError } from '../../middleware/errorHandler.js'
 
 const app = new Hono()
@@ -24,7 +25,8 @@ app.post('/import', async (c: Context) => {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
     }
 
-    const userId = c.user.id
+    // Use effectiveUserId for agents to import customers under business owner
+    const effectiveUserId = getEffectiveUserId(c)
 
     const results = {
       success: 0,
@@ -37,7 +39,7 @@ app.post('/import', async (c: Context) => {
         // Check if customer already exists (without phone number link = manual import)
         const existing = await prisma.customer.findFirst({
           where: {
-            userId,
+            userId: effectiveUserId,
             phoneNumber: customerData.phoneNumber,
             whatsappPhoneNumberId: null,
           }
@@ -55,7 +57,7 @@ app.post('/import', async (c: Context) => {
         // Create customer
         const customer = await prisma.customer.create({
           data: {
-            userId,
+            userId: effectiveUserId,
             phoneNumber: customerData.phoneNumber,
             name: customerData.name,
             consentStatus: customerData.consentStatus,
@@ -86,7 +88,7 @@ app.post('/import', async (c: Context) => {
       }
     }
 
-    await auditLog('CUSTOMERS_IMPORTED', 'Customer', userId, {
+    await auditLog('CUSTOMERS_IMPORTED', 'Customer', effectiveUserId, {
       total: customers.length,
       success: results.success,
       failed: results.failed,

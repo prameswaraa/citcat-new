@@ -13,17 +13,25 @@ import tokenRoutes from './tokens.js'
 import coexistenceRoutes from './coexistence.js'
 import healthRoutes from './health.js'
 import { getWhatsAppAccountsForUser } from '../../utils/whatsapp-account-helper.js'
+import { resolveContext, getEffectiveUserId } from '../../middleware/resolveContext.js'
 
 const app = new Hono()
 
+// Apply context resolution middleware to all routes
+// This enables agents to access business owner's WhatsApp accounts
+app.use('*', resolveContext)
+
 // GET /accounts - List all WhatsApp accounts for the user
+// Agents can view business owner's accounts via effectiveUserId
 app.get('/accounts', async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
     }
 
-    const accounts = await getWhatsAppAccountsForUser(c.user.id, false)
+    // Use effectiveUserId for agents to access business owner's WhatsApp accounts
+    const effectiveUserId = getEffectiveUserId(c)
+    const accounts = await getWhatsAppAccountsForUser(effectiveUserId, false)
 
     return c.json({
       data: accounts.map(account => ({

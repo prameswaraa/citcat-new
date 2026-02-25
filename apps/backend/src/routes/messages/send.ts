@@ -21,6 +21,7 @@ import { AuditLogService } from '../../services/audit-log-service.js'
 import { memoryQueue } from '../../utils/queue.js'
 import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
 import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
+import { eventEmitter } from '../../websocket/index.js'
 
 const app = new Hono()
 
@@ -261,30 +262,6 @@ app.post('/send', async (c: Context) => {
           message: 'Customer not found'
         }
       }, 400)
-    }
-
-    // For agents, verify they are assigned to this customer's conversation
-    // Requirements: 5.3, 6.3 - Agents can only send messages to assigned conversations
-    if (isAgent && actingAgentId) {
-      const assignment = await prisma.conversationAssignment.findFirst({
-        where: {
-          businessOwnerId: effectiveUserId,
-          conversationType: 'WHATSAPP',
-          conversationId: customer.id, // customerId is the conversationId for WhatsApp
-          assigneeId: actingAgentId,
-          assigneeType: 'HUMAN',
-          unassignedAt: null, // Only active assignments
-        }
-      })
-
-      if (!assignment) {
-        return c.json({
-          error: {
-            code: 'Forbidden',
-            message: 'You are not assigned to this conversation'
-          }
-        }, 403)
-      }
     }
 
     // Check 24-hour window for non-template messages
@@ -774,6 +751,21 @@ app.post('/send', async (c: Context) => {
         console.error('Failed to mark WABA health as resolved:', err)
       )
     }
+
+    // Emit outbound_message to business room for real-time sync
+    eventEmitter.emitOutboundMessageToBusinessRoom(effectiveUserId, {
+      conversationId: customer.id,
+      channel: 'whatsapp',
+      message: {
+        id: message.id,
+        content: message.content || '',
+        contentType: (message.messageType?.toLowerCase() || 'text') as 'text' | 'image' | 'video' | 'audio' | 'document' | 'template' | 'interactive',
+        timestamp: new Date().toISOString(),
+        senderId: actingAgentId || effectiveUserId,
+        senderName: c.user?.name || 'Unknown',
+        senderType: 'human'
+      }
+    })
 
     return c.json({
       success: true,

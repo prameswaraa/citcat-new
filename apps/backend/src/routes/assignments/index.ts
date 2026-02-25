@@ -248,6 +248,27 @@ app.post('/:conversationType/:conversationId', authMiddleware, resolveContext, a
 
     // Handle AI Agent assignment (Requirement 1.4, 4.3)
     if (aiAgentId) {
+      // For agents, check if conversation is available (unassigned or AI-assigned)
+      if (c.user.role === 'AGENT') {
+        const currentAssignment = await assignmentService.getAssignment(
+          conversationId,
+          conversationType,
+          businessOwnerId
+        )
+
+        const isUnassigned = !currentAssignment
+        const isAssignedToAI = currentAssignment?.assigneeType === 'AI_AGENT'
+
+        if (!isUnassigned && !isAssignedToAI) {
+          return c.json({
+            error: {
+              code: 'UNAUTHORIZED_ASSIGN',
+              message: 'Cannot assign: conversation is already assigned to another agent'
+            }
+          }, 403)
+        }
+      }
+
       try {
         const assignment = await assignmentService.assignToAIAgent(
           conversationId,

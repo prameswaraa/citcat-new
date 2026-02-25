@@ -455,7 +455,8 @@ async function handleMessageEvent(
     ).catch(err => console.error('[IG Webhook] Failed to emit message.received webhook:', err))
 
     // Emit WebSocket event for real-time UI update (Requirement 2.2)
-    eventEmitter.emitNewMessage(conversation.instagramAccount.userId, {
+    // Broadcast to business room so all team members receive the message
+    eventEmitter.emitNewMessageToBusinessRoom(conversation.instagramAccount.userId, {
       conversationId: `ig-${conversation.id}`,  // Add 'ig-' prefix to match frontend UnifiedConversation.id
       channel: 'instagram',
       participantId: participantIgsid,
@@ -484,20 +485,11 @@ async function handleMessageEvent(
         }
       })
 
+      // Note: With business room broadcast above, assigned agents already receive the message
+      // This explicit emit to assigned agent is now redundant but kept for backward compatibility
+      // TODO: Consider removing this block since business room broadcast covers all team members
       if (assignment?.assigneeId && assignment.assigneeId !== conversation.instagramAccount.userId) {
-        console.log(`[IG Webhook] Emitting new_message event to assigned agent ${assignment.assigneeId}`)
-        eventEmitter.emitNewMessage(assignment.assigneeId, {
-          conversationId: `ig-${conversation.id}`,
-          channel: 'instagram',
-          participantId: participantIgsid,
-          participantName: conversation.participantName || conversation.participantUsername || null,
-          message: {
-            id: igMessage.id,
-            preview: (text || getMessagePreview(messageType)).substring(0, 100),
-            timestamp: igMessage.timestamp.toISOString(),
-            direction: 'inbound',
-          },
-        })
+        console.log(`[IG Webhook] Assigned agent ${assignment.assigneeId} already received message via business room broadcast`)
       }
     } catch (err) {
       console.error('[IG Webhook] Failed to emit to assigned agent:', err)

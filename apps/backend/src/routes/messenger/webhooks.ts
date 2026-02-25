@@ -409,7 +409,8 @@ async function handleMessageEvent(
     ).catch(err => console.error('[Messenger Webhook] Failed to emit message.received webhook:', err))
 
     // Emit WebSocket event for real-time UI update
-    eventEmitter.emitNewMessage(conversation.facebookPage.userId, {
+    // Broadcast to business room so all team members receive the message
+    eventEmitter.emitNewMessageToBusinessRoom(conversation.facebookPage.userId, {
       conversationId: `msg-${conversation.id}`,  // Add 'msg-' prefix to match frontend UnifiedConversation.id
       channel: 'messenger',
       participantId: participantPsid,
@@ -437,19 +438,11 @@ async function handleMessageEvent(
         }
       })
 
+      // Note: With business room broadcast above, assigned agents already receive the message
+      // This explicit emit to assigned agent is now redundant but kept for backward compatibility
+      // TODO: Consider removing this block since business room broadcast covers all team members
       if (assignment?.assigneeId && assignment.assigneeId !== conversation.facebookPage.userId) {
-        eventEmitter.emitNewMessage(assignment.assigneeId, {
-          conversationId: `msg-${conversation.id}`,
-          channel: 'messenger',
-          participantId: participantPsid,
-          participantName: conversation.participantName || null,
-          message: {
-            id: msgRecord.id,
-            preview: (text || getMessagePreview(messageType)).substring(0, 100),
-            timestamp: msgRecord.timestamp.toISOString(),
-            direction: 'inbound',
-          },
-        })
+        console.log(`[Messenger Webhook] Assigned agent ${assignment.assigneeId} already received message via business room broadcast`)
       }
     } catch (err) {
       console.error('[Messenger Webhook] Failed to emit to assigned agent:', err)

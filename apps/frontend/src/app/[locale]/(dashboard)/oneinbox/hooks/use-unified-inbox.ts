@@ -383,6 +383,7 @@ export function useUnifiedInbox() {
     onMessageStatus: handleMessageStatus,
     onUnreadCountUpdated: wsHandlers.handleUnreadCountUpdated,
     onAssignmentChanged: wsHandlers.handleAssignmentChanged,
+    onOutboundMessage: wsHandlers.handleOutboundMessage,
     enabled: !isLoadingAccount && !!userId,
   })
 

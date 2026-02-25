@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { AutoTaggingService } from '../../services/auto-tagging-service.js'
 import { auditLog } from '../../utils/auditLog.js'
-import { getEffectiveUserId } from '../../middleware/resolveContext.js'
+import { resolveContext, getEffectiveUserId } from '../../middleware/resolveContext.js'
 
 const app = new Hono()
 
@@ -30,7 +30,7 @@ function validateCreateRule(body: any): { valid: boolean; error?: string } {
 }
 
 // GET /api/v1/crm/auto-tagging/rules - List all rules
-app.get('/auto-tagging/rules', async (c: Context) => {
+app.get('/auto-tagging/rules', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -47,7 +47,7 @@ app.get('/auto-tagging/rules', async (c: Context) => {
 })
 
 // GET /api/v1/crm/auto-tagging/rules/:id - Get single rule
-app.get('/auto-tagging/rules/:id', async (c: Context) => {
+app.get('/auto-tagging/rules/:id', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -69,7 +69,7 @@ app.get('/auto-tagging/rules/:id', async (c: Context) => {
 })
 
 // POST /api/v1/crm/auto-tagging/rules - Create rule
-app.post('/auto-tagging/rules', async (c: Context) => {
+app.post('/auto-tagging/rules', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -106,7 +106,7 @@ app.post('/auto-tagging/rules', async (c: Context) => {
 })
 
 // PATCH /api/v1/crm/auto-tagging/rules/:id - Update rule
-app.patch('/auto-tagging/rules/:id', async (c: Context) => {
+app.patch('/auto-tagging/rules/:id', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -149,7 +149,7 @@ app.patch('/auto-tagging/rules/:id', async (c: Context) => {
 })
 
 // DELETE /api/v1/crm/auto-tagging/rules/:id - Delete rule
-app.delete('/auto-tagging/rules/:id', async (c: Context) => {
+app.delete('/auto-tagging/rules/:id', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -174,7 +174,7 @@ app.delete('/auto-tagging/rules/:id', async (c: Context) => {
 })
 
 // PATCH /api/v1/crm/auto-tagging/rules/:id/toggle - Toggle active status
-app.patch('/auto-tagging/rules/:id/toggle', async (c: Context) => {
+app.patch('/auto-tagging/rules/:id/toggle', resolveContext, async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
