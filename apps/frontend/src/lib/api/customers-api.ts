@@ -119,6 +119,7 @@ export const customersApi = {
     async createCustomer(data: {
         phoneNumber: string
         name?: string
+        whatsappPhoneNumberId: string
         consentStatus: boolean
         consentSource: string
     }) {

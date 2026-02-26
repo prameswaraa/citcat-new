@@ -39,6 +39,7 @@ import { useState, useEffect } from "react"
 import { Link } from "@/i18n/routing"
 import { useCreateCustomer, useUpdateCustomer } from "@/hooks/use-customers"
 import { useToast } from "@/hooks/use-toast"
+import { useWhatsAppPhoneNumbers } from "@/hooks/use-whatsapp-phone-numbers"
 
 interface PipelineStage {
   id: string
@@ -75,6 +76,7 @@ const formSchema = z.object({
       "Phone number cannot contain spaces"
     ),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
+  whatsappPhoneNumberId: z.string().min(1, "WhatsApp account is required"),
   consentStatus: z.enum(["CONSENTED", "NOT_CONSENTED", "REVOKED"]),
   tags: z.array(z.string()).optional(),
   pipelineStageId: z.string().optional(),
@@ -94,6 +96,7 @@ export function CustomersMutateDrawer({
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [customFieldDefs, setCustomFieldDefs] = useState<CustomFieldDefinition[]>([])
   const { toast } = useToast()
+  const { phoneNumbers: whatsappPhoneNumbers, isLoading: isLoadingPhoneNumbers } = useWhatsAppPhoneNumbers()
 
   // Use mutation hooks with cache invalidation
   const createCustomerMutation = useCreateCustomer()
@@ -132,6 +135,7 @@ export function CustomersMutateDrawer({
       name: "",
       phoneNumber: "",
       email: "",
+      whatsappPhoneNumberId: whatsappPhoneNumbers[0]?.id || "",
       consentStatus: "NOT_CONSENTED",
       tags: [],
       pipelineStageId: "",
@@ -151,6 +155,7 @@ export function CustomersMutateDrawer({
         name: currentRow.name,
         phoneNumber: phoneNumber,
         email: currentRow.email || "",
+        whatsappPhoneNumberId: currentRow.whatsappPhoneNumberId || whatsappPhoneNumbers[0]?.id || "",
         consentStatus: currentRow.consentStatus,
         tags: currentRow.tags,
         pipelineStageId: currentRow.pipelineStageId || "",
@@ -165,6 +170,7 @@ export function CustomersMutateDrawer({
         name: "",
         phoneNumber: "",
         email: "",
+        whatsappPhoneNumberId: whatsappPhoneNumbers[0]?.id || "",
         consentStatus: "NOT_CONSENTED",
         tags: [],
         pipelineStageId: "",
@@ -172,7 +178,7 @@ export function CustomersMutateDrawer({
       })
       setCurrentTags([])
     }
-  }, [currentRow, open, form])
+  }, [currentRow, open, form, whatsappPhoneNumbers])
 
   const handleAddTag = () => {
     if (tagInput.trim() && !currentTags.includes(tagInput.trim())) {
@@ -216,6 +222,7 @@ export function CustomersMutateDrawer({
         await createCustomerMutation.mutateAsync({
           phoneNumber: data.phoneNumber,
           name: data.name,
+          whatsappPhoneNumberId: data.whatsappPhoneNumberId,
           consentStatus: data.consentStatus === "CONSENTED",
           consentSource: "Admin Dashboard",
         })
@@ -333,6 +340,54 @@ export function CustomersMutateDrawer({
                 </FormItem>
               )}
             />
+
+            {!isUpdate && (
+              <FormField
+                control={form.control}
+                name="whatsappPhoneNumberId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp Account *</FormLabel>
+                    {isLoadingPhoneNumbers ? (
+                      <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+                    ) : whatsappPhoneNumbers.length > 0 ? (
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select WhatsApp account" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {whatsappPhoneNumbers.map((pn) => (
+                            <SelectItem key={pn.id} value={pn.id}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{pn.displayPhoneNumber}</span>
+                                {pn.verifiedName && (
+                                  <span className="text-xs text-muted-foreground">{pn.verifiedName}</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-center">
+                        <p className="text-sm text-destructive">
+                          No connected WhatsApp accounts found. Please connect a WhatsApp account first.
+                        </p>
+                      </div>
+                    )}
+                    <FormDescription>
+                      Customer will be associated with this WhatsApp business number
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {!isUpdate && (
               <FormField

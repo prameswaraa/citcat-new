@@ -14,6 +14,8 @@ const createCustomerSchema = z.object({
   consentStatus: z.boolean().default(false),
   consentSource: z.string().optional(),
   consentPurpose: z.string().optional(),
+  // WhatsApp phone number this customer belongs to (required for proper filtering)
+  whatsappPhoneNumberId: z.string().min(1, 'WhatsApp account is required'),
   // CRM Fields
   leadScore: z.number().optional(),
   pipelineStageId: z.string().optional(),
@@ -39,17 +41,31 @@ app.post('/', async (c: Context) => {
     // Requirements: 5.4, 6.2
     const effectiveUserId = getEffectiveUserId(c)
 
-    // Check if customer already exists (without phone number link = manual creation)
+    // Verify the WhatsApp phone number belongs to this user
+    const phoneNumber = await prisma.phoneNumber.findFirst({
+      where: {
+        id: data.whatsappPhoneNumberId,
+        whatsappAccount: {
+          userId: effectiveUserId
+        }
+      }
+    })
+
+    if (!phoneNumber) {
+      return c.json({ error: { code: 'InvalidPhoneNumber', message: 'WhatsApp account not found or not owned by user' } }, 400)
+    }
+
+    // Check if customer already exists for this WhatsApp phone number
     const existing = await prisma.customer.findFirst({
       where: {
         userId: effectiveUserId,
         phoneNumber: data.phoneNumber,
-        whatsappPhoneNumberId: null,
+        whatsappPhoneNumberId: data.whatsappPhoneNumberId,
       }
     })
 
     if (existing) {
-      return c.json({ error: { code: 'CustomerExists', message: 'Customer already exists' } }, 409)
+      return c.json({ error: { code: 'CustomerExists', message: 'Customer already exists for this WhatsApp account' } }, 409)
     }
 
     // Validate pipelineStageId if provided
@@ -72,6 +88,8 @@ app.post('/', async (c: Context) => {
         consentSource: data.consentSource,
         consentPurpose: data.consentPurpose,
         consentCapturedAt: data.consentStatus ? new Date() : null,
+        // Link to WhatsApp phone number for proper multi-number filtering
+        whatsappPhoneNumberId: data.whatsappPhoneNumberId,
         // CRM Fields
         leadScore: data.leadScore || 0,
         pipelineStageId: validPipelineStageId,

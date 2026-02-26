@@ -21,6 +21,8 @@ export const customerSchema = z.object({
   name: z.string(),
   phoneNumber: z.string(), // WhatsApp phone number (E.164 format)
   email: z.string().email().optional().nullable(),
+  // Link to WhatsApp phone number for multi-number support
+  whatsappPhoneNumberId: z.string().optional().nullable(),
   consentStatus: z.union([
     z.literal("CONSENTED"),
     z.literal("NOT_CONSENTED"),

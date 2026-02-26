@@ -39,17 +39,19 @@ app.get('/', async (c: Context) => {
     // Filter by WhatsApp phone number (multi-number support)
     const whatsappPhoneNumberId = c.req.query('whatsappPhoneNumberId')
     if (whatsappPhoneNumberId) {
+      // Specific phone number selected - show ONLY customers for that number
       where.whatsappPhoneNumberId = whatsappPhoneNumberId
     } else if (!includeDisconnected && connectedPhoneNumberIds.length > 0) {
-      // Only show customers from connected WhatsApp phone numbers
-      where.whatsappPhoneNumberId = { in: connectedPhoneNumberIds }
-    } else if (!includeDisconnected && connectedPhoneNumberIds.length === 0) {
-      // Also include customers without whatsappPhoneNumberId (Instagram, Messenger, etc.)
-      // or return empty if no connected accounts
+      // "All Accounts" selected - show customers from all connected phone numbers
+      // Also include legacy customers without whatsappPhoneNumberId for backward compatibility
       where.OR = [
-        { whatsappPhoneNumberId: null },
-        { whatsappPhoneNumberId: { in: [] } } // This will match nothing for WA customers
+        { whatsappPhoneNumberId: { in: connectedPhoneNumberIds } },
+        { whatsappPhoneNumberId: null }
       ]
+    } else if (!includeDisconnected && connectedPhoneNumberIds.length === 0) {
+      // No connected accounts - only show customers without whatsappPhoneNumberId
+      // (Instagram, Messenger, or legacy customers)
+      where.whatsappPhoneNumberId = null
     }
 
     // Filter by consent status

@@ -91,6 +91,7 @@ export function useCustomerDetail(id: string | undefined, enabled: boolean = tru
 export interface CreateCustomerInput {
   phoneNumber: string
   name?: string
+  whatsappPhoneNumberId: string
   consentStatus: boolean
   consentSource: string
 }
