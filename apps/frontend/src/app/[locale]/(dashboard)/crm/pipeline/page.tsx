@@ -186,55 +186,55 @@ export default function PipelinePage() {
 
     if (loading) return (
         <RoleGuard>
-            <Header />
-            <div className="h-full flex flex-col space-y-4 p-4">
-                {/* Header skeleton */}
-                <div className="flex justify-between items-center">
-                    <div>
-                        <Skeleton className="h-8 w-48 mb-2" />
-                        <Skeleton className="h-4 w-64" />
+            <div className="flex flex-col h-screen">
+                <Header />
+                <div className="flex-1 flex flex-col min-h-0 p-4 space-y-4">
+                    {/* Header skeleton */}
+                    <div className="flex justify-between items-center flex-shrink-0">
+                        <div>
+                            <Skeleton className="h-8 w-48 mb-2" />
+                            <Skeleton className="h-4 w-64" />
+                        </div>
+                        <Skeleton className="h-10 w-28" />
                     </div>
-                </div>
 
-                {/* Tabs skeleton */}
-                <Skeleton className="h-10 w-64" />
+                    {/* Tabs skeleton */}
+                    <Skeleton className="h-10 w-64 flex-shrink-0" />
 
-                {/* Add Deal button skeleton */}
-                <div className="flex justify-end">
-                    <Skeleton className="h-10 w-28" />
-                </div>
-
-                {/* Pipeline columns skeleton */}
-                <div className="flex-1 overflow-x-auto pb-4">
-                    <div className="flex h-full gap-4 min-w-max">
-                        {Array.from({ length: 4 }).map((_, stageIndex) => (
-                            <div key={stageIndex} className="w-80 flex flex-col bg-muted/50 rounded-lg p-2">
-                                {/* Stage header skeleton */}
-                                <div className="flex items-center justify-between p-2 mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <Skeleton className="w-3 h-3 rounded-full" />
-                                        <Skeleton className="h-4 w-20" />
-                                        <Skeleton className="h-5 w-6 rounded-md" />
-                                    </div>
-                                    <Skeleton className="h-6 w-6" />
-                                </div>
-
-                                {/* Customer cards skeleton */}
-                                <div className="flex-1 flex flex-col gap-2 min-h-[100px]">
-                                    {Array.from({ length: stageIndex === 0 ? 3 : stageIndex === 1 ? 2 : 1 }).map((_, cardIndex) => (
-                                        <div key={cardIndex} className="border rounded-lg bg-card p-3 space-y-2">
-                                            <div className="flex justify-between items-start">
-                                                <Skeleton className="h-4 w-32" />
+                    {/* Pipeline columns skeleton */}
+                    <div className="flex-1 min-h-0 relative">
+                        <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
+                            <div className="inline-flex h-full gap-4 pb-4">
+                                {Array.from({ length: 4 }).map((_, stageIndex) => (
+                                    <div key={stageIndex} className="w-80 flex-shrink-0 flex flex-col bg-muted/50 rounded-lg p-2">
+                                        {/* Stage header skeleton */}
+                                        <div className="flex items-center justify-between p-2 mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <Skeleton className="w-3 h-3 rounded-full" />
+                                                <Skeleton className="h-4 w-20" />
+                                                <Skeleton className="h-5 w-6 rounded-md" />
                                             </div>
-                                            <div className="flex justify-between items-center">
-                                                <Skeleton className="h-3 w-16" />
-                                                <Skeleton className="h-5 w-5 rounded-full" />
-                                            </div>
+                                            <Skeleton className="h-6 w-6" />
                                         </div>
-                                    ))}
-                                </div>
+
+                                        {/* Customer cards skeleton */}
+                                        <div className="flex-1 flex flex-col gap-2 min-h-[100px]">
+                                            {Array.from({ length: stageIndex === 0 ? 3 : stageIndex === 1 ? 2 : 1 }).map((_, cardIndex) => (
+                                                <div key={cardIndex} className="border rounded-lg bg-card p-3 space-y-2">
+                                                    <div className="flex justify-between items-start">
+                                                        <Skeleton className="h-4 w-32" />
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <Skeleton className="h-3 w-16" />
+                                                        <Skeleton className="h-5 w-5 rounded-full" />
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -243,38 +243,39 @@ export default function PipelinePage() {
 
     return (
         <RoleGuard>
-            <Header />
-            <div className="h-full flex flex-col space-y-4 p-4">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold tracking-tight">Sales Pipeline</h2>
-                        <p className="text-muted-foreground">
-                            Manage your deals and customer stages
-                        </p>
-                    </div>
-                </div>
-
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-                    <TabsList className="w-fit">
-                        <TabsTrigger value="pipeline">Pipeline Board</TabsTrigger>
-                        <TabsTrigger value="settings" className="flex items-center gap-2">
-                            <Settings className="h-4 w-4" />
-                            Settings
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="pipeline" className="flex-1 flex flex-col mt-4">
-                        <div className="flex justify-end mb-4">
+            <div className="flex flex-col h-screen">
+                <Header />
+                <div className="flex-1 flex flex-col min-h-0 p-4 space-y-4">
+                    <div className="flex justify-between items-center flex-shrink-0">
+                        <div>
+                            <h2 className="text-2xl font-bold tracking-tight">Sales Pipeline</h2>
+                            <p className="text-muted-foreground">
+                                Manage your deals and customer stages
+                            </p>
+                        </div>
+                        {activeTab === "pipeline" && (
                             <Button onClick={() => setAddDealOpen(true)}>
                                 <Plus className="mr-2 h-4 w-4" /> Add Deal
                             </Button>
-                        </div>
+                        )}
+                    </div>
 
-                        <div className="flex-1 overflow-x-auto pb-4">
-                            <DragDropContext onDragEnd={onDragEnd}>
-                                <div className="flex h-full gap-4 min-w-max">
-                                    {stages.map((stage) => (
-                                        <div key={stage.id} className="w-80 flex flex-col bg-muted/50 rounded-lg p-2">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                        <TabsList className="w-fit flex-shrink-0">
+                            <TabsTrigger value="pipeline">Pipeline Board</TabsTrigger>
+                            <TabsTrigger value="settings" className="flex items-center gap-2">
+                                <Settings className="h-4 w-4" />
+                                Settings
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="pipeline" className="flex-1 min-h-0 mt-4 relative">
+                            {/* Kanban board dengan scroll horizontal */}
+                            <div className="absolute inset-0 overflow-x-auto overflow-y-auto">
+                                <DragDropContext onDragEnd={onDragEnd}>
+                                    <div className="inline-flex h-full gap-4 pb-4">
+                                        {stages.map((stage) => (
+                                            <div key={stage.id} className="w-80 flex-shrink-0 flex flex-col bg-muted/50 rounded-lg p-2">
                                             <div className="flex items-center justify-between p-2 mb-2">
                                                 <div className="flex items-center gap-2">
                                                     <div
@@ -337,11 +338,11 @@ export default function PipelinePage() {
                                         </div>
                                     ))}
                                 </div>
-                            </DragDropContext>
-                        </div>
-                    </TabsContent>
+                                </DragDropContext>
+                            </div>
+                        </TabsContent>
 
-                    <TabsContent value="settings" className="mt-4 space-y-8">
+                        <TabsContent value="settings" className="flex-1 mt-4 overflow-y-auto space-y-8">
                         <Tabs defaultValue="pipelines" className="space-y-4">
                             <TabsList>
                                 <TabsTrigger value="pipelines">Pipelines</TabsTrigger>
@@ -357,7 +358,8 @@ export default function PipelinePage() {
                             </TabsContent>
                         </Tabs>
                     </TabsContent>
-                </Tabs>
+                    </Tabs>
+                </div>
 
                 {/* Add Deal Dialog */}
                 <Dialog open={addDealOpen} onOpenChange={setAddDealOpen}>
