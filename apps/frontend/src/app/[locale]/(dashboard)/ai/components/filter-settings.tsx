@@ -1,4 +1,6 @@
-import { useState } from "react"
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   Card,
   CardContent,
@@ -10,17 +12,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, Save } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { AIConfig } from "@/lib/api/ai-api"
+import type { AIConfig } from "@/lib/api/ai-api"
+import { useToast } from "@/hooks/use-toast"
+import { useUpdateAIConfig } from "@/hooks/use-ai"
 
 interface FilterSettingsProps {
-  config: AIConfig
-  setConfig: (config: AIConfig) => void
-  onSave: () => void
-  saving: boolean
+  initialConfig: AIConfig
 }
 
-export function FilterSettings({ config, setConfig, onSave, saving }: FilterSettingsProps) {
+export function FilterSettings({ initialConfig }: FilterSettingsProps) {
+  const { toast } = useToast()
+  const [config, setConfig] = useState<AIConfig>(initialConfig)
   const [newFilterWord, setNewFilterWord] = useState("")
+  const updateConfig = useUpdateAIConfig()
+
+  // Sync with initial config when it changes
+  useEffect(() => {
+    setConfig(initialConfig)
+  }, [initialConfig])
 
   const addFilter = () => {
     if (newFilterWord.trim()) {
@@ -33,6 +42,27 @@ export function FilterSettings({ config, setConfig, onSave, saving }: FilterSett
       }
       setNewFilterWord("");
     }
+  }
+
+  const handleSave = () => {
+    updateConfig.mutate(
+      { data: config },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "Filter settings saved successfully",
+          })
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to save settings",
+          })
+        },
+      }
+    )
   }
 
   return (
@@ -82,8 +112,8 @@ export function FilterSettings({ config, setConfig, onSave, saving }: FilterSett
         </div>
 
         <div className="flex justify-end">
-            <Button onClick={onSave} disabled={saving}>
-            {saving ? (
+            <Button onClick={handleSave} disabled={updateConfig.isPending}>
+            {updateConfig.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...

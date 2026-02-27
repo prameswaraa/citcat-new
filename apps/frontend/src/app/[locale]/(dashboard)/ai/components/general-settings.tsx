@@ -1,3 +1,6 @@
+"use client"
+
+import { useState, useEffect } from "react"
 import {
   Card,
   CardContent,
@@ -17,24 +20,49 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Loader2, Save, AlertCircle } from "lucide-react"
-import { AIConfig, AIAgent } from "@/lib/api/ai-api"
+import type { AIConfig, AIAgent } from "@/lib/api/ai-api"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useToast } from "@/hooks/use-toast"
+import { useUpdateAIConfig } from "@/hooks/use-ai"
 
 interface GeneralSettingsProps {
-  config: AIConfig
+  initialConfig: AIConfig
   agents: AIAgent[]
-  setConfig: (config: AIConfig) => void
-  onSave: () => void
-  saving: boolean
 }
 
 export function GeneralSettings({
-  config,
+  initialConfig,
   agents,
-  setConfig,
-  onSave,
-  saving,
 }: GeneralSettingsProps) {
+  const { toast } = useToast()
+  const [config, setConfig] = useState<AIConfig>(initialConfig)
+  const updateConfig = useUpdateAIConfig()
+
+  // Sync with initial config when it changes
+  useEffect(() => {
+    setConfig(initialConfig)
+  }, [initialConfig])
+
+  const handleSave = () => {
+    updateConfig.mutate(
+      { data: config },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Success",
+            description: "AI settings saved successfully",
+          })
+        },
+        onError: () => {
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to save settings",
+          })
+        },
+      }
+    )
+  }
   return (
     <Card>
       <CardHeader>
@@ -114,8 +142,8 @@ export function GeneralSettings({
           </p>
         </div>
 
-        <Button onClick={onSave} disabled={saving}>
-          {saving ? (
+        <Button onClick={handleSave} disabled={updateConfig.isPending}>
+          {updateConfig.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Saving...

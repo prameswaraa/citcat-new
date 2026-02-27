@@ -23,26 +23,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { AIAgent, KnowledgeDocument } from "@/lib/api/ai-api"
+import type { AIAgent, KnowledgeDocument } from "@/lib/api/ai-api"
 import { AgentDialog } from "./agent-dialog"
 import type { WhatsAppPhoneNumberOption } from "@/hooks/use-whatsapp-phone-numbers"
 import { IconBrandWhatsapp } from "@tabler/icons-react"
+import { useToast } from "@/hooks/use-toast"
+import { useCreateAgent, useUpdateAgent, useDeleteAgent } from "@/hooks/use-ai"
 
 interface AgentsListProps {
   agents: AIAgent[]
   documents: KnowledgeDocument[]
   phoneNumbers: WhatsAppPhoneNumberOption[]
-  onCreate: (data: { name: string; systemPrompt: string; documentIds: string[]; assignedPhoneNumberIds: string[] }) => Promise<void>
-  onUpdate: (id: string, data: { name: string; systemPrompt: string; documentIds: string[]; assignedPhoneNumberIds: string[] }) => Promise<void>
-  onDelete: (id: string) => Promise<void>
 }
 
-export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate, onDelete }: AgentsListProps) {
+export function AgentsList({ agents, documents, phoneNumbers }: AgentsListProps) {
+  const { toast } = useToast()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedAgent, setSelectedAgent] = useState<AIAgent | undefined>(undefined)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [agentToDelete, setAgentToDelete] = useState<AIAgent | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+
+  const createAgent = useCreateAgent()
+  const updateAgent = useUpdateAgent()
+  const deleteAgent = useDeleteAgent()
 
   const handleCreate = () => {
     setSelectedAgent(undefined)
@@ -56,9 +59,28 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
 
   const handleSave = async (data: { name: string; systemPrompt: string; documentIds: string[]; assignedPhoneNumberIds: string[] }) => {
     if (selectedAgent) {
-      await onUpdate(selectedAgent.id, data)
+      updateAgent.mutate(
+        { id: selectedAgent.id, data },
+        {
+          onSuccess: () => {
+            toast({ title: "Success", description: "Agent updated successfully" })
+            setDialogOpen(false)
+          },
+          onError: () => {
+            toast({ variant: "destructive", title: "Error", description: "Failed to update agent" })
+          },
+        }
+      )
     } else {
-      await onCreate(data)
+      createAgent.mutate(data, {
+        onSuccess: () => {
+          toast({ title: "Success", description: "Agent created successfully" })
+          setDialogOpen(false)
+        },
+        onError: () => {
+          toast({ variant: "destructive", title: "Error", description: "Failed to create agent" })
+        },
+      })
     }
   }
 
@@ -67,16 +89,19 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
     setDeleteDialogOpen(true)
   }
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!agentToDelete) return
-    setIsDeleting(true)
-    try {
-      await onDelete(agentToDelete.id)
-    } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
-      setAgentToDelete(null)
-    }
+
+    deleteAgent.mutate(agentToDelete.id, {
+      onSuccess: () => {
+        toast({ title: "Success", description: "Agent deleted successfully" })
+        setDeleteDialogOpen(false)
+        setAgentToDelete(null)
+      },
+      onError: () => {
+        toast({ variant: "destructive", title: "Error", description: "Failed to delete agent" })
+      },
+    })
   }
 
   return (
@@ -202,13 +227,13 @@ export function AgentsList({ agents, documents, phoneNumbers, onCreate, onUpdate
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleteAgent.isPending}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDelete}
-                disabled={isDeleting}
+                disabled={deleteAgent.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isDeleting ? "Deleting..." : "Delete Agent"}
+                {deleteAgent.isPending ? "Deleting..." : "Delete Agent"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

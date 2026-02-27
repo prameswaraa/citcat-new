@@ -37,35 +37,80 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
-import { KnowledgeDocument } from "@/lib/api/ai-api"
+import type { KnowledgeDocument } from "@/lib/api/ai-api"
+import { useToast } from "@/hooks/use-toast"
+import { useUploadDocument, useDeleteDocument } from "@/hooks/use-ai"
 
 interface KnowledgeBaseProps {
   documents: KnowledgeDocument[]
-  uploading: boolean
-  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
-  onDelete: (id: string) => void
 }
 
-export function KnowledgeBase({ documents, uploading, onUpload, onDelete }: KnowledgeBaseProps) {
+export function KnowledgeBase({ documents }: KnowledgeBaseProps) {
+  const { toast } = useToast()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [documentToDelete, setDocumentToDelete] = useState<KnowledgeDocument | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
+
+  const uploadDocument = useUploadDocument()
+  const deleteDocument = useDeleteDocument()
 
   const handleDeleteClick = (doc: KnowledgeDocument) => {
     setDocumentToDelete(doc)
     setDeleteDialogOpen(true)
   }
 
-  const handleConfirmDelete = async () => {
-    if (!documentToDelete) return
-    setIsDeleting(true)
-    try {
-      await onDelete(documentToDelete.id)
-    } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
-      setDocumentToDelete(null)
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.type !== "application/pdf") {
+      toast({
+        variant: "destructive",
+        title: "Invalid File",
+        description: "Only PDF files are supported",
+      })
+      return
     }
+
+    // Reset input early
+    e.target.value = ""
+
+    uploadDocument.mutate(file, {
+      onSuccess: () => {
+        toast({
+          title: "Success",
+          description: "File uploaded. Processing...",
+        })
+      },
+      onError: (error) => {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to upload file",
+        })
+      },
+    })
+  }
+
+  const handleConfirmDelete = () => {
+    if (!documentToDelete) return
+
+    deleteDocument.mutate(documentToDelete.id, {
+      onSuccess: () => {
+        toast({
+          title: "Success",
+          description: "Document deleted",
+        })
+        setDeleteDialogOpen(false)
+        setDocumentToDelete(null)
+      },
+      onError: () => {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to delete document",
+        })
+      },
+    })
   }
   return (
     <Card>
@@ -83,12 +128,12 @@ export function KnowledgeBase({ documents, uploading, onUpload, onDelete }: Know
               accept=".pdf"
               className="hidden"
               id="file-upload"
-              onChange={onUpload}
-              disabled={uploading}
+              onChange={handleUpload}
+              disabled={uploadDocument.isPending}
             />
-            <Button asChild disabled={uploading}>
+            <Button asChild disabled={uploadDocument.isPending}>
               <Label htmlFor="file-upload" className="cursor-pointer">
-                {uploading ? (
+                {uploadDocument.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Upload className="mr-2 h-4 w-4" />
@@ -188,13 +233,13 @@ export function KnowledgeBase({ documents, uploading, onUpload, onDelete }: Know
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleteDocument.isPending}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDelete}
-                disabled={isDeleting}
+                disabled={deleteDocument.isPending}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {isDeleting ? "Deleting..." : "Delete Document"}
+                {deleteDocument.isPending ? "Deleting..." : "Delete Document"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
