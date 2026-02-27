@@ -47,7 +47,10 @@ export function WABAStatusBanner({ wabaId }: WABAStatusBannerProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["waba-health", wabaId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/waba/${wabaId}/health`)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const response = await fetch(`${apiUrl}/api/v1/waba/${wabaId}/health`, {
+        credentials: "include",
+      })
       if (!response.ok) {
         throw new Error("Failed to fetch health status")
       }
