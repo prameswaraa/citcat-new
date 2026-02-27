@@ -37,7 +37,7 @@ export function MessengerChatArea({
             )}
 
             {/* Header */}
-            <div className="flex-shrink-0 border-b p-4 flex items-center gap-3">
+            <div className="flex-shrink-0 border-b p-4 flex items-center gap-3 bg-background">
                 <Button
                     variant="ghost"
                     size="icon"

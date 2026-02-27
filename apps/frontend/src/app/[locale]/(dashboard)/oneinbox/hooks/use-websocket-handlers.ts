@@ -12,6 +12,7 @@ import type {
   OutboundMessageEvent,
 } from "@/hooks/use-websocket"
 import type { UnifiedConversation, Customer } from "./unified-inbox-types"
+import { notifyAssignmentHistoryUpdate } from "./use-assignment-history"
 
 interface UseWebSocketHandlersOptions {
   selectedConversation: UnifiedConversation | null
@@ -97,7 +98,7 @@ export function useWebSocketHandlers({
 
   // Handle assignment changed from WebSocket (Requirements: 2.4, 2.5)
   const handleAssignmentChanged = useCallback((event: AssignmentChangedEvent) => {
-    const { conversationId, conversationType, assigneeId, assigneeName, action } = event.payload
+    const { conversationId, conversationType, assigneeId, assigneeName, assigneeType, aiAgentId, aiAgentName, action } = event.payload
     
     // Build the prefixed conversation ID to match our internal format
     const prefixMap: Record<string, string> = {
@@ -108,14 +109,24 @@ export function useWebSocketHandlers({
     const prefix = prefixMap[conversationType] || "wa-"
     const prefixedConversationId = `${prefix}${conversationId}`
 
+    // Resolve values with proper null handling
+    const resolvedAssigneeId = assigneeType === "AI_AGENT" ? (aiAgentId ?? null) : assigneeId
+    const resolvedAssigneeName = assigneeType === "AI_AGENT" ? (aiAgentName ?? null) : assigneeName
+    const resolvedAssigneeType = assigneeType ?? "HUMAN"
+    const resolvedAiAgentId = aiAgentId ?? null
+    const resolvedAiAgentName = aiAgentName ?? null
+
     // Update the conversation in state
     setConversations(prev => prev.map(conv => {
       if (conv.id === prefixedConversationId) {
         if (action === "assigned") {
           return {
             ...conv,
-            assigneeId,
-            assigneeName,
+            assigneeId: resolvedAssigneeId,
+            assigneeName: resolvedAssigneeName,
+            assigneeType: resolvedAssigneeType,
+            aiAgentId: resolvedAiAgentId,
+            aiAgentName: resolvedAiAgentName,
             assigneeImage: null, // Will be loaded separately if needed
             assignedAt: new Date(),
           }
@@ -125,6 +136,9 @@ export function useWebSocketHandlers({
             ...conv,
             assigneeId: null,
             assigneeName: null,
+            assigneeType: "HUMAN" as const,
+            aiAgentId: null,
+            aiAgentName: null,
             assigneeImage: null,
             assignedAt: null,
           }
@@ -139,8 +153,11 @@ export function useWebSocketHandlers({
         if (action === "assigned") {
           return {
             ...prev,
-            assigneeId,
-            assigneeName,
+            assigneeId: resolvedAssigneeId,
+            assigneeName: resolvedAssigneeName,
+            assigneeType: resolvedAssigneeType,
+            aiAgentId: resolvedAiAgentId,
+            aiAgentName: resolvedAiAgentName,
             assigneeImage: null,
             assignedAt: new Date(),
           }
@@ -149,6 +166,9 @@ export function useWebSocketHandlers({
             ...prev,
             assigneeId: null,
             assigneeName: null,
+            assigneeType: "HUMAN" as const,
+            aiAgentId: null,
+            aiAgentName: null,
             assigneeImage: null,
             assignedAt: null,
           }
@@ -156,6 +176,9 @@ export function useWebSocketHandlers({
       }
       return prev
     })
+
+    // Notify assignment history listeners for realtime updates
+    notifyAssignmentHistoryUpdate(conversationId, conversationType, event.payload)
   }, [setConversations, setSelectedConversation])
 
   // Handle outbound message from WebSocket

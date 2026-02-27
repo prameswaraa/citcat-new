@@ -99,6 +99,23 @@ export interface UnreadCountUpdatedEvent extends BaseEvent {
 }
 
 /**
+ * Assignment history item from WebSocket event
+ * Used for realtime updates to assignment history
+ */
+export interface AssignmentHistoryItemPayload {
+  id: string
+  assigneeId: string | null
+  assigneeName: string | null
+  assigneeType: "HUMAN" | "AI_AGENT"
+  aiAgentId: string | null
+  aiAgentName: string | null
+  assignedById: string
+  assignedByName: string | null
+  assignedAt: string
+  unassignedAt: string | null
+}
+
+/**
  * Payload for assignment_changed event
  * Emitted when a conversation is assigned or unassigned
  * Requirements: 2.4
@@ -108,8 +125,14 @@ export interface AssignmentChangedPayload {
   conversationType: "whatsapp" | "instagram" | "messenger"
   assigneeId: string | null
   assigneeName: string | null
+  assigneeType?: "HUMAN" | "AI_AGENT"
+  aiAgentId?: string | null
+  aiAgentName?: string | null
   assignedById: string
+  assignedByName?: string | null
   action: "assigned" | "unassigned"
+  // History item for realtime updates
+  historyItem?: AssignmentHistoryItemPayload
 }
 
 /**

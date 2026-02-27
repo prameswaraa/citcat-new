@@ -77,14 +77,34 @@ const conversationTypeSchema = z.enum(['whatsapp', 'instagram', 'messenger'])
 // Assignment action schema
 const assignmentActionSchema = z.enum(['assigned', 'unassigned'])
 
+// Assignment history item schema (for realtime updates)
+const assignmentHistoryItemSchema = z.object({
+  id: z.string().min(1),
+  assigneeId: z.string().nullable(),
+  assigneeName: z.string().nullable(),
+  assigneeType: z.enum(['HUMAN', 'AI_AGENT']),
+  aiAgentId: z.string().nullable(),
+  aiAgentName: z.string().nullable(),
+  assignedById: z.string().min(1),
+  assignedByName: z.string().nullable(),
+  assignedAt: z.string().datetime(),
+  unassignedAt: z.string().datetime().nullable(),
+})
+
 // Assignment changed event payload schema
 export const assignmentChangedPayloadSchema = z.object({
   conversationId: z.string().min(1),
   conversationType: conversationTypeSchema,
   assigneeId: z.string().nullable(),
   assigneeName: z.string().nullable(),
+  assigneeType: z.enum(['HUMAN', 'AI_AGENT']).optional(),
+  aiAgentId: z.string().nullable().optional(),
+  aiAgentName: z.string().nullable().optional(),
   assignedById: z.string().min(1),
-  action: assignmentActionSchema
+  assignedByName: z.string().nullable().optional(),
+  action: assignmentActionSchema,
+  // History item for realtime updates
+  historyItem: assignmentHistoryItemSchema.optional(),
 })
 
 // Outbound message event payload schema

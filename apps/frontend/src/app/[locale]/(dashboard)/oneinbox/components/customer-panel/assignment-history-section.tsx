@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { IconHistory, IconUserPlus, IconUserOff, IconRobot } from "@tabler/icons-react"
 import { formatDistanceToNow } from "date-fns"
-import { assignmentApi } from "@/lib/api/assignment-api"
+import { useAssignmentHistory } from "../../hooks/use-assignment-history"
 import type { AssignmentHistoryItem, ChannelType } from "../../types/unified-inbox"
 
 /**
@@ -16,6 +16,7 @@ import type { AssignmentHistoryItem, ChannelType } from "../../types/unified-inb
  * Displays the assignment history for a conversation in the customer panel.
  * Shows chronological list of assignments with assignee name, assigned by, and timestamps.
  * Supports both human and AI Agent assignments with distinct visual indicators.
+ * Now with realtime WebSocket updates for team collaboration.
  * 
  * Requirements: 7.1, 7.2, 7.3, 8.2, 8.3
  */
@@ -33,32 +34,15 @@ export function AssignmentHistorySection({
 }: AssignmentHistorySectionProps) {
   const t = useTranslations("messages.assignment.history")
   const tErrors = useTranslations("messages.assignment.errors")
-  const [history, setHistory] = useState<AssignmentHistoryItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [showAll, setShowAll] = useState(false)
 
-  // Extract raw conversation ID (remove wa- or ig- prefix)
-  const rawConversationId = conversationId.replace(/^(wa|ig)-/, "")
+  // Use the new hook with WebSocket support for realtime updates
+  const { history, loading, error: loadError } = useAssignmentHistory({
+    conversationId,
+    conversationType,
+  })
 
-  // Load assignment history
-  useEffect(() => {
-    const loadHistory = async () => {
-      setLoading(true)
-      setError(null)
-      try {
-        const data = await assignmentApi.getAssignmentHistory(rawConversationId, conversationType)
-        setHistory(data)
-      } catch (err: any) {
-        console.error("Failed to load assignment history:", err)
-        setError(tErrors("loadFailed"))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadHistory()
-  }, [rawConversationId, conversationType, tErrors])
+  const error = loadError ? tErrors("loadFailed") : null
 
   const displayedHistory = showAll ? history : history.slice(0, maxDisplay)
   const hasMore = history.length > maxDisplay
