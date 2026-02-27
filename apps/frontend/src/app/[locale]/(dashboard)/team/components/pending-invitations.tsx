@@ -14,57 +14,51 @@ import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { IconMail, IconRefresh, IconX } from "@tabler/icons-react"
 import { formatDistanceToNow } from "date-fns"
-
-interface Invitation {
-  id: string
-  email: string
-  status: string
-  createdAt: string
-  expiresAt: string
-}
+import { toast } from "@/hooks/use-toast"
+import { useCancelInvitation, useResendInvitation } from "@/hooks/use-team"
+import type { Invitation } from "@/lib/api/team-api"
 
 interface PendingInvitationsProps {
   invitations: Invitation[]
-  onCancel: (invitationId: string) => Promise<void>
-  onResend: (invitationId: string) => Promise<void>
 }
 
-export function PendingInvitations({ 
-  invitations, 
-  onCancel, 
-  onResend 
-}: PendingInvitationsProps) {
+export function PendingInvitations({ invitations }: PendingInvitationsProps) {
   const t = useTranslations("team")
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
   const [selectedInvitation, setSelectedInvitation] = useState<Invitation | null>(null)
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [resendingId, setResendingId] = useState<string | null>(null)
+
+  const cancelInvitation = useCancelInvitation()
+  const resendInvitation = useResendInvitation()
 
   const handleCancelClick = (invitation: Invitation) => {
     setSelectedInvitation(invitation)
     setCancelDialogOpen(true)
   }
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = () => {
     if (!selectedInvitation) return
     
-    setIsCancelling(true)
-    try {
-      await onCancel(selectedInvitation.id)
-    } finally {
-      setIsCancelling(false)
-      setCancelDialogOpen(false)
-      setSelectedInvitation(null)
-    }
+    cancelInvitation.mutate(selectedInvitation.id, {
+      onSuccess: () => {
+        toast({ title: t("invitations.cancelSuccess") })
+        setCancelDialogOpen(false)
+        setSelectedInvitation(null)
+      },
+      onError: () => {
+        toast({ title: t("invitations.cancelError"), variant: "destructive" })
+      },
+    })
   }
 
-  const handleResend = async (invitation: Invitation) => {
-    setResendingId(invitation.id)
-    try {
-      await onResend(invitation.id)
-    } finally {
-      setResendingId(null)
-    }
+  const handleResend = (invitation: Invitation) => {
+    resendInvitation.mutate(invitation.id, {
+      onSuccess: () => {
+        toast({ title: t("invitations.resendSuccess") })
+      },
+      onError: () => {
+        toast({ title: t("invitations.resendError"), variant: "destructive" })
+      },
+    })
   }
 
   if (invitations.length === 0) {
@@ -103,9 +97,9 @@ export function PendingInvitations({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleResend(invitation)}
-                    disabled={resendingId === invitation.id}
+                    disabled={resendInvitation.isPending}
                   >
-                    <IconRefresh className={`h-4 w-4 ${resendingId === invitation.id ? 'animate-spin' : ''}`} />
+                    <IconRefresh className={`h-4 w-4 ${resendInvitation.isPending ? 'animate-spin' : ''}`} />
                     <span className="ml-1 hidden sm:inline">{t("invitations.resend")}</span>
                   </Button>
                   <Button
@@ -133,7 +127,7 @@ export function PendingInvitations({
         })}
         destructive
         handleConfirm={handleConfirmCancel}
-        isLoading={isCancelling}
+        isLoading={cancelInvitation.isPending}
       />
     </>
   )

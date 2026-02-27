@@ -15,47 +15,39 @@ import { Badge } from "@/components/ui/badge"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { IconUsersGroup, IconTrash } from "@tabler/icons-react"
 import { formatDistanceToNow } from "date-fns"
-
-interface TeamMember {
-  id: string
-  agentUserId: string | null
-  status: "PENDING" | "ACTIVE" | "REMOVED"
-  invitedAt: string
-  joinedAt: string | null
-  agent: {
-    id: string
-    name: string
-    email: string
-  } | null
-}
+import { toast } from "@/hooks/use-toast"
+import { useRemoveTeamMember } from "@/hooks/use-team"
+import type { TeamMember } from "@/lib/api/team-api"
 
 interface TeamMembersListProps {
   members: TeamMember[]
-  onRemove: (memberId: string) => Promise<void>
 }
 
-export function TeamMembersList({ members, onRemove }: TeamMembersListProps) {
+export function TeamMembersList({ members }: TeamMembersListProps) {
   const t = useTranslations("team")
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false)
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
-  const [isRemoving, setIsRemoving] = useState(false)
+
+  const removeMember = useRemoveTeamMember()
 
   const handleRemoveClick = (member: TeamMember) => {
     setSelectedMember(member)
     setRemoveDialogOpen(true)
   }
 
-  const handleConfirmRemove = async () => {
+  const handleConfirmRemove = () => {
     if (!selectedMember) return
     
-    setIsRemoving(true)
-    try {
-      await onRemove(selectedMember.id)
-    } finally {
-      setIsRemoving(false)
-      setRemoveDialogOpen(false)
-      setSelectedMember(null)
-    }
+    removeMember.mutate(selectedMember.id, {
+      onSuccess: () => {
+        toast({ title: t("members.removeSuccess") })
+        setRemoveDialogOpen(false)
+        setSelectedMember(null)
+      },
+      onError: () => {
+        toast({ title: t("members.removeError"), variant: "destructive" })
+      },
+    })
   }
 
   if (members.length === 0) {
@@ -124,7 +116,7 @@ export function TeamMembersList({ members, onRemove }: TeamMembersListProps) {
         })}
         destructive
         handleConfirm={handleConfirmRemove}
-        isLoading={isRemoving}
+        isLoading={removeMember.isPending}
       />
     </>
   )

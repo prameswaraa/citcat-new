@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Plus, Webhook } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import {
@@ -13,72 +12,25 @@ import {
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "@/hooks/use-toast"
 import { useSubscription } from "@/hooks/use-subscription"
+import { useWebhooks } from "@/hooks/use-webhooks"
 import { UpgradePrompt } from "@/components/subscription/upgrade-prompt"
-import { webhooksApi, type WebhookEndpoint } from "@/lib/api/webhooks-api"
 import { AddWebhook } from "./components/add-webhook"
 import { columns } from "./components/webhooks-columns"
 import { WebhooksTable } from "./components/webhooks-table"
-import { WebhooksContext } from "./components/webhooks-context"
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  // TanStack Query - handles loading, caching, and refetching automatically
+  const { data: webhooks = [], isLoading } = useWebhooks()
 
   // Subscription feature gating
-  const { tier, hasFeature, canCreate, getUsageText, refetch: refetchSubscription } = useSubscription()
+  const { tier, hasFeature, canCreate, getUsageText } = useSubscription()
   const hasWebhooksAccess = hasFeature("webhooksEnabled")
   const canCreateWebhook = canCreate("webhookEndpoints")
   const usageText = getUsageText("webhookEndpoints")
 
-  const fetchWebhooks = async () => {
-    try {
-      setIsLoading(true)
-      const data = await webhooksApi.list()
-      setWebhooks(data)
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch webhooks",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchWebhooks()
-  }, [])
-
-  const handleWebhookCreated = (webhook: WebhookEndpoint) => {
-    setWebhooks((prev) => [webhook, ...prev])
-    refetchSubscription() // Refresh usage counts
-  }
-
-  const handleWebhookUpdated = (webhook: WebhookEndpoint) => {
-    setWebhooks((prev) =>
-      prev.map((w) => (w.id === webhook.id ? webhook : w))
-    )
-  }
-
-  const handleWebhookDeleted = (id: string) => {
-    setWebhooks((prev) => prev.filter((w) => w.id !== id))
-    refetchSubscription() // Refresh usage counts
-  }
-
   return (
-    <WebhooksContext.Provider
-      value={{
-        webhooks,
-        onWebhookCreated: handleWebhookCreated,
-        onWebhookUpdated: handleWebhookUpdated,
-        onWebhookDeleted: handleWebhookDeleted,
-        refreshWebhooks: fetchWebhooks,
-      }}
-    >
-      <div className="flex w-full flex-1 flex-col gap-2">
+    <div className="flex w-full flex-1 flex-col gap-2">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -172,6 +124,5 @@ export default function WebhooksPage() {
           </p>
         )}
       </div>
-    </WebhooksContext.Provider>
   )
 }

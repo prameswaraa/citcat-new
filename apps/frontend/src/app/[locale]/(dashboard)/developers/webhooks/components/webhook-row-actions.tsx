@@ -21,66 +21,63 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { toast } from "@/hooks/use-toast"
-import { webhooksApi, type WebhookEndpoint } from "@/lib/api/webhooks-api"
+import { useDeleteWebhook, useUpdateWebhook } from "@/hooks/use-webhooks"
+import type { WebhookEndpoint } from "@/lib/api/webhooks-api"
 import { MutateWebhook } from "./mutate-webhook"
 import { WebhookLogsDialog } from "./webhook-logs-dialog"
 import { WebhookTestDialog } from "./webhook-test-dialog"
-import { useWebhooksContext } from "./webhooks-context"
 
 interface Props {
   webhook: WebhookEndpoint
 }
 
 export function WebhookRowActions({ webhook }: Props) {
-  const { onWebhookUpdated, onWebhookDeleted } = useWebhooksContext()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
   const [testOpen, setTestOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isToggling, setIsToggling] = useState(false)
+
+  const deleteWebhook = useDeleteWebhook()
+  const updateWebhook = useUpdateWebhook()
 
   const handleDelete = async () => {
-    try {
-      setIsDeleting(true)
-      await webhooksApi.delete(webhook.id)
-      onWebhookDeleted(webhook.id)
-      toast({
-        title: "Webhook Deleted",
-        description: `"${webhook.name}" has been deleted successfully.`,
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete webhook",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
-      setDeleteOpen(false)
-    }
+    deleteWebhook.mutate(webhook.id, {
+      onSuccess: () => {
+        toast({
+          title: "Webhook Deleted",
+          description: `"${webhook.name}" has been deleted successfully.`,
+        })
+        setDeleteOpen(false)
+      },
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to delete webhook",
+          variant: "destructive",
+        })
+      },
+    })
   }
 
-  const handleToggle = async () => {
-    try {
-      setIsToggling(true)
-      const updated = await webhooksApi.update(webhook.id, {
-        isActive: !webhook.isActive,
-      })
-      onWebhookUpdated(updated)
-      toast({
-        title: webhook.isActive ? "Webhook Disabled" : "Webhook Enabled",
-        description: `"${webhook.name}" has been ${webhook.isActive ? "disabled" : "enabled"}.`,
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update webhook",
-        variant: "destructive",
-      })
-    } finally {
-      setIsToggling(false)
-    }
+  const handleToggle = () => {
+    updateWebhook.mutate(
+      { id: webhook.id, data: { isActive: !webhook.isActive } },
+      {
+        onSuccess: () => {
+          toast({
+            title: webhook.isActive ? "Webhook Disabled" : "Webhook Enabled",
+            description: `"${webhook.name}" has been ${webhook.isActive ? "disabled" : "enabled"}.`,
+          })
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: error.message || "Failed to update webhook",
+            variant: "destructive",
+          })
+        },
+      }
+    )
   }
 
   return (
@@ -106,8 +103,8 @@ export function WebhookRowActions({ webhook }: Props) {
             <IconEdit className="mr-2 h-4 w-4" />
             Edit
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleToggle} disabled={isToggling}>
-            {isToggling ? (
+          <DropdownMenuItem onClick={handleToggle} disabled={updateWebhook.isPending}>
+            {updateWebhook.isPending ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : webhook.isActive ? (
               <IconToggleLeft className="mr-2 h-4 w-4" />
@@ -131,7 +128,6 @@ export function WebhookRowActions({ webhook }: Props) {
         open={editOpen}
         setOpen={setEditOpen}
         currentWebhook={webhook}
-        onSuccess={onWebhookUpdated}
       />
 
       <WebhookTestDialog
@@ -158,7 +154,7 @@ export function WebhookRowActions({ webhook }: Props) {
           </span>
         }
         confirmText={
-          isDeleting ? (
+          deleteWebhook.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Deleting...
@@ -168,7 +164,7 @@ export function WebhookRowActions({ webhook }: Props) {
           )
         }
         destructive
-        isLoading={isDeleting}
+        isLoading={deleteWebhook.isPending}
         handleConfirm={handleDelete}
       />
     </>

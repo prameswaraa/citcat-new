@@ -8,6 +8,7 @@ import { IconCheck, IconCopy } from "@tabler/icons-react"
 import { Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "@/hooks/use-toast"
+import { useCreateWebhook, useUpdateWebhook } from "@/hooks/use-webhooks"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -30,11 +31,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import {
-  webhooksApi,
-  type WebhookEndpoint,
-  type WebhookEventType,
-  type WebhookChannel,
+import type {
+  WebhookEndpoint,
+  WebhookEventType,
+  WebhookChannel,
 } from "@/lib/api/webhooks-api"
 import { webhookEventTypes, webhookChannels } from "../data/schema"
 
@@ -42,7 +42,6 @@ interface Props {
   open: boolean
   setOpen: Dispatch<SetStateAction<boolean>>
   currentWebhook?: WebhookEndpoint
-  onSuccess?: (webhook: WebhookEndpoint) => void
 }
 
 const formSchema = z.object({
@@ -71,11 +70,14 @@ const channelLabels: Record<WebhookChannel, string> = {
   all: "All Channels",
 }
 
-export function MutateWebhook({ open, setOpen, currentWebhook, onSuccess }: Props) {
+export function MutateWebhook({ open, setOpen, currentWebhook }: Props) {
   const isEdit = !!currentWebhook
-  const [isLoading, setIsLoading] = useState(false)
   const [createdSecret, setCreatedSecret] = useState<string | null>(null)
   const [isCopied, setIsCopied] = useState(false)
+
+  const createWebhook = useCreateWebhook()
+  const updateWebhook = useUpdateWebhook()
+  const isLoading = createWebhook.isPending || updateWebhook.isPending
 
   const form = useForm<MutateWebhookForm>({
     resolver: zodResolver(formSchema),
@@ -108,48 +110,62 @@ export function MutateWebhook({ open, setOpen, currentWebhook, onSuccess }: Prop
     }
   }, [open, currentWebhook, form])
 
-  const onSubmit = async (data: MutateWebhookForm) => {
-    try {
-      setIsLoading(true)
-
-      if (isEdit && currentWebhook) {
-        const updated = await webhooksApi.update(currentWebhook.id, {
-          name: data.name,
-          url: data.url,
-          events: data.events as WebhookEventType[],
-          channels: data.channels as WebhookChannel[],
-        })
-        onSuccess?.(updated)
-        toast({
-          title: "Webhook Updated",
-          description: "Your webhook endpoint has been updated successfully.",
-        })
-        handleClose()
-      } else {
-        const created = await webhooksApi.create({
-          name: data.name,
-          url: data.url,
-          events: data.events as WebhookEventType[],
-          channels: data.channels as WebhookChannel[],
-        })
-        
-        if (created.secret) {
-          setCreatedSecret(created.secret)
+  const onSubmit = (data: MutateWebhookForm) => {
+    if (isEdit && currentWebhook) {
+      updateWebhook.mutate(
+        {
+          id: currentWebhook.id,
+          data: {
+            name: data.name,
+            url: data.url,
+            events: data.events as WebhookEventType[],
+            channels: data.channels as WebhookChannel[],
+          },
+        },
+        {
+          onSuccess: () => {
+            toast({
+              title: "Webhook Updated",
+              description: "Your webhook endpoint has been updated successfully.",
+            })
+            handleClose()
+          },
+          onError: (error) => {
+            toast({
+              title: "Error",
+              description: error.message || "Failed to update webhook",
+              variant: "destructive",
+            })
+          },
         }
-        onSuccess?.(created)
-        toast({
-          title: "Webhook Created",
-          description: "Your webhook endpoint has been created successfully.",
-        })
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || `Failed to ${isEdit ? "update" : "create"} webhook`,
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
+      )
+    } else {
+      createWebhook.mutate(
+        {
+          name: data.name,
+          url: data.url,
+          events: data.events as WebhookEventType[],
+          channels: data.channels as WebhookChannel[],
+        },
+        {
+          onSuccess: (created) => {
+            if (created.secret) {
+              setCreatedSecret(created.secret)
+            }
+            toast({
+              title: "Webhook Created",
+              description: "Your webhook endpoint has been created successfully.",
+            })
+          },
+          onError: (error) => {
+            toast({
+              title: "Error",
+              description: error.message || "Failed to create webhook",
+              variant: "destructive",
+            })
+          },
+        }
+      )
     }
   }
 

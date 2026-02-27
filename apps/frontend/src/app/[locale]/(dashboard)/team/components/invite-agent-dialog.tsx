@@ -17,36 +17,28 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { IconAlertTriangle, IconArrowUp } from "@tabler/icons-react"
 import { toast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-
-interface AgentLimit {
-  currentCount: number
-  limit: number
-  tier: string
-  canInvite: boolean
-}
+import { useInviteAgent } from "@/hooks/use-team"
+import type { AgentLimit } from "@/lib/api/team-api"
 
 interface InviteAgentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSuccess: () => void
   agentLimit: AgentLimit | null
 }
 
 export function InviteAgentDialog({
   open,
   onOpenChange,
-  onSuccess,
   agentLimit,
 }: InviteAgentDialogProps) {
   const t = useTranslations("team")
   const router = useRouter()
   const [email, setEmail] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+  const inviteAgent = useInviteAgent()
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
@@ -54,43 +46,26 @@ export function InviteAgentDialog({
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      const response = await fetch(`${apiUrl}/api/v1/team/invitations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    inviteAgent.mutate(
+      { email: email.trim() },
+      {
+        onSuccess: () => {
+          toast({ title: t("invite.success") })
+          setEmail("")
+          onOpenChange(false)
         },
-        credentials: "include",
-        body: JSON.stringify({ email: email.trim() }),
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        toast({ title: t("invite.success") })
-        setEmail("")
-        onSuccess()
-      } else {
-        const errorCode = data.error?.code
-        if (errorCode === "AGENT_LIMIT_REACHED") {
-          setError(t("invite.limitReachedDescription", {
-            limit: agentLimit?.limit || 0,
-            tier: agentLimit?.tier || "FREE",
-          }))
-        } else if (errorCode === "INVITATION_EXISTS") {
-          setError("An invitation has already been sent to this email")
-        } else if (errorCode === "ALREADY_AGENT") {
-          setError("This user is already an agent on your team")
-        } else {
-          setError(data.error?.message || t("invite.error"))
-        }
+        onError: (err) => {
+          if (err.message === "AGENT_LIMIT_REACHED") {
+            setError(t("invite.limitReachedDescription", {
+              limit: agentLimit?.limit || 0,
+              tier: agentLimit?.tier || "FREE",
+            }))
+          } else {
+            setError(err.message || t("invite.error"))
+          }
+        },
       }
-    } catch (err) {
-      setError(t("invite.error"))
-    } finally {
-      setIsSubmitting(false)
-    }
+    )
   }
 
   const handleUpgrade = () => {
@@ -147,7 +122,7 @@ export function InviteAgentDialog({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  disabled={isSubmitting}
+                  disabled={inviteAgent.isPending}
                 />
               </div>
 
@@ -164,12 +139,12 @@ export function InviteAgentDialog({
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
+                disabled={inviteAgent.isPending}
               >
                 {t("invite.cancel") || "Cancel"}
               </Button>
-              <Button type="submit" disabled={isSubmitting || !email.trim()}>
-                {isSubmitting ? t("invite.sending") : t("invite.submit")}
+              <Button type="submit" disabled={inviteAgent.isPending || !email.trim()}>
+                {inviteAgent.isPending ? t("invite.sending") : t("invite.submit")}
               </Button>
             </DialogFooter>
           </form>

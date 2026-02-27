@@ -1,170 +1,45 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { Header } from "@/components/layout/header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { IconUsersGroup } from "@tabler/icons-react"
 import { useBusinessAccount } from "@/hooks/use-business-account"
+import { useTeamMembers, useTeamInvitations, useAgentLimit } from "@/hooks/use-team"
 import { TeamMembersList } from "./components/team-members-list"
 import { PendingInvitations } from "./components/pending-invitations"
 import { InviteAgentDialog } from "./components/invite-agent-dialog"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { toast } from "@/hooks/use-toast"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { useSession } from "@/lib/auth-client"
 import { UpgradePrompt } from "@/components/subscription/upgrade-prompt"
-
-interface TeamMember {
-  id: string
-  agentUserId: string | null
-  status: "PENDING" | "ACTIVE" | "REMOVED"
-  invitedAt: string
-  joinedAt: string | null
-  agent: {
-    id: string
-    name: string
-    email: string
-  } | null
-}
-
-interface Invitation {
-  id: string
-  email: string
-  status: string
-  createdAt: string
-  expiresAt: string
-}
-
-interface AgentLimit {
-  currentCount: number
-  limit: number
-  tier: string
-  canInvite: boolean
-}
 
 export default function TeamPage() {
   const t = useTranslations("team")
   const { data: session, isPending: isSessionLoading } = useSession()
   const { userId, userRole, isLoading: isLoadingAccount } = useBusinessAccount()
-
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
-  const [invitations, setInvitations] = useState<Invitation[]>([])
-  const [agentLimit, setAgentLimit] = useState<AgentLimit | null>(null)
-  const [loading, setLoading] = useState(true)
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false)
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
 
   // Get subscription tier
   const user = session?.user as any
   const tier = user?.subscriptionTier || user?.subscription?.tier || 'FREE'
   const isFreeUser = tier === 'FREE'
 
-  const loadTeamData = async () => {
-    try {
-      const [membersRes, invitationsRes, limitRes] = await Promise.all([
-        fetch(`${apiUrl}/api/v1/team/members`, { credentials: "include" }),
-        fetch(`${apiUrl}/api/v1/team/invitations`, { credentials: "include" }),
-        fetch(`${apiUrl}/api/v1/team/limit`, { credentials: "include" }),
-      ])
+  // Only fetch data if user is a business owner and not on free tier
+  const shouldFetchData = !isFreeUser && !isLoadingAccount && !!userId && userRole === "BUSINESS_OWNER"
 
-      if (membersRes.ok) {
-        const membersData = await membersRes.json()
-        setTeamMembers(membersData.data || [])
-      }
+  // TanStack Query hooks
+  const { data: teamMembers = [], isLoading: isLoadingMembers } = useTeamMembers(shouldFetchData)
+  const { data: invitations = [], isLoading: isLoadingInvitations } = useTeamInvitations(shouldFetchData)
+  const { data: agentLimit = null, isLoading: isLoadingLimit } = useAgentLimit(shouldFetchData)
 
-      if (invitationsRes.ok) {
-        const invitationsData = await invitationsRes.json()
-        setInvitations(invitationsData.data || [])
-      }
-
-      if (limitRes.ok) {
-        const limitData = await limitRes.json()
-        setAgentLimit(limitData.data)
-      }
-    } catch (error) {
-      console.error("Error loading team data:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    // Don't load data for FREE users - they'll see upgrade prompt
-    if (isFreeUser) {
-      setLoading(false)
-      return
-    }
-    if (!isLoadingAccount && userId && userRole === "BUSINESS_OWNER") {
-      loadTeamData()
-    } else if (!isLoadingAccount) {
-      setLoading(false)
-    }
-  }, [userId, userRole, isLoadingAccount, isFreeUser])
-
-  const handleRemoveMember = async (memberId: string) => {
-    try {
-      const response = await fetch(`${apiUrl}/api/v1/team/members/${memberId}`, {
-        method: "DELETE",
-        credentials: "include",
-      })
-
-      if (response.ok) {
-        toast({ title: t("members.removeSuccess") })
-        loadTeamData()
-      } else {
-        toast({ title: t("members.removeError"), variant: "destructive" })
-      }
-    } catch (error) {
-      toast({ title: t("members.removeError"), variant: "destructive" })
-    }
-  }
-
-  const handleCancelInvitation = async (invitationId: string) => {
-    try {
-      const response = await fetch(`${apiUrl}/api/v1/team/invitations/${invitationId}`, {
-        method: "DELETE",
-        credentials: "include",
-      })
-
-      if (response.ok) {
-        toast({ title: t("invitations.cancelSuccess") })
-        loadTeamData()
-      } else {
-        toast({ title: t("invitations.cancelError"), variant: "destructive" })
-      }
-    } catch (error) {
-      toast({ title: t("invitations.cancelError"), variant: "destructive" })
-    }
-  }
-
-  const handleResendInvitation = async (invitationId: string) => {
-    try {
-      const response = await fetch(`${apiUrl}/api/v1/team/invitations/${invitationId}/resend`, {
-        method: "POST",
-        credentials: "include",
-      })
-
-      if (response.ok) {
-        toast({ title: t("invitations.resendSuccess") })
-      } else {
-        toast({ title: t("invitations.resendError"), variant: "destructive" })
-      }
-    } catch (error) {
-      toast({ title: t("invitations.resendError"), variant: "destructive" })
-    }
-  }
-
-  const handleInviteSuccess = () => {
-    setInviteDialogOpen(false)
-    loadTeamData()
-  }
+  const loading = isLoadingMembers || isLoadingInvitations || isLoadingLimit
 
   // Show loading state while session or account is loading
-  if (loading || isSessionLoading) {
+  if (loading || isSessionLoading || isLoadingAccount) {
     return (
       <>
         <Header />
@@ -304,10 +179,7 @@ export default function TeamPage() {
             )}
           </CardHeader>
           <CardContent>
-            <TeamMembersList
-              members={activeMembers}
-              onRemove={handleRemoveMember}
-            />
+            <TeamMembersList members={activeMembers} />
           </CardContent>
         </Card>
 
@@ -317,11 +189,7 @@ export default function TeamPage() {
             <CardTitle>{t("invitations.title")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <PendingInvitations
-              invitations={invitations}
-              onCancel={handleCancelInvitation}
-              onResend={handleResendInvitation}
-            />
+            <PendingInvitations invitations={invitations} />
           </CardContent>
         </Card>
       </div>
@@ -330,7 +198,6 @@ export default function TeamPage() {
       <InviteAgentDialog
         open={inviteDialogOpen}
         onOpenChange={setInviteDialogOpen}
-        onSuccess={handleInviteSuccess}
         agentLimit={agentLimit}
       />
     </RoleGuard>
