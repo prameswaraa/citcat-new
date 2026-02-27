@@ -23,6 +23,7 @@ import { useTranslations } from "next-intl"
 import Image from "next/image"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const DEFAULT_APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "KirimChat"
 
 interface BrandingSettings {
   websiteName: string
@@ -34,7 +35,7 @@ interface BrandingSettings {
 }
 
 const defaultSettings: BrandingSettings = {
-  websiteName: "KirimChat",
+  websiteName: DEFAULT_APP_NAME,
   logoUrl: "",
   supportEmail: "support@kirim.chat",
   supportWhatsapp: "+6281295648580",
@@ -333,7 +334,7 @@ export default function BrandingSettingsPage() {
                 id="websiteName"
                 value={settings.websiteName}
                 onChange={handleChange("websiteName")}
-                placeholder="KirimChat"
+                placeholder={DEFAULT_APP_NAME}
               />
               <p className="text-xs text-muted-foreground">
                 {t("branding.websiteNameHint") || "Displayed in page titles, headers, and sidebar"}
@@ -382,7 +383,7 @@ export default function BrandingSettingsPage() {
                   </span>
                 </div>
               )}
-              <span className="font-semibold">{settings.websiteName || "KirimChat"}</span>
+              <span className="font-semibold">{settings.websiteName || DEFAULT_APP_NAME}</span>
             </div>
           </div>
         </CardContent>

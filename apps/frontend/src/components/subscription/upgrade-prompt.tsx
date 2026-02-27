@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ArrowRight, Lock, Sparkles } from "lucide-react"
 import type { SubscriptionTier } from "@/lib/api/subscription-api"
+import { useBranding } from "@/hooks/use-branding"
 
 export type FeatureType = "apiAccess" | "webhooksEnabled" | "aiChatbot" | "teamManagement"
 
@@ -15,14 +16,14 @@ interface UpgradePromptProps {
   requiredTier: SubscriptionTier
 }
 
-const featureDescriptions: Record<FeatureType, { title: string; description: string }> = {
+const getFeatureDescriptions = (appName: string): Record<FeatureType, { title: string; description: string }> => ({
   apiAccess: {
     title: "API Access",
-    description: "Create API keys to integrate KirimChat with your applications and automate messaging workflows.",
+    description: `Create API keys to integrate ${appName} with your applications and automate messaging workflows.`,
   },
   webhooksEnabled: {
     title: "Webhooks",
-    description: "Receive real-time notifications when events occur in your KirimChat account.",
+    description: `Receive real-time notifications when events occur in your ${appName} account.`,
   },
   aiChatbot: {
     title: "AI Chatbot",
@@ -32,7 +33,7 @@ const featureDescriptions: Record<FeatureType, { title: string; description: str
     title: "Team Management",
     description: "Invite team members and agents to help manage your customer conversations.",
   },
-}
+})
 
 const tierLabels: Record<SubscriptionTier, string> = {
   FREE: "Free",
@@ -49,7 +50,8 @@ const tierColors: Record<SubscriptionTier, string> = {
 }
 
 export function UpgradePrompt({ feature, currentTier, requiredTier }: UpgradePromptProps) {
-  const featureInfo = featureDescriptions[feature]
+  const { websiteName } = useBranding()
+  const featureInfo = getFeatureDescriptions(websiteName)[feature]
 
   return (
     <Card className="border-dashed">

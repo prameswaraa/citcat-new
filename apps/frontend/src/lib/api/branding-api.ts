@@ -14,10 +14,15 @@ export interface BrandingSettings {
 }
 
 /**
- * Default branding values (matches backend defaults)
+ * Get default app name from environment
+ */
+const getDefaultAppName = () => process.env.NEXT_PUBLIC_APP_NAME || 'KirimChat'
+
+/**
+ * Default branding values (uses env for app name)
  */
 export const DEFAULT_BRANDING: BrandingSettings = {
-  websiteName: 'KirimChat',
+  websiteName: getDefaultAppName(),
   logoUrl: '',
   supportEmail: 'support@kirim.chat',
   supportWhatsapp: '+6281295648580',

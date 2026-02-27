@@ -35,8 +35,19 @@ export interface ValidatedApiKey {
 // Cache TTL for validated API keys (5 minutes)
 const API_KEY_CACHE_TTL = 300;
 
-// API key prefix
-const API_KEY_PREFIX = 'kc_live_';
+// API key prefix - configurable via environment variable
+// Default: 'kc' for KirimChat, can be changed to match branding (e.g., 'otk' for Otika)
+const API_KEY_PREFIX = `${process.env.API_KEY_PREFIX || 'kc'}_live_`;
+
+// Legacy prefix for backward compatibility with existing keys
+const LEGACY_API_KEY_PREFIX = 'kc_live_';
+
+/**
+ * Check if API key has valid prefix (current or legacy)
+ */
+function hasValidPrefix(apiKey: string): boolean {
+  return apiKey.startsWith(API_KEY_PREFIX) || apiKey.startsWith(LEGACY_API_KEY_PREFIX);
+}
 
 /**
  * ApiKeyService
@@ -124,8 +135,8 @@ export class ApiKeyService {
    * @returns ValidatedApiKey with userId and apiKeyId, or null if invalid
    */
   async validateApiKey(apiKey: string): Promise<ValidatedApiKey | null> {
-    // Basic format validation
-    if (!apiKey || !apiKey.startsWith(API_KEY_PREFIX)) {
+    // Basic format validation - accept both current and legacy prefix
+    if (!apiKey || !hasValidPrefix(apiKey)) {
       return null;
     }
 

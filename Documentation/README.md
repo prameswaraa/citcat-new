@@ -41,6 +41,11 @@ Baca dokumentasi sesuai urutan untuk deployment yang sukses:
    - Cluster mode, auto-restart, logging
    - Monitoring dan auto-start on boot
 
+5. **[05-BRANDING-CONFIGURATION.md](05-BRANDING-CONFIGURATION.md)** - White-Label Branding
+   - Konfigurasi nama aplikasi & logo
+   - Custom API key prefix
+   - Branding via Admin Dashboard
+
 ---
 
 ## Quick Start
@@ -56,3 +61,4 @@ Baca dokumentasi sesuai urutan untuk deployment yang sukses:
 - **Backend Issues**: See [02-BACKEND-DEPLOYMENT.md](02-BACKEND-DEPLOYMENT.md#troubleshooting)
 - **Frontend Issues**: See [03-FRONTEND-DEPLOYMENT.md](03-FRONTEND-DEPLOYMENT.md#troubleshooting)
 - **PM2 Monorepo Issues**: See [04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md](04-OPSIONAL-PM2-MONOREPO-DEPLOYMENT.md#troubleshooting)
+- **Branding Issues**: See [05-BRANDING-CONFIGURATION.md](05-BRANDING-CONFIGURATION.md#troubleshooting)

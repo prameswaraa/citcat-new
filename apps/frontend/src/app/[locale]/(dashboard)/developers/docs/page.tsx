@@ -11,6 +11,7 @@ import { EndpointBadge } from "../components/endpoint-badge"
 import { ApiPlayground } from "../components/api-playground"
 import { RoleGuard } from "@/components/auth/role-guard"
 import { Link } from "@/i18n/routing"
+import { useBranding } from "@/hooks/use-branding"
 
 // Get all section IDs from navigation
 const sectionIds = navigation.flatMap((group) => group.items.map((item) => item.id))
@@ -18,6 +19,7 @@ const sectionIds = navigation.flatMap((group) => group.items.map((item) => item.
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState(sectionIds[0])
   const isScrollingRef = useRef(false)
+  const { websiteName } = useBranding()
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
 
@@ -113,10 +115,10 @@ export default function DocsPage() {
             <DocsSection
               id="overview"
               title="Overview"
-              description="Welcome to the KirimChat API documentation. Learn how to integrate messaging capabilities into your applications."
+              description={`Welcome to the ${websiteName} API documentation. Learn how to integrate messaging capabilities into your applications.`}
             >
               <p className="text-muted-foreground">
-                The KirimChat API allows you to send messages via WhatsApp, Instagram, and Messenger,
+                The {websiteName} API allows you to send messages via WhatsApp, Instagram, and Messenger,
                 manage contacts, and receive real-time notifications through webhooks.
               </p>
 
@@ -154,7 +156,7 @@ export default function DocsPage() {
             >
               <DocsSubsection title="Request Headers">
                 <CodeBlock
-                  code={`Authorization: Bearer kc_live_your_api_key_here
+                  code={`Authorization: Bearer YOUR_API_KEY
 Content-Type: application/json`}
                 />
               </DocsSubsection>
@@ -171,7 +173,7 @@ Content-Type: application/json`}
                       language: "curl",
                       label: "cURL",
                       code: `curl -X GET "${apiBaseUrl}/api/v1/public/health" \\
-  -H "Authorization: Bearer kc_live_xxx" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json"`,
                     },
                     {
@@ -179,7 +181,7 @@ Content-Type: application/json`}
                       label: "JavaScript",
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/health", {
   headers: {
-    "Authorization": "Bearer kc_live_xxx",
+    "Authorization": "Bearer YOUR_API_KEY",
     "Content-Type": "application/json"
   }
 });
@@ -194,7 +196,7 @@ const data = await response.json();`,
 response = requests.get(
     "${apiBaseUrl}/api/v1/public/health",
     headers={
-        "Authorization": "Bearer kc_live_xxx",
+        "Authorization": "Bearer YOUR_API_KEY",
         "Content-Type": "application/json"
     }
 )
@@ -227,14 +229,14 @@ data = response.json()`,
                       language: "curl",
                       label: "cURL",
                       code: `curl -X GET "${apiBaseUrl}/api/v1/public/phone-numbers" \\
-  -H "Authorization: Bearer kc_live_xxx"`,
+  -H "Authorization: Bearer YOUR_API_KEY"`,
                     },
                     {
                       language: "javascript",
                       label: "JavaScript",
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/phone-numbers", {
   headers: {
-    "Authorization": "Bearer kc_live_xxx"
+    "Authorization": "Bearer YOUR_API_KEY"
   }
 });
 
@@ -249,7 +251,7 @@ const { data } = await response.json();
 response = requests.get(
     "${apiBaseUrl}/api/v1/public/phone-numbers",
     headers={
-        "Authorization": "Bearer kc_live_xxx"
+        "Authorization": "Bearer YOUR_API_KEY"
     }
 )
 
@@ -367,14 +369,14 @@ data = response.json()["data"]
                       language: "curl",
                       label: "cURL",
                       code: `curl -X GET "${apiBaseUrl}/api/v1/public/instagram-accounts" \\
-  -H "Authorization: Bearer kc_live_xxx"`,
+  -H "Authorization: Bearer YOUR_API_KEY"`,
                     },
                     {
                       language: "javascript",
                       label: "JavaScript",
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/instagram-accounts", {
   headers: {
-    "Authorization": "Bearer kc_live_xxx"
+    "Authorization": "Bearer YOUR_API_KEY"
   }
 });
 
@@ -389,7 +391,7 @@ const { data } = await response.json();
 response = requests.get(
     "${apiBaseUrl}/api/v1/public/instagram-accounts",
     headers={
-        "Authorization": "Bearer kc_live_xxx"
+        "Authorization": "Bearer YOUR_API_KEY"
     }
 )
 
@@ -483,14 +485,14 @@ data = response.json()["data"]
                       language: "curl",
                       label: "cURL",
                       code: `curl -X GET "${apiBaseUrl}/api/v1/public/facebook-pages" \\
-  -H "Authorization: Bearer kc_live_xxx"`,
+  -H "Authorization: Bearer YOUR_API_KEY"`,
                     },
                     {
                       language: "javascript",
                       label: "JavaScript",
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/facebook-pages", {
   headers: {
-    "Authorization": "Bearer kc_live_xxx"
+    "Authorization": "Bearer YOUR_API_KEY"
   }
 });
 
@@ -505,7 +507,7 @@ const { data } = await response.json();
 response = requests.get(
     "${apiBaseUrl}/api/v1/public/facebook-pages",
     headers={
-        "Authorization": "Bearer kc_live_xxx"
+        "Authorization": "Bearer YOUR_API_KEY"
     }
 )
 
@@ -682,13 +684,13 @@ data = response.json()["data"]
                       language: "curl",
                       label: "cURL",
                       code: `curl -X POST "${apiBaseUrl}/api/v1/public/messages/send" \\
-  -H "Authorization: Bearer kc_live_xxx" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "phone_number": "628123456789",
     "channel": "whatsapp",
     "message_type": "text",
-    "content": "Hello from KirimChat API!",
+    "content": "Hello! This is a test message.",
     "whatsapp_phone_number_id": "clyyy9876543210"
   }'`,
                     },
@@ -698,14 +700,14 @@ data = response.json()["data"]
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/messages/send", {
   method: "POST",
   headers: {
-    "Authorization": "Bearer kc_live_xxx",
+    "Authorization": "Bearer YOUR_API_KEY",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
     phone_number: "628123456789",
     channel: "whatsapp",
     message_type: "text",
-    content: "Hello from KirimChat API!",
+    content: "Hello! This is a test message.",
     whatsapp_phone_number_id: "clyyy9876543210" // optional
   })
 });`,
@@ -718,14 +720,14 @@ data = response.json()["data"]
 response = requests.post(
     "${apiBaseUrl}/api/v1/public/messages/send",
     headers={
-        "Authorization": "Bearer kc_live_xxx",
+        "Authorization": "Bearer YOUR_API_KEY",
         "Content-Type": "application/json"
     },
     json={
         "phone_number": "628123456789",
         "channel": "whatsapp",
         "message_type": "text",
-        "content": "Hello from KirimChat API!",
+        "content": "Hello! This is a test message.",
         "whatsapp_phone_number_id": "clyyy9876543210"  # optional
     }
 )`,
@@ -1479,7 +1481,7 @@ response = requests.post(
                       language: "curl",
                       label: "cURL (Phone)",
                       code: `curl -X POST "${apiBaseUrl}/api/v1/public/conversations/628123456789/typing" \\
-  -H "Authorization: Bearer kc_live_xxx" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
     "channel": "whatsapp",
@@ -1490,7 +1492,7 @@ response = requests.post(
                       language: "curl",
                       label: "cURL (Simple)",
                       code: `curl -X POST "${apiBaseUrl}/api/v1/public/conversations/628123456789/typing" \\
-  -H "Authorization: Bearer kc_live_xxx"`,
+  -H "Authorization: Bearer YOUR_API_KEY"`,
                     },
                     {
                       language: "javascript",
@@ -1498,7 +1500,7 @@ response = requests.post(
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/conversations/628123456789/typing", {
   method: "POST",
   headers: {
-    "Authorization": "Bearer kc_live_xxx",
+    "Authorization": "Bearer YOUR_API_KEY",
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
@@ -1515,7 +1517,7 @@ response = requests.post(
 response = requests.post(
     "${apiBaseUrl}/api/v1/public/conversations/628123456789/typing",
     headers={
-        "Authorization": "Bearer kc_live_xxx",
+        "Authorization": "Bearer YOUR_API_KEY",
         "Content-Type": "application/json"
     },
     json={
@@ -1634,7 +1636,7 @@ Content-Type: application/json
                       language: "curl",
                       label: "cURL",
                       code: `curl -X POST "${apiBaseUrl}/api/v1/public/messages/msg_xyz789/read" \\
-  -H "Authorization: Bearer kc_live_xxx" \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json"`,
                     },
                     {
@@ -1643,7 +1645,7 @@ Content-Type: application/json
                       code: `const response = await fetch("${apiBaseUrl}/api/v1/public/messages/msg_xyz789/read", {
   method: "POST",
   headers: {
-    "Authorization": "Bearer kc_live_xxx",
+    "Authorization": "Bearer YOUR_API_KEY",
     "Content-Type": "application/json"
   }
 });`,
@@ -1656,7 +1658,7 @@ Content-Type: application/json
 response = requests.post(
     "${apiBaseUrl}/api/v1/public/messages/msg_xyz789/read",
     headers={
-        "Authorization": "Bearer kc_live_xxx",
+        "Authorization": "Bearer YOUR_API_KEY",
         "Content-Type": "application/json"
     }
 )`,
@@ -1722,7 +1724,7 @@ response = requests.post(
             <DocsSection
               id="webhooks-overview"
               title="Webhooks Overview"
-              description="Receive real-time notifications when events occur in KirimChat."
+              description={`Receive real-time notifications when events occur in ${websiteName}.`}
             >
               <p className="text-muted-foreground">
                 When an event happens (like receiving a message), we&apos;ll send an HTTP POST
@@ -1793,7 +1795,7 @@ response = requests.post(
             <DocsSection
               id="webhook-security"
               title="Webhook Security"
-              description="Verify webhook signatures to ensure requests are from KirimChat."
+              description={`Verify webhook signatures to ensure requests are from ${websiteName}.`}
             >
               <p className="text-muted-foreground">
                 All webhook requests include an HMAC-SHA256 signature in the{" "}
@@ -1802,7 +1804,7 @@ response = requests.post(
 
               <DocsTip variant="warning">
                 <strong>Important:</strong> Always verify the webhook signature before
-                processing events to ensure they came from KirimChat.
+                processing events to ensure they came from {websiteName}.
               </DocsTip>
 
               <DocsSubsection title="Verification Example">
@@ -1844,7 +1846,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
             <DocsSection
               id="n8n"
               title="n8n Integration"
-              description="Connect KirimChat with n8n for powerful workflow automation."
+              description={`Connect ${websiteName} with n8n for powerful workflow automation.`}
             >
               <DocsSubsection title="Installation">
                 <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
@@ -1864,7 +1866,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
 
               <DocsSubsection title="Credentials Setup">
                 <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-                  <li>Log in to your KirimChat dashboard</li>
+                  <li>Log in to your {websiteName} dashboard</li>
                   <li>
                     Go to{" "}
                     <Link href="/developers/api-keys" className="text-primary hover:underline">
@@ -1873,12 +1875,9 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
                   </li>
                   <li>Create an API key and copy it</li>
                   <li>
-                    In n8n, create new credentials for <strong>KirimChat API</strong>
+                    In n8n, create new credentials for <strong>{websiteName} API</strong>
                   </li>
-                  <li>
-                    Paste your API key (starts with{" "}
-                    <code className="bg-muted rounded px-1">kc_live_</code>)
-                  </li>
+                  <li>Paste your API key</li>
                 </ol>
               </DocsSubsection>
             </DocsSection>

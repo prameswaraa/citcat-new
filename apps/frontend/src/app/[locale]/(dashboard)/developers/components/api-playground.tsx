@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { cn } from "@/lib/utils"
+
+// API key prefix from environment - used for placeholder
+const API_KEY_PREFIX = `${process.env.NEXT_PUBLIC_API_KEY_PREFIX || 'kc'}_live_`
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -448,7 +451,7 @@ export function ApiPlayground({ activeSection }: ApiPlaygroundProps) {
                     type={showApiKey ? "text" : "password"}
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="kc_live_..."
+                    placeholder={`${API_KEY_PREFIX}...`}
                     className="pr-10 font-mono text-xs"
                   />
                   <Button

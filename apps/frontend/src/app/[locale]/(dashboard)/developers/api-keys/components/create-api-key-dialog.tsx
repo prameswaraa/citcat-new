@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
+import { useBranding } from "@/hooks/use-branding"
 import { apiKeysApi, type ApiKey } from "@/lib/api/api-keys-api"
 
 const formSchema = z.object({
@@ -44,6 +45,7 @@ export function CreateApiKeyDialog({ onKeyCreated }: Props) {
   const [createdKey, setCreatedKey] = useState<string | null>(null)
   const [isCopied, setIsCopied] = useState(false)
   const apiKeyInputRef = useRef<HTMLInputElement>(null)
+  const { websiteName } = useBranding()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -145,7 +147,7 @@ export function CreateApiKeyDialog({ onKeyCreated }: Props) {
           <DialogDescription>
             {createdKey
               ? "Your API key has been created. Copy it now - you won't be able to see it again!"
-              : "Generate a new API key to securely access the KirimChat Public API."}
+              : `Generate a new API key to securely access the ${websiteName} Public API.`}
           </DialogDescription>
         </DialogHeader>
 
