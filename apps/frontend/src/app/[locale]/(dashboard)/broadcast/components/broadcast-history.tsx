@@ -38,6 +38,8 @@ import {
   IconUserOff,
   IconLockOff,
   IconShieldOff,
+  IconInfoCircle,
+  IconBulb,
 } from "@tabler/icons-react"
 import { formatDistanceToNow, format } from "date-fns"
 import { id, enUS } from "date-fns/locale"
@@ -46,6 +48,8 @@ import {
   categorizeErrors,
   getSuccessRate,
   getEffectiveStatus,
+  getErrorInfo,
+  getCategoryRecoveryAction,
   ERROR_CATEGORY_INFO,
   type ErrorCategory,
   type ErrorSummary,
@@ -540,10 +544,11 @@ function JobDetailContent({
           <div className="space-y-2">
             {errorSummary.categories.map((cat) => {
               const info = ERROR_CATEGORY_INFO[cat.category]
+              const recoveryAction = getCategoryRecoveryAction(cat.category)
               return (
                 <div
                   key={cat.category}
-                  className={`flex items-center justify-between rounded-lg border p-3 ${
+                  className={`rounded-lg border p-3 ${
                     info.severity === 'critical'
                       ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30'
                       : info.severity === 'warning'
@@ -551,28 +556,38 @@ function JobDetailContent({
                       : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/30'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`${
-                      info.severity === 'critical'
-                        ? 'text-red-600'
-                        : info.severity === 'warning'
-                        ? 'text-amber-600'
-                        : 'text-gray-600'
-                    }`}>
-                      {getCategoryIcon(cat.category)}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`${
+                        info.severity === 'critical'
+                          ? 'text-red-600'
+                          : info.severity === 'warning'
+                          ? 'text-amber-600'
+                          : 'text-gray-600'
+                      }`}>
+                        {getCategoryIcon(cat.category)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">
+                          {t(`errors.categories.${cat.category.toLowerCase()}`)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {t(`errors.categories.${cat.category.toLowerCase()}Desc`)}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">
-                        {t(`errors.categories.${cat.category.toLowerCase()}`)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {t(`errors.categories.${cat.category.toLowerCase()}Desc`)}
-                      </p>
-                    </div>
+                    <Badge variant={info.severity === 'critical' ? 'destructive' : 'secondary'}>
+                      {cat.count} {t("jobDetail.recipients")}
+                    </Badge>
                   </div>
-                  <Badge variant={info.severity === 'critical' ? 'destructive' : 'secondary'}>
-                    {cat.count} {t("jobDetail.recipients")}
-                  </Badge>
+                  {/* Recovery Action */}
+                  <div className="mt-2 flex items-start gap-2 rounded-md bg-white/50 dark:bg-black/20 p-2">
+                    <IconBulb className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{t("jobDetail.recoveryAction")}:</span>{" "}
+                      {recoveryAction}
+                    </p>
+                  </div>
                 </div>
               )
             })}
@@ -586,6 +601,11 @@ function JobDetailContent({
           <h4 className="font-medium">{t("jobDetail.detailedResults")}</h4>
           <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
             {job.results.map((result, index) => {
+              // Get structured error info for failed results
+              const errorInfo = !result.success && result.error
+                ? getErrorInfo(result.error, (result as { errorCode?: string }).errorCode)
+                : null
+
               // Determine the display status and badge color
               const getStatusBadge = () => {
                 if (!result.success) {
@@ -595,11 +615,6 @@ function JobDetailContent({
                         <IconX className="mr-1 h-3 w-3" />
                         {t("jobDetail.failedBadge")}
                       </Badge>
-                      {result.error && (
-                        <span className="text-xs text-muted-foreground max-w-[300px] text-right">
-                          {result.error}
-                        </span>
-                      )}
                     </div>
                   )
                 }
@@ -635,10 +650,33 @@ function JobDetailContent({
               return (
                 <div
                   key={index}
-                  className="flex items-center justify-between rounded-md bg-muted/50 p-2 text-sm"
+                  className={`rounded-md bg-muted/50 p-2 text-sm ${
+                    errorInfo ? 'space-y-2' : ''
+                  }`}
                 >
-                  <span className="font-mono">{result.phoneNumber}</span>
-                  {getStatusBadge()}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono">{result.phoneNumber}</span>
+                    {getStatusBadge()}
+                  </div>
+                  {/* Structured error display for failed results */}
+                  {errorInfo && (
+                    <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-2 space-y-1">
+                      <div className="flex items-center gap-2">
+                        {errorInfo.code && (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                            {errorInfo.code}
+                          </Badge>
+                        )}
+                        <span className="text-xs text-red-700 dark:text-red-400">
+                          {errorInfo.message}
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                        <IconBulb className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                        <span>{errorInfo.recoveryAction}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

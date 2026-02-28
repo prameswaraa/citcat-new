@@ -118,7 +118,8 @@
     "sent": "Terkirim",
     "delivered": "Diterima",
     "read": "Dibaca",
-    "failedBadge": "Gagal"
+    "failedBadge": "Gagal",
+    "recoveryAction": "Saran"
   },
   "errors": {
     "categories": {

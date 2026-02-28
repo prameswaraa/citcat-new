@@ -118,7 +118,8 @@
     "sent": "Sent",
     "delivered": "Delivered",
     "read": "Read",
-    "failedBadge": "Failed"
+    "failedBadge": "Failed",
+    "recoveryAction": "Suggestion"
   },
   "errors": {
     "categories": {
