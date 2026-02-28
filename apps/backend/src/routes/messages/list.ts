@@ -111,7 +111,11 @@ app.get('/', async (c: Context) => {
             select: { 
               id: true, 
               templateName: true, 
-              category: true 
+              category: true,
+              headerType: true,
+              headerContent: true,
+              footerContent: true,
+              buttons: true,
             }
           }
         },
