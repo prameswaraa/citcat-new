@@ -38,7 +38,7 @@ import {
   IconUserOff,
   IconLockOff,
   IconShieldOff,
-  IconInfoCircle,
+
   IconBulb,
 } from "@tabler/icons-react"
 import { formatDistanceToNow, format } from "date-fns"
@@ -76,6 +76,7 @@ interface JobDetail extends BroadcastJob {
     success: boolean
     messageId?: string
     error?: string
+    errorCode?: string
     status?: "sent" | "delivered" | "read" | "failed"
   }>
 }
@@ -603,7 +604,7 @@ function JobDetailContent({
             {job.results.map((result, index) => {
               // Get structured error info for failed results
               const errorInfo = !result.success && result.error
-                ? getErrorInfo(result.error, (result as { errorCode?: string }).errorCode)
+                ? getErrorInfo(result.error, result.errorCode)
                 : null
 
               // Determine the display status and badge color
