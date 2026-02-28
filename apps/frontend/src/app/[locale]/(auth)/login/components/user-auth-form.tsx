@@ -10,6 +10,7 @@ import { Link, useRouter } from "@/i18n/routing"
 import { authClient } from "@/lib/auth-client"
 import { SESSION_QUERY_KEY } from "@/hooks/use-cached-session"
 import { cn } from "@/lib/utils"
+import { getSafeErrorMessage } from "@/lib/error-utils"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -81,7 +82,7 @@ export function UserAuthForm({
         toast({
           variant: "destructive",
           title: t("loginError"),
-          description: result.error.message,
+          description: tErrors("invalidCredentials"),
         })
         setIsLoading(false)
       } else {
@@ -91,11 +92,11 @@ export function UserAuthForm({
         router.replace("/dashboard")
         // Keep isLoading true to prevent double-click during navigation
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         variant: "destructive",
         title: tErrors("generic"),
-        description: error.message || tErrors("errorOccurred"),
+        description: getSafeErrorMessage(error, tErrors("errorOccurred")),
       })
       setIsLoading(false)
     }

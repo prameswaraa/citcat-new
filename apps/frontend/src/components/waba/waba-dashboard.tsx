@@ -30,6 +30,7 @@ import {
 } from "lucide-react"
 import { wabaApi, type PhoneNumberDetails, type WABADetails } from "@/lib/api/waba-api"
 import { useToast } from "@/hooks/use-toast"
+import { getSafeErrorMessage } from "@/lib/error-utils"
 import { PhoneNumberCard } from "./phone-number-card"
 import { WABAConnectionButton } from "./waba-connection-button"
 import { useBusinessAccount } from "@/hooks/use-business-account"
@@ -78,7 +79,7 @@ export function WABADashboard() {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error.message,
+                description: getSafeErrorMessage(error, "Failed to load WhatsApp data"),
             })
         } finally {
             setLoading(false)
@@ -115,7 +116,7 @@ export function WABADashboard() {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error.message,
+                description: getSafeErrorMessage(error, "Failed to refresh data"),
             })
             await loadData()
         } finally {
@@ -139,7 +140,7 @@ export function WABADashboard() {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error.message,
+                description: getSafeErrorMessage(error, "Failed to disconnect account"),
             })
         } finally {
             setDisconnecting(false)

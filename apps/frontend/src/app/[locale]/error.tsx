@@ -22,7 +22,7 @@ export default function Error({ error, reset }: ErrorProps) {
     console.error("[App Error]", {
       message: error.message,
       digest: error.digest,
-      stack: error.stack,
+      ...(process.env.NODE_ENV === "development" && { stack: error.stack }),
     })
   }, [error])
 

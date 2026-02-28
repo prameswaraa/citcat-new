@@ -8,6 +8,14 @@ import { IconBrandInstagram, IconCircleCheck, IconAlertCircle, IconLoader2 } fro
 
 type CallbackStatus = "loading" | "success" | "error"
 
+// Map error codes to predefined messages - don't use raw URL params
+const ERROR_MESSAGES: Record<string, string> = {
+  'access_denied': 'You cancelled the Instagram authorization. Please try again if you want to connect your account.',
+  'already_connected': 'This Instagram account is already connected to another user.',
+  'invalid_request': 'Invalid authorization request. Please try again.',
+  'server_error': 'Server error occurred. Please try again later.',
+}
+
 export default function InstagramCallbackPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,7 +30,6 @@ export default function InstagramCallbackPage() {
     // Check for success/error from backend redirect
     const success = searchParams.get("success")
     const error = searchParams.get("error")
-    const errorMessage = searchParams.get("message")
     const username = searchParams.get("username")
 
     // Check if this is a popup window (has opener)
@@ -60,14 +67,8 @@ export default function InstagramCallbackPage() {
     // Handle error from backend redirect
     if (error) {
       setStatus("error")
-      let errMsg = ""
-      if (error === "access_denied") {
-        errMsg = "You cancelled the Instagram authorization. Please try again if you want to connect your account."
-      } else if (error === "already_connected") {
-        errMsg = "This Instagram account is already connected to another user."
-      } else {
-        errMsg = errorMessage || "An error occurred during authorization"
-      }
+      // Use predefined error messages only - don't render raw URL params
+      const errMsg = ERROR_MESSAGES[error] || "An error occurred during authorization"
       setMessage(errMsg)
 
       if (isPopup) {

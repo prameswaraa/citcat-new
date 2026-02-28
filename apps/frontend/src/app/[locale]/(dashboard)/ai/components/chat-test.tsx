@@ -25,6 +25,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { aiApi, AIAgent } from "@/lib/api/ai-api"
+import { getSafeErrorMessage } from "@/lib/error-utils"
 
 interface Message {
   id: string
@@ -96,10 +97,7 @@ export function ChatTest({ agents }: ChatTestProps) {
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: "assistant",
-        content:
-          error instanceof Error
-            ? error.message
-            : "Terjadi kesalahan saat mengirim pesan",
+        content: getSafeErrorMessage(error, "Terjadi kesalahan saat mengirim pesan"),
         isError: true,
         timestamp: new Date(),
       }

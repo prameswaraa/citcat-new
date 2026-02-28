@@ -65,7 +65,7 @@ export default function AutoTaggingPage() {
         {error ? (
           <Alert variant="destructive">
             <AlertDescription>
-              Failed to load auto-tagging rules: {error.message}
+              Failed to load auto-tagging rules. Please try again later.
             </AlertDescription>
           </Alert>
         ) : (

@@ -170,7 +170,9 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
 
       const result = await response.json()
 
-      console.log('Broadcast response:', { status: response.status, result })
+      if (process.env.NODE_ENV === "development") {
+        console.log('Broadcast response:', { status: response.status, result })
+      }
 
       if (response.ok && result.success) {
         toast({

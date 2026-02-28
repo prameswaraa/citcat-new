@@ -8,6 +8,15 @@ import { IconBrandFacebook, IconCircleCheck, IconAlertCircle, IconLoader2 } from
 
 type CallbackStatus = "loading" | "success" | "error"
 
+// Map error codes to predefined messages - don't use raw URL params
+const ERROR_MESSAGES: Record<string, string> = {
+  'access_denied': 'You cancelled the Facebook authorization. Please try again if you want to connect your page.',
+  'no_pages': 'No Facebook Pages found. Make sure you are an admin of at least one Facebook Page.',
+  'already_connected': 'This Facebook Page is already connected to another user.',
+  'invalid_request': 'Invalid authorization request. Please try again.',
+  'server_error': 'Server error occurred. Please try again later.',
+}
+
 export default function MessengerCallbackPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,7 +31,6 @@ export default function MessengerCallbackPage() {
     // Check for success/error from backend redirect
     const success = searchParams.get("success")
     const error = searchParams.get("error")
-    const errorMessage = searchParams.get("message")
     const pageCount = searchParams.get("pageCount")
 
     // Check if this is a popup window (has opener)
@@ -65,16 +73,8 @@ export default function MessengerCallbackPage() {
     // Handle error from backend redirect
     if (error) {
       setStatus("error")
-      let errMsg = ""
-      if (error === "access_denied") {
-        errMsg = "You cancelled the Facebook authorization. Please try again if you want to connect your page."
-      } else if (error === "no_pages") {
-        errMsg = "No Facebook Pages found. Make sure you are an admin of at least one Facebook Page."
-      } else if (error === "already_connected") {
-        errMsg = "This Facebook Page is already connected to another user."
-      } else {
-        errMsg = errorMessage || "An error occurred during authorization"
-      }
+      // Use predefined error messages only - don't render raw URL params
+      const errMsg = ERROR_MESSAGES[error] || "An error occurred during authorization"
       setMessage(errMsg)
 
       if (isPopup) {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { wabaApi, type WABADetails } from "@/lib/api/waba-api"
 import { useToast } from "@/hooks/use-toast"
+import { getSafeErrorMessage } from "@/lib/error-utils"
 
 interface WABAConnectionButtonProps {
     onSuccess?: (waba: WABADetails) => void
@@ -80,7 +81,7 @@ export function WABAConnectionButton({
                     toast({
                         variant: "destructive",
                         title: "Error",
-                        description: error.message,
+                        description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
                     })
 
                     if (onError) {
@@ -119,7 +120,7 @@ export function WABAConnectionButton({
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: error.message || "Failed to initialize WhatsApp connection",
+                description: getSafeErrorMessage(error, "Failed to initialize WhatsApp connection"),
             })
 
             if (onError) {
