@@ -14,6 +14,7 @@ import { webhookService } from '../../../../services/webhook-service.js';
 import { handleValidationError, handleError } from '../../../../middleware/errorHandler.js';
 import { resolveCredentialsForSending } from '../../../../utils/whatsapp-account-helper.js';
 import { WhatsAppErrorService } from '../../../../services/whatsapp-error-service.js';
+import { templateRendererService } from '../../../../services/template-renderer-service.js';
 
 const app = new Hono();
 
@@ -902,6 +903,86 @@ async function sendWhatsAppMessage(
     }
   }
   
+  // Lookup template and render content if sending template message
+  let dbTemplate: any = null;
+  let renderedContent: string | null = null;
+
+  if (data.message_type === 'template' && data.template?.name) {
+    dbTemplate = await prisma.messageTemplate.findFirst({
+      where: {
+        userId,
+        templateName: data.template.name,
+        language: data.template.language?.code || 'en',
+      },
+    });
+    
+    if (dbTemplate) {
+      try {
+        // Build WhatsApp template structure from DB fields
+        const components: any[] = [];
+        
+        if (dbTemplate.headerType) {
+          const headerFormat = dbTemplate.headerType.toUpperCase();
+          const isMediaHeader = ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerFormat);
+          if ((headerFormat === 'TEXT' && dbTemplate.headerContent) || isMediaHeader) {
+            components.push({
+              type: 'HEADER',
+              format: headerFormat,
+              text: headerFormat === 'TEXT' ? dbTemplate.headerContent : undefined,
+            });
+          }
+        }
+        
+        components.push({
+          type: 'BODY',
+          text: dbTemplate.content,
+        });
+        
+        if (dbTemplate.footerContent) {
+          components.push({
+            type: 'FOOTER',
+            text: dbTemplate.footerContent,
+          });
+        }
+        
+        if (dbTemplate.buttons && Array.isArray(dbTemplate.buttons) && dbTemplate.buttons.length > 0) {
+          components.push({
+            type: 'BUTTONS',
+            buttons: dbTemplate.buttons,
+          });
+        }
+        
+        const templateStructure = {
+          id: dbTemplate.id,
+          name: dbTemplate.templateName,
+          language: dbTemplate.language,
+          status: dbTemplate.status,
+          category: dbTemplate.category,
+          components,
+        };
+        
+        // Extract variable values from template components
+        const variableValues: Record<string, string> = {};
+        if (data.template.components) {
+          for (const comp of data.template.components) {
+            if (comp.type === 'body' && comp.parameters) {
+              comp.parameters.forEach((param: any, idx: number) => {
+                variableValues[(idx + 1).toString()] = param.text || '';
+              });
+            }
+          }
+        }
+        
+        // Render template to get readable content
+        const rendered = templateRendererService.renderTemplate(templateStructure, variableValues, []);
+        renderedContent = rendered.body || null;
+      } catch (e) {
+        // If parsing fails, use template name as fallback
+        renderedContent = `[Template: ${data.template.name}]`;
+      }
+    }
+  }
+
   // Build WhatsApp message payload with per-account token
   const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
   let messagePayload: any = {
@@ -960,12 +1041,13 @@ async function sendWhatsAppMessage(
       customerId: customer.id,
       messageType: data.message_type.toUpperCase() as any,
       direction: 'OUTBOUND',
-      content: data.content || data.caption || null,
+      content: renderedContent || data.content || data.caption || null,
       mediaUrl: data.media_url || null,
       wamId: result.messages?.[0]?.id,
       status: 'SENT',
       source: 'API',
       whatsappPhoneNumberId: credentials.phoneNumberRecordId,
+      templateId: dbTemplate?.id || null,
     },
   });
   
