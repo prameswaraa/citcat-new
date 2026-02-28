@@ -13,6 +13,7 @@ import { logger } from '../../../../utils/logger.js';
 import { webhookService } from '../../../../services/webhook-service.js';
 import { handleValidationError, handleError } from '../../../../middleware/errorHandler.js';
 import { resolveCredentialsForSending } from '../../../../utils/whatsapp-account-helper.js';
+import { WhatsAppErrorService } from '../../../../services/whatsapp-error-service.js';
 
 const app = new Hono();
 
@@ -497,38 +498,267 @@ async function sendWhatsAppMessage(
   } catch (waError: any) {
     logger.error('WhatsApp API error:', waError);
     
-    // Extract error details from WhatsApp API response
-    const errorMessage = waError?.response?.data?.error?.message 
-      || waError?.message 
-      || 'Failed to send WhatsApp message';
-    const errorCode = waError?.response?.data?.error?.code || 'WhatsAppError';
+    // Use WhatsAppErrorService for consistent error handling
+    const metaError = waError?.response?.data || waError;
+    const errorResponse = WhatsAppErrorService.formatErrorResponse(metaError);
+    const errorInfo = WhatsAppErrorService.getErrorInfo(errorResponse.error.code);
+    const errorCode = errorResponse.error.code;
+    const errorSubcode = errorResponse.error.details?.errorSubcode;
     
-    // Check for common WhatsApp errors
-    if (errorMessage.includes('template') || errorMessage.includes('Template')) {
+    // =========================================
+    // User-friendly error responses (Indonesian)
+    // Structured for Public API consumers
+    // =========================================
+    
+    // Recipient not on WhatsApp (code 131026)
+    if (errorCode === 131026) {
       return c.json({
         error: {
-          code: 'TemplateError',
-          message: errorMessage,
-          details: 'Ensure the template name, language, and variables are correct.',
+          code: errorCode,
+          error_code: 'RecipientNotOnWhatsApp',
+          message: 'Pesan tidak dapat dikirim. Nomor penerima mungkin tidak terdaftar di WhatsApp atau menggunakan versi WhatsApp yang lama.',
+          recovery_action: 'Pastikan nomor penerima aktif di WhatsApp dan menggunakan versi terbaru.',
+          category: 'recipient',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
         },
       }, 400);
     }
     
-    if (errorMessage.includes('phone') || errorMessage.includes('recipient')) {
+    // 24-hour window expired (code 131047)
+    if (errorCode === 131047) {
       return c.json({
         error: {
-          code: 'RecipientError',
-          message: errorMessage,
+          code: errorCode,
+          error_code: 'WindowExpired',
+          message: 'Jendela percakapan 24 jam sudah berakhir. Anda hanya bisa mengirim pesan template.',
+          recovery_action: 'Gunakan pesan template untuk memulai percakapan baru.',
+          category: 'window',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
         },
       }, 400);
     }
     
+    // Rate limit hit (code 130429, 131048, 131056)
+    if ([130429, 131048, 131056].includes(errorCode)) {
+      const isSpamLimit = errorCode === 131048;
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'RateLimitHit',
+          message: isSpamLimit 
+            ? 'Pengiriman pesan dibatasi karena terlalu banyak pesan yang ditandai spam.'
+            : 'Terlalu banyak pesan dikirim. Silakan tunggu beberapa saat sebelum mencoba lagi.',
+          recovery_action: isSpamLimit
+            ? 'Periksa status kualitas nomor di WhatsApp Manager dan tingkatkan kualitas pesan.'
+            : 'Tunggu beberapa menit sebelum mengirim pesan lagi.',
+          category: 'throttling',
+          retryable: !isSpamLimit,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 429);
+    }
+    
+    // User stopped marketing messages (code 131050)
+    if (errorCode === 131050) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'UserOptedOut',
+          message: 'Penerima telah memilih untuk tidak menerima pesan marketing dari bisnis Anda.',
+          recovery_action: 'Hormati preferensi penerima dan jangan kirim pesan marketing ke nomor ini.',
+          category: 'recipient',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Template not found (code 132001)
+    if (errorCode === 132001) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TemplateNotFound',
+          message: 'Template tidak ditemukan atau belum disetujui.',
+          recovery_action: 'Periksa nama template dan pastikan template sudah disetujui. Coba sinkronkan ulang template.',
+          category: 'template',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 404);
+    }
+    
+    // Template param count mismatch (code 132000)
+    if (errorCode === 132000) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TemplateParamMismatch',
+          message: 'Jumlah parameter tidak sesuai dengan template. Periksa variabel yang dikirim.',
+          recovery_action: 'Pastikan jumlah dan format parameter sesuai dengan definisi template.',
+          category: 'template',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Template paused (code 132015)
+    if (errorCode === 132015) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TemplatePaused',
+          message: 'Template sedang dijeda karena masalah kualitas.',
+          recovery_action: 'Edit template untuk meningkatkan kualitasnya atau gunakan template lain.',
+          category: 'template',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Template disabled (code 132016)
+    if (errorCode === 132016) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TemplateDisabled',
+          message: 'Template telah dinonaktifkan secara permanen karena kualitas rendah.',
+          recovery_action: 'Buat template baru dengan konten yang lebih baik.',
+          category: 'template',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Template hydrated text too long (code 132005)
+    if (errorCode === 132005) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TemplateTextTooLong',
+          message: 'Teks template setelah digabung dengan parameter terlalu panjang.',
+          recovery_action: 'Kurangi panjang teks parameter yang dikirim.',
+          category: 'template',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Account locked/blocked (code 131031, 368)
+    if ([131031, 368].includes(errorCode)) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'AccountRestricted',
+          message: 'Akun WhatsApp Business Anda dibatasi atau dikunci karena melanggar kebijakan.',
+          recovery_action: 'Periksa status akun di WhatsApp Manager dan ajukan banding jika diperlukan.',
+          category: 'account',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 403);
+    }
+    
+    // Access token expired (code 190)
+    if (errorCode === 190) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'TokenExpired',
+          message: 'Sesi WhatsApp Anda telah berakhir.',
+          recovery_action: 'Silakan hubungkan ulang akun WhatsApp Business Anda.',
+          category: 'authentication',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 401);
+    }
+    
+    // Phone number deleted/disconnected (code 100 + subcode 33)
+    if (errorCode === 100 && errorSubcode === 33) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'PhoneNumberDisconnected',
+          message: 'Nomor WhatsApp Business Anda sudah tidak terhubung. Nomor mungkin telah dihapus atau diputuskan dari WhatsApp.',
+          recovery_action: 'Silakan hubungkan ulang akun WhatsApp Business Anda di halaman pengaturan WABA.',
+          category: 'configuration',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Service unavailable (code 2, 131016, 133004)
+    if ([2, 131016, 133004].includes(errorCode)) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'ServiceUnavailable',
+          message: 'Layanan WhatsApp sedang tidak tersedia. Silakan coba lagi dalam beberapa menit.',
+          recovery_action: 'Tunggu beberapa menit dan coba lagi.',
+          category: 'service',
+          retryable: true,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 503);
+    }
+    
+    // Media errors (code 131052, 131053)
+    if ([131052, 131053].includes(errorCode)) {
+      const isDownload = errorCode === 131052;
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'MediaError',
+          message: isDownload
+            ? 'Gagal mengunduh media yang dikirim pelanggan.'
+            : 'Gagal mengunggah media. Pastikan file valid dan tidak terlalu besar.',
+          recovery_action: isDownload
+            ? 'Minta pelanggan mengirim ulang media.'
+            : 'Periksa format dan ukuran file, lalu coba lagi.',
+          category: 'media',
+          retryable: true,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // Payment/billing issues (code 131042)
+    if (errorCode === 131042) {
+      return c.json({
+        error: {
+          code: errorCode,
+          error_code: 'PaymentIssue',
+          message: 'Ada masalah dengan pembayaran akun WhatsApp Business Anda.',
+          recovery_action: 'Periksa status pembayaran di Meta Business Suite.',
+          category: 'billing',
+          retryable: false,
+          details: { original_message: errorResponse.error.details?.originalMessage },
+        },
+      }, 400);
+    }
+    
+    // For any other unhandled errors, return a generic user-friendly message
     return c.json({
       error: {
         code: errorCode,
-        message: errorMessage,
+        error_code: 'WhatsAppError',
+        message: 'Gagal mengirim pesan. Silakan coba lagi.',
+        recovery_action: errorInfo.retryable 
+          ? 'Tunggu beberapa saat dan coba lagi.'
+          : 'Jika masalah berlanjut, hubungi tim support.',
+        category: errorInfo.category.toLowerCase(),
+        retryable: errorInfo.retryable,
+        details: { original_message: errorResponse.error.details?.originalMessage },
       },
-    }, 500);
+    }, errorInfo.httpStatus as 400 | 401 | 403 | 404 | 500 | 503);
   }
   
   // Save message to database
