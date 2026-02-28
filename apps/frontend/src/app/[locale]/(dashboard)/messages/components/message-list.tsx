@@ -1,9 +1,10 @@
 import { RefObject, useState } from "react"
-import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone, RotateCcw, Info } from "lucide-react"
+import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone, RotateCcw, Info, Lightbulb } from "lucide-react"
 import { MediaPreview, MediaType } from "./media-preview"
 import { cn } from "@/lib/utils"
 import type { Message, MessageSource } from "@/lib/api/messages-api"
 import { WABAErrorDialog } from "@/components/waba/waba-error-dialog"
+import { getErrorInfo, type WhatsAppErrorInfo } from "../../broadcast/utils/error-categorizer"
 
 interface MessageListProps {
     messages: any[]
@@ -123,6 +124,11 @@ export function MessageList({
         if (!errorMsg) return null
         const match = errorMsg.match(/\(#(\d+)\)/)
         return match ? parseInt(match[1], 10) : null
+    }
+
+    // Get structured error info for display in chat bubble
+    const getStructuredErrorInfo = (errorMessage: string | null | undefined, errorCode?: string | null): WhatsAppErrorInfo => {
+        return getErrorInfo(errorMessage || '', errorCode || undefined)
     }
 
     return (
@@ -462,35 +468,56 @@ export function MessageList({
                                 )}
                             </div>
 
-                            {/* Failed message actions - Retry & Error Details */}
-                            {isFailed && (
-                                <div className="mt-2 space-y-1">
-                                    {msg.errorMessage && (
-                                        <p className="text-[10px] text-red-200 line-clamp-2">{msg.errorMessage}</p>
-                                    )}
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setSelectedErrorMessage(msg)
-                                                setErrorDialogOpen(true)
-                                            }}
-                                            className="flex items-center gap-1 text-[10px] text-red-200 hover:text-white transition-colors"
-                                        >
-                                            <Info className="h-3 w-3" />
-                                            Lihat Detail
-                                        </button>
-                                        {onRetry && (
-                                            <button
-                                                onClick={() => onRetry(msg)}
-                                                className="flex items-center gap-1 text-[10px] text-red-200 hover:text-white transition-colors"
-                                            >
-                                                <RotateCcw className="h-3 w-3" />
-                                                Coba Lagi
-                                            </button>
+                            {/* Failed message actions - Enhanced Error Display */}
+                            {isFailed && (() => {
+                                const errorInfo = getStructuredErrorInfo(msg.errorMessage, msg.errorCode)
+                                return (
+                                    <div className="mt-3 space-y-2 border-t border-red-400/30 pt-2">
+                                        {/* Error Code Badge */}
+                                        {errorInfo.code && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-red-700/50 text-red-100 border border-red-400/30">
+                                                    Error {errorInfo.code}
+                                                </span>
+                                            </div>
                                         )}
+
+                                        {/* User-friendly Indonesian error message */}
+                                        <p className="text-xs text-red-100 font-medium">
+                                            {errorInfo.message}
+                                        </p>
+
+                                        {/* Recovery action suggestion */}
+                                        <div className="flex items-start gap-1.5 text-[11px] text-red-200/90 bg-red-700/30 rounded px-2 py-1.5">
+                                            <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                            <span><strong>Saran:</strong> {errorInfo.recoveryAction}</span>
+                                        </div>
+
+                                        {/* Action buttons */}
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedErrorMessage(msg)
+                                                    setErrorDialogOpen(true)
+                                                }}
+                                                className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors"
+                                            >
+                                                <Info className="h-3 w-3" />
+                                                Lihat Detail
+                                            </button>
+                                            {onRetry && (
+                                                <button
+                                                    onClick={() => onRetry(msg)}
+                                                    className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-colors"
+                                                >
+                                                    <RotateCcw className="h-3 w-3" />
+                                                    Coba Lagi
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                )
+                            })()}
                         </div>
                     </div>
                 )
