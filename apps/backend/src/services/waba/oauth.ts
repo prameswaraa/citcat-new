@@ -150,7 +150,7 @@ export class WABAOAuth {
 
   /**
    * Exchange authorization code for access token
-   * Uses curl as workaround for Node.js networking issues on some VPS
+   * Uses native fetch with axios fallback for reliability
    *
    * @param code - Authorization code from Meta callback
    * @param state - Encrypted state parameter
@@ -182,16 +182,18 @@ export class WABAOAuth {
         url.searchParams.set('code', code);
         url.searchParams.set('redirect_uri', config.redirectUri);
 
-        console.log(`Token exchange attempt ${attempt}/${maxRetries} using curl...`);
+        console.log(`Token exchange attempt ${attempt}/${maxRetries} using fetch...`);
 
-        // Use curl as workaround for Node.js networking issues
-        const { execSync } = await import('child_process');
-        const curlResult = execSync(
-          `curl -s --connect-timeout 30 --max-time 60 "${url.toString()}"`,
-          { encoding: 'utf-8', timeout: 65000 }
-        );
+        // Use native fetch (available in Node.js 18+)
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: AbortSignal.timeout(60000), // 60s timeout
+        });
 
-        const responseData = JSON.parse(curlResult);
+        const responseData = await response.json();
 
         if (responseData.error) {
           const metaError = responseData.error as MetaAPIError;
