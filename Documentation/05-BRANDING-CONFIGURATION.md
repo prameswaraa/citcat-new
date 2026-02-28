@@ -10,6 +10,7 @@ Aplikasi ini mendukung white-label branding yang memungkinkan Anda mengubah:
 - API key prefix
 - Email dan kontak support
 - URL Terms & Privacy
+- Nama package n8n untuk dokumentasi developer
 
 ## Environment Variables
 
@@ -50,12 +51,21 @@ Selain environment variables, Anda juga bisa mengatur branding melalui Admin Das
 1. Login sebagai admin
 2. Buka **Settings → Branding**
 3. Konfigurasi:
+
+### Website Branding
    - **Website Name**: Nama yang ditampilkan di seluruh aplikasi
    - **Logo URL**: URL logo aplikasi
+
+### Support Contact
    - **Support Email**: Email untuk support
    - **Support WhatsApp**: Nomor WhatsApp support
+
+### Legal Pages
    - **Terms URL**: Link ke halaman Terms of Service
    - **Privacy URL**: Link ke halaman Privacy Policy
+
+### Developer Integrations
+   - **n8n Package Name**: Nama NPM package yang ditampilkan di Developer Docs untuk integrasi n8n (default: `@kichat/n8n-nodes-kirimchat`)
 
 > **Note**: Konfigurasi di Admin Dashboard akan override default dari environment variables.
 
@@ -119,6 +129,7 @@ docker compose restart
 - Login/Register page
 - Footer
 - API Documentation
+- Developer Docs (n8n Integration)
 - Email templates
 
 ### Backend

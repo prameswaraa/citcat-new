@@ -11,6 +11,7 @@ export interface BrandingSettings {
   supportWhatsapp: string
   termsUrl: string
   privacyUrl: string
+  n8nPackageName: string
 }
 
 /**
@@ -28,6 +29,7 @@ export const DEFAULT_BRANDING: BrandingSettings = {
   supportWhatsapp: '+6281295648580',
   termsUrl: 'https://kirim.chat/terms',
   privacyUrl: 'https://kirim.chat/privacy',
+  n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 }
 
 export const brandingApi = {

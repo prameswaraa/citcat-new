@@ -13,6 +13,7 @@ export interface UseBrandingReturn {
   supportWhatsapp: string
   termsUrl: string
   privacyUrl: string
+  n8nPackageName: string
   isLoading: boolean
   error: Error | null
   refetch: () => void
@@ -51,6 +52,7 @@ export function useBranding(): UseBrandingReturn {
     supportWhatsapp: branding.supportWhatsapp,
     termsUrl: branding.termsUrl,
     privacyUrl: branding.privacyUrl,
+    n8nPackageName: branding.n8nPackageName,
     isLoading,
     error: error as Error | null,
     refetch,

@@ -18,6 +18,7 @@ import {
   IconPhoto,
   IconWorld,
   IconLink,
+  IconPlugConnected,
 } from "@tabler/icons-react"
 import { useTranslations } from "next-intl"
 import Image from "next/image"
@@ -32,6 +33,7 @@ interface BrandingSettings {
   supportWhatsapp: string
   termsUrl: string
   privacyUrl: string
+  n8nPackageName: string
 }
 
 const defaultSettings: BrandingSettings = {
@@ -41,6 +43,7 @@ const defaultSettings: BrandingSettings = {
   supportWhatsapp: "+6281295648580",
   termsUrl: "https://kirim.chat/terms",
   privacyUrl: "https://kirim.chat/privacy",
+  n8nPackageName: "@kichat/n8n-nodes-kirimchat",
 }
 
 export default function BrandingSettingsPage() {
@@ -550,6 +553,48 @@ export default function BrandingSettingsPage() {
                 <IconLink className="h-4 w-4 text-primary" />
                 <span className="text-sm">{t("branding.privacyPolicy") || "Privacy Policy"}</span>
               </a>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Developer Integrations Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <IconPlugConnected className="h-5 w-5" />
+            {t("branding.developerIntegrations") || "Developer Integrations"}
+          </CardTitle>
+          <CardDescription>
+            {t("branding.developerIntegrationsDesc") || "Configure package names and identifiers for third-party integrations"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="n8nPackageName">
+                <IconPlugConnected className="inline h-4 w-4 mr-1" />
+                {t("branding.n8nPackageName") || "n8n Package Name"}
+              </Label>
+              <Input
+                id="n8nPackageName"
+                value={settings.n8nPackageName}
+                onChange={handleChange("n8nPackageName")}
+                placeholder="@kichat/n8n-nodes-kirimchat"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("branding.n8nPackageNameHint") || "NPM package name displayed in Developer Docs for n8n integration"}
+              </p>
+            </div>
+          </div>
+
+          {/* n8n Package Preview */}
+          <div className="border rounded-lg p-4 bg-muted/30">
+            <Label className="text-sm font-medium mb-3 block">
+              {t("branding.n8nPreview") || "Installation Preview"}
+            </Label>
+            <div className="p-3 bg-background rounded-md border font-mono text-sm">
+              <code className="text-muted-foreground">{settings.n8nPackageName || "@kichat/n8n-nodes-kirimchat"}</code>
             </div>
           </div>
         </CardContent>

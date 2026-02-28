@@ -19,7 +19,7 @@ const sectionIds = navigation.flatMap((group) => group.items.map((item) => item.
 export default function DocsPage() {
   const [activeSection, setActiveSection] = useState(sectionIds[0])
   const isScrollingRef = useRef(false)
-  const { websiteName } = useBranding()
+  const { websiteName, n8nPackageName } = useBranding()
 
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
 
@@ -1858,7 +1858,7 @@ app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
                   </li>
                   <li>
                     Enter{" "}
-                    <code className="bg-muted rounded px-1">@kichat/n8n-nodes-kirimchat</code>{" "}
+                    <code className="bg-muted rounded px-1">{n8nPackageName}</code>{" "}
                     and confirm
                   </li>
                 </ol>

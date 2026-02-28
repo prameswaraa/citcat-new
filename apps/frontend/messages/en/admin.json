@@ -100,6 +100,11 @@
     "legalPreview": "Legal Links Preview",
     "termsOfService": "Terms of Service",
     "privacyPolicy": "Privacy Policy",
-    "invalidUrl": "Invalid URL format"
+    "invalidUrl": "Invalid URL format",
+    "developerIntegrations": "Developer Integrations",
+    "developerIntegrationsDesc": "Configure package names and identifiers for third-party integrations",
+    "n8nPackageName": "n8n Package Name",
+    "n8nPackageNameHint": "NPM package name displayed in Developer Docs for n8n integration",
+    "n8nPreview": "Installation Preview"
   }
 }

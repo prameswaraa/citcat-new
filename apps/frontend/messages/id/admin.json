@@ -100,6 +100,11 @@
     "legalPreview": "Pratinjau Link Legal",
     "termsOfService": "Syarat & Ketentuan",
     "privacyPolicy": "Kebijakan Privasi",
-    "invalidUrl": "Format URL tidak valid"
+    "invalidUrl": "Format URL tidak valid",
+    "developerIntegrations": "Integrasi Developer",
+    "developerIntegrationsDesc": "Konfigurasi nama paket dan identifier untuk integrasi pihak ketiga",
+    "n8nPackageName": "Nama Paket n8n",
+    "n8nPackageNameHint": "Nama paket NPM yang ditampilkan di Dokumentasi Developer untuk integrasi n8n",
+    "n8nPreview": "Pratinjau Instalasi"
   }
 }

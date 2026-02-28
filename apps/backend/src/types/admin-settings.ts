@@ -127,6 +127,7 @@ export interface BrandingSettings {
   supportWhatsapp: string;
   termsUrl: string;
   privacyUrl: string;
+  n8nPackageName: string;
 }
 
 // =============================================================================
@@ -211,6 +212,7 @@ export const BRANDING_SETTINGS_KEYS: SettingKeyConfig[] = [
   { key: 'support_whatsapp', envKey: 'SUPPORT_WHATSAPP', sensitive: false },
   { key: 'terms_url', envKey: 'TERMS_URL', sensitive: false },
   { key: 'privacy_url', envKey: 'PRIVACY_URL', sensitive: false },
+  { key: 'n8n_package_name', envKey: 'N8N_PACKAGE_NAME', sensitive: false },
 ];
 
 /**
@@ -224,6 +226,7 @@ export const DEFAULT_BRANDING: BrandingSettings = {
   supportWhatsapp: '+6281295648580',
   termsUrl: 'https://kirim.chat/terms',
   privacyUrl: 'https://kirim.chat/privacy',
+  n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 };
 
 /**
