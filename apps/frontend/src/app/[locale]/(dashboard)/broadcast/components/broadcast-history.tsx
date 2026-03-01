@@ -91,6 +91,7 @@ interface PaginationInfo {
 
 export function BroadcastHistory() {
   const t = useTranslations("broadcast")
+  const tErrors = useTranslations("whatsappErrors")
   const locale = useLocale()
   const [jobs, setJobs] = useState<BroadcastJob[]>([])
   const [loading, setLoading] = useState(true)
@@ -421,6 +422,7 @@ export function BroadcastHistory() {
             <JobDetailContent
               job={selectedJob}
               t={t}
+              tErrors={tErrors}
               getCategoryIcon={getCategoryIcon}
             />
           ) : null}
@@ -434,10 +436,12 @@ export function BroadcastHistory() {
 function JobDetailContent({
   job,
   t,
+  tErrors,
   getCategoryIcon,
 }: {
   job: JobDetail
   t: (key: string, values?: Record<string, any>) => string
+  tErrors: (key: string, values?: Record<string, any>) => string
   getCategoryIcon: (category: ErrorCategory) => React.ReactNode
 }) {
   // Categorize errors
@@ -545,7 +549,7 @@ function JobDetailContent({
           <div className="space-y-2">
             {errorSummary.categories.map((cat) => {
               const info = ERROR_CATEGORY_INFO[cat.category]
-              const recoveryAction = getCategoryRecoveryAction(cat.category)
+              const recoveryAction = getCategoryRecoveryAction(cat.category, t)
               return (
                 <div
                   key={cat.category}
@@ -604,7 +608,7 @@ function JobDetailContent({
             {job.results.map((result, index) => {
               // Get structured error info for failed results
               const errorInfo = !result.success && result.error
-                ? getErrorInfo(result.error, result.errorCode)
+                ? getErrorInfo(result.error, result.errorCode, tErrors)
                 : null
 
               // Determine the display status and badge color

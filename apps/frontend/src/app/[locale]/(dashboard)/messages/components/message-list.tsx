@@ -1,4 +1,5 @@
 import { RefObject, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone, RotateCcw, Info, Lightbulb } from "lucide-react"
 import { MediaPreview, MediaType } from "./media-preview"
 import { cn } from "@/lib/utils"
@@ -116,6 +117,7 @@ export function MessageList({
     onScroll,
     onRetry
 }: MessageListProps) {
+    const tErrors = useTranslations("whatsappErrors")
     const [errorDialogOpen, setErrorDialogOpen] = useState(false)
     const [selectedErrorMessage, setSelectedErrorMessage] = useState<any>(null)
 
@@ -128,7 +130,7 @@ export function MessageList({
 
     // Get structured error info for display in chat bubble
     const getStructuredErrorInfo = (errorMessage: string | null | undefined, errorCode?: string | null): WhatsAppErrorInfo => {
-        return getErrorInfo(errorMessage || '', errorCode || undefined)
+        return getErrorInfo(errorMessage || '', errorCode || undefined, tErrors)
     }
 
     return (
