@@ -13,12 +13,13 @@ interface ErrorProps {
   reset: () => void
 }
 
+// Root error page - outside locale context, uses English fallback
 export default function Error({ error, reset }: ErrorProps) {
   const router = useRouter()
 
-  // Log error untuk monitoring/debugging
+  // Log error for monitoring/debugging
   useEffect(() => {
-    // Log ke console (bisa diganti dengan error tracking service seperti Sentry)
+    // Log to console (can be replaced with error tracking service like Sentry)
     console.error("[App Error]", {
       message: error.message,
       digest: error.digest,
@@ -34,16 +35,15 @@ export default function Error({ error, reset }: ErrorProps) {
 
         {/* Title */}
         <h1 className="text-2xl font-bold text-foreground">
-          Terjadi Kesalahan
+          Application Error
         </h1>
 
         {/* Description */}
         <p className="mt-2 text-muted-foreground">
-          Mohon maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi
-          atau kembali ke halaman sebelumnya.
+          An unexpected error occurred. Please try again or go back to the previous page.
         </p>
 
-        {/* Error Digest (untuk debugging) */}
+        {/* Error Digest (for debugging) */}
         {error.digest && process.env.NODE_ENV === "development" && (
           <div className="mt-4 rounded-md bg-muted px-3 py-2">
             <code className="text-xs text-muted-foreground">
@@ -56,16 +56,16 @@ export default function Error({ error, reset }: ErrorProps) {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
-            Kembali
+            Go Back
           </Button>
           <Button variant="secondary" onClick={reset}>
             <RotateCcw className="h-4 w-4" />
-            Coba Lagi
+            Try Again
           </Button>
           <Button asChild>
             <Link href="/">
               <Home className="h-4 w-4" />
-              Ke Beranda
+              Go Home
             </Link>
           </Button>
         </div>

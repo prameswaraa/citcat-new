@@ -2,6 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { ArrowLeft, Home, RotateCcw } from "lucide-react"
 
 import { Link } from "@/i18n/routing"
@@ -15,10 +16,11 @@ interface ErrorProps {
 
 export default function Error({ error, reset }: ErrorProps) {
   const router = useRouter()
+  const t = useTranslations("errors")
 
-  // Log error untuk monitoring/debugging
+  // Log error for monitoring/debugging
   useEffect(() => {
-    // Log ke console (bisa diganti dengan error tracking service seperti Sentry)
+    // Log to console (can be replaced with error tracking service like Sentry)
     console.error("[App Error]", {
       message: error.message,
       digest: error.digest,
@@ -34,16 +36,15 @@ export default function Error({ error, reset }: ErrorProps) {
 
         {/* Title */}
         <h1 className="text-2xl font-bold text-foreground">
-          Terjadi Kesalahan
+          {t("appError")}
         </h1>
 
         {/* Description */}
         <p className="mt-2 text-muted-foreground">
-          Mohon maaf, terjadi kesalahan yang tidak terduga. Silakan coba lagi
-          atau kembali ke halaman sebelumnya.
+          {t("genericError")}
         </p>
 
-        {/* Error Digest (untuk debugging) */}
+        {/* Error Digest (for debugging) */}
         {error.digest && process.env.NODE_ENV === "development" && (
           <div className="mt-4 rounded-md bg-muted px-3 py-2">
             <code className="text-xs text-muted-foreground">
@@ -56,16 +57,16 @@ export default function Error({ error, reset }: ErrorProps) {
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <Button variant="outline" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4" />
-            Kembali
+            {t("goBack")}
           </Button>
           <Button variant="secondary" onClick={reset}>
             <RotateCcw className="h-4 w-4" />
-            Coba Lagi
+            {t("tryAgain")}
           </Button>
           <Button asChild>
             <Link href="/">
               <Home className="h-4 w-4" />
-              Ke Beranda
+              {t("goHome")}
             </Link>
           </Button>
         </div>
