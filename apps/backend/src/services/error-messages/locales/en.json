@@ -1,0 +1,192 @@
+{
+  "131026": {
+    "message": "Message could not be sent. The recipient may not be registered on WhatsApp or is using an outdated version.",
+    "recovery_action": "Make sure the recipient's number is active on WhatsApp and using the latest version.",
+    "category": "recipient"
+  },
+  "131047": {
+    "message": "The 24-hour conversation window has expired. You can only send template messages.",
+    "recovery_action": "Use a template message to start a new conversation.",
+    "category": "window"
+  },
+  "130429": {
+    "message": "Too many messages sent. Please wait a moment before trying again.",
+    "recovery_action": "Wait a few minutes before sending messages again.",
+    "category": "throttling"
+  },
+  "131048": {
+    "message": "Message sending is restricted because too many messages have been marked as spam.",
+    "recovery_action": "Check the number quality status in WhatsApp Manager and improve message quality.",
+    "category": "throttling"
+  },
+  "131056": {
+    "message": "Too many messages to this number. Please wait before trying again.",
+    "recovery_action": "Wait a few minutes before sending messages to this number again.",
+    "category": "throttling"
+  },
+  "131050": {
+    "message": "The recipient has opted out of receiving marketing messages from your business.",
+    "recovery_action": "Respect the recipient's preferences and do not send marketing messages to this number.",
+    "category": "recipient"
+  },
+  "132001": {
+    "message": "Template not found or not yet approved.",
+    "recovery_action": "Check the template name and ensure the template is approved. Try syncing templates again.",
+    "category": "template"
+  },
+  "132000": {
+    "message": "Parameter count does not match the template. Check the variables sent.",
+    "recovery_action": "Make sure the number and format of parameters match the template definition.",
+    "category": "template"
+  },
+  "132015": {
+    "message": "Template is paused due to quality issues.",
+    "recovery_action": "Edit the template to improve its quality or use another template.",
+    "category": "template"
+  },
+  "132016": {
+    "message": "Template has been permanently disabled due to low quality.",
+    "recovery_action": "Create a new template with better content.",
+    "category": "template"
+  },
+  "132005": {
+    "message": "Template text after merging with parameters is too long.",
+    "recovery_action": "Reduce the length of the parameter text being sent.",
+    "category": "template"
+  },
+  "132007": {
+    "message": "Template character format violates policy.",
+    "recovery_action": "Check the text format and special characters in parameters.",
+    "category": "template"
+  },
+  "132012": {
+    "message": "Parameter format does not match what the template expects.",
+    "recovery_action": "Make sure the parameter format (text, image, etc.) matches the template definition.",
+    "category": "template"
+  },
+  "131031": {
+    "message": "Your WhatsApp Business account is locked due to policy violations.",
+    "recovery_action": "Check your account status in WhatsApp Manager and file an appeal if needed.",
+    "category": "account"
+  },
+  "368": {
+    "message": "Your WhatsApp Business account is temporarily restricted due to policy violations.",
+    "recovery_action": "Check your account status in WhatsApp Manager and file an appeal if needed.",
+    "category": "account"
+  },
+  "190": {
+    "message": "Your WhatsApp session has expired.",
+    "recovery_action": "Please reconnect your WhatsApp Business account.",
+    "category": "authentication"
+  },
+  "2": {
+    "message": "WhatsApp service is currently unavailable. Please try again in a few minutes.",
+    "recovery_action": "Wait a few minutes and try again.",
+    "category": "service"
+  },
+  "131016": {
+    "message": "WhatsApp service is currently unavailable. Please try again in a few minutes.",
+    "recovery_action": "Wait a few minutes and try again.",
+    "category": "service"
+  },
+  "133004": {
+    "message": "WhatsApp service is currently unavailable. Please try again in a few minutes.",
+    "recovery_action": "Wait a few minutes and try again.",
+    "category": "service"
+  },
+  "131052": {
+    "message": "Failed to download media sent by customer.",
+    "recovery_action": "Ask the customer to resend the media.",
+    "category": "media"
+  },
+  "131053": {
+    "message": "Failed to upload media. Make sure the file is valid and not too large.",
+    "recovery_action": "Check the file format and size, then try again.",
+    "category": "media"
+  },
+  "131042": {
+    "message": "There is an issue with your WhatsApp Business account payment.",
+    "recovery_action": "Check the payment status in Meta Business Suite.",
+    "category": "billing"
+  },
+  "131005": {
+    "message": "Access denied. You do not have permission for this operation.",
+    "recovery_action": "Check the app permissions and account configuration.",
+    "category": "authorization"
+  },
+  "10": {
+    "message": "Permission denied for this operation.",
+    "recovery_action": "Check the app permissions in Meta Business Suite.",
+    "category": "authorization"
+  },
+  "4": {
+    "message": "Too many API requests. Please reduce the sending frequency.",
+    "recovery_action": "Wait a moment and reduce the request frequency.",
+    "category": "throttling"
+  },
+  "80007": {
+    "message": "Sending limit reached. Please wait before trying again.",
+    "recovery_action": "Wait a few minutes before sending messages again.",
+    "category": "throttling"
+  },
+  "131049": {
+    "message": "Meta chose not to deliver this message.",
+    "recovery_action": "Check the message content and ensure it complies with WhatsApp policies.",
+    "category": "integrity"
+  },
+  "131000": {
+    "message": "An error occurred. Please try again.",
+    "recovery_action": "Wait a moment and try again.",
+    "category": "other"
+  },
+  "100": {
+    "message": "Invalid parameter.",
+    "recovery_action": "Check the parameters sent and ensure the format is correct.",
+    "category": "validation"
+  },
+  "131008": {
+    "message": "Required parameter is missing.",
+    "recovery_action": "Make sure all required parameters are included.",
+    "category": "validation"
+  },
+  "131009": {
+    "message": "Invalid parameter value.",
+    "recovery_action": "Check the parameter value and ensure it matches the expected format.",
+    "category": "validation"
+  },
+  "131051": {
+    "message": "Message type is not supported.",
+    "recovery_action": "Use a supported message type (text, template, image, etc.).",
+    "category": "validation"
+  },
+  "131021": {
+    "message": "Recipient cannot be the same as the sender.",
+    "recovery_action": "Use a different recipient number than the sender number.",
+    "category": "validation"
+  },
+  "131057": {
+    "message": "Account is under maintenance. Please try again later.",
+    "recovery_action": "Wait a moment and try again.",
+    "category": "service"
+  },
+  "130497": {
+    "message": "Sending to this country is restricted.",
+    "recovery_action": "Check the country restrictions for your account.",
+    "category": "restriction"
+  },
+  "132068": {
+    "message": "Flow in template is blocked.",
+    "recovery_action": "Check the flow status in WhatsApp Manager.",
+    "category": "template"
+  },
+  "132069": {
+    "message": "Flow in template is temporarily throttled.",
+    "recovery_action": "Wait a moment before trying again.",
+    "category": "template"
+  },
+  "100_33": {
+    "message": "Your WhatsApp Business number is no longer connected. The number may have been deleted or disconnected from WhatsApp.",
+    "recovery_action": "Please reconnect your WhatsApp Business account in the WABA settings page.",
+    "category": "configuration"
+  }
+}
