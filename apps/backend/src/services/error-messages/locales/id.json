@@ -188,5 +188,90 @@
     "message": "Nomor WhatsApp Business Anda sudah tidak terhubung. Nomor mungkin telah dihapus atau diputuskan dari WhatsApp.",
     "recovery_action": "Silakan hubungkan ulang akun WhatsApp Business Anda di halaman pengaturan WABA.",
     "category": "configuration"
+  },
+  "0": {
+    "message": "Tidak dapat mengautentikasi. Token akses mungkin kedaluwarsa atau tidak valid.",
+    "recovery_action": "Perbarui token akses Anda di pengaturan.",
+    "category": "authentication"
+  },
+  "1": {
+    "message": "Kesalahan API tidak diketahui.",
+    "recovery_action": "Coba lagi nanti.",
+    "category": "other"
+  },
+  "3": {
+    "message": "Metode API tidak diizinkan.",
+    "recovery_action": "Periksa metode HTTP yang digunakan.",
+    "category": "other"
+  },
+  "33": {
+    "message": "Nilai parameter tidak valid.",
+    "recovery_action": "Periksa nilai parameter yang dikirim.",
+    "category": "validation"
+  },
+  "131037": {
+    "message": "Nama tampilan nomor telepon bisnis belum disetujui.",
+    "recovery_action": "Tunggu persetujuan nama tampilan atau ajukan ulang.",
+    "category": "configuration"
+  },
+  "131045": {
+    "message": "Sertifikat tidak benar.",
+    "recovery_action": "Periksa konfigurasi sertifikat.",
+    "category": "configuration"
+  },
+  "133000": {
+    "message": "Proses pembatalan pendaftaran tidak lengkap.",
+    "recovery_action": "Selesaikan proses pembatalan pendaftaran terlebih dahulu.",
+    "category": "registration"
+  },
+  "133005": {
+    "message": "PIN verifikasi dua langkah salah.",
+    "recovery_action": "Masukkan PIN yang benar.",
+    "category": "registration"
+  },
+  "133006": {
+    "message": "Nomor telepon harus diverifikasi ulang sebelum mendaftar.",
+    "recovery_action": "Lakukan verifikasi ulang nomor telepon.",
+    "category": "registration"
+  },
+  "133008": {
+    "message": "Terlalu banyak percobaan PIN.",
+    "recovery_action": "Coba lagi nanti.",
+    "category": "registration"
+  },
+  "133009": {
+    "message": "Percobaan PIN terlalu cepat.",
+    "recovery_action": "Tunggu sebentar sebelum mencoba lagi.",
+    "category": "registration"
+  },
+  "133010": {
+    "message": "Nomor telepon tidak terdaftar.",
+    "recovery_action": "Daftarkan nomor telepon terlebih dahulu.",
+    "category": "registration"
+  },
+  "133015": {
+    "message": "Tunggu sebelum mencoba mendaftarkan nomor ini.",
+    "recovery_action": "Tunggu 5 menit sebelum mencoba lagi.",
+    "category": "registration"
+  },
+  "133016": {
+    "message": "Batas percobaan pendaftaran tercapai.",
+    "recovery_action": "Coba lagi setelah nomor tidak diblokir.",
+    "category": "registration"
+  },
+  "135000": {
+    "message": "Kesalahan pengguna umum.",
+    "recovery_action": "Periksa permintaan Anda dan coba lagi.",
+    "category": "other"
+  },
+  "2388019": {
+    "message": "Jumlah template maksimum (250) telah tercapai.",
+    "recovery_action": "Hapus template yang tidak digunakan sebelum membuat yang baru.",
+    "category": "template"
+  },
+  "2388040": {
+    "message": "Template melebihi batas karakter maksimal.",
+    "recovery_action": "Kurangi panjang teks template.",
+    "category": "template"
   }
 }

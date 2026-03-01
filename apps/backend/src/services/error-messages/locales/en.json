@@ -188,5 +188,90 @@
     "message": "Your WhatsApp Business number is no longer connected. The number may have been deleted or disconnected from WhatsApp.",
     "recovery_action": "Please reconnect your WhatsApp Business account in the WABA settings page.",
     "category": "configuration"
+  },
+  "0": {
+    "message": "Unable to authenticate. Access token may be expired or invalid.",
+    "recovery_action": "Update your access token in settings.",
+    "category": "authentication"
+  },
+  "1": {
+    "message": "Unknown API error.",
+    "recovery_action": "Try again later.",
+    "category": "other"
+  },
+  "3": {
+    "message": "API method not allowed.",
+    "recovery_action": "Check the HTTP method used.",
+    "category": "other"
+  },
+  "33": {
+    "message": "Parameter value is not valid.",
+    "recovery_action": "Check the parameter values sent.",
+    "category": "validation"
+  },
+  "131037": {
+    "message": "Business phone number display name has not been approved.",
+    "recovery_action": "Wait for display name approval or resubmit.",
+    "category": "configuration"
+  },
+  "131045": {
+    "message": "Incorrect certificate.",
+    "recovery_action": "Check certificate configuration.",
+    "category": "configuration"
+  },
+  "133000": {
+    "message": "Incomplete deregistration process.",
+    "recovery_action": "Complete the deregistration process first.",
+    "category": "registration"
+  },
+  "133005": {
+    "message": "Two-step verification PIN is incorrect.",
+    "recovery_action": "Enter the correct PIN.",
+    "category": "registration"
+  },
+  "133006": {
+    "message": "Phone number needs to be re-verified before registering.",
+    "recovery_action": "Re-verify the phone number.",
+    "category": "registration"
+  },
+  "133008": {
+    "message": "Too many PIN attempts.",
+    "recovery_action": "Try again later.",
+    "category": "registration"
+  },
+  "133009": {
+    "message": "PIN attempts too fast.",
+    "recovery_action": "Wait a moment before trying again.",
+    "category": "registration"
+  },
+  "133010": {
+    "message": "Phone number is not registered.",
+    "recovery_action": "Register the phone number first.",
+    "category": "registration"
+  },
+  "133015": {
+    "message": "Wait before trying to register this number.",
+    "recovery_action": "Wait 5 minutes before trying again.",
+    "category": "registration"
+  },
+  "133016": {
+    "message": "Registration attempt limit reached.",
+    "recovery_action": "Try again after the number is unblocked.",
+    "category": "registration"
+  },
+  "135000": {
+    "message": "Generic user error.",
+    "recovery_action": "Check your request and try again.",
+    "category": "other"
+  },
+  "2388019": {
+    "message": "Maximum template count (250) has been reached.",
+    "recovery_action": "Delete unused templates before creating new ones.",
+    "category": "template"
+  },
+  "2388040": {
+    "message": "Template exceeds maximum character limit.",
+    "recovery_action": "Reduce the template text length.",
+    "category": "template"
   }
 }
