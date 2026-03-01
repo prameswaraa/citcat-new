@@ -2,52 +2,16 @@ import { prisma } from '../../utils/database.js'
 import { webhookService, WebhookEventType } from '../../services/webhook-service.js'
 import { eventEmitter } from '../../websocket/event-emitter.js'
 import { auditLog } from '../../utils/auditLog.js'
+import { getWhatsAppErrorMessage } from '../../services/error-messages/index.js'
 import type { MessageStatus } from '@prisma/client'
 
 /**
- * Human-readable error messages for common Meta/WhatsApp error codes
- */
-const META_ERROR_MESSAGES: Record<number, string> = {
-  // Payment & Business Eligibility
-  131042: 'Pembayaran Meta belum diselesaikan. Silakan cek metode pembayaran di Meta Business Settings.',
-  131043: 'Akun bisnis belum diverifikasi. Silakan verifikasi bisnis di Meta Business Manager.',
-
-  // Message Delivery
-  131026: 'Pesan tidak dapat dikirim. Nomor tidak valid atau diblokir.',
-  131047: 'Window 24 jam telah berakhir. Gunakan template message untuk menghubungi customer.',
-  131051: 'Pesan tidak dikirim karena kebijakan Meta.',
-  131052: 'Media tidak dapat diunduh dari URL yang diberikan.',
-  131053: 'Gagal mengunduh media. Pastikan URL valid dan dapat diakses.',
-
-  // Template Errors
-  131008: 'Parameter template tidak lengkap. Periksa variabel yang dibutuhkan.',
-  132000: 'Template sedang dijeda atau dinonaktifkan.',
-  132001: 'Jumlah parameter tidak sesuai dengan template.',
-  132005: 'Template tidak ditemukan. Pastikan template sudah diapprove.',
-  132007: 'Template tidak diizinkan untuk kategori ini.',
-  132012: 'Template belum diapprove oleh Meta.',
-  132015: 'Template ditolak. Periksa konten template di WhatsApp Manager.',
-
-  // Rate Limiting
-  130429: 'Terlalu banyak request. Coba lagi dalam beberapa menit.',
-  131048: 'Batas pengiriman tercapai. Coba lagi besok.',
-  131056: 'Batas pengiriman per jam tercapai.',
-
-  // Media Errors
-  131009: 'Media ID tidak valid atau sudah kedaluwarsa.',
-  131016: 'File media terlalu besar.',
-
-  // Account Issues
-  131031: 'Akun bisnis WhatsApp bermasalah. Hubungi support Meta.',
-  131045: 'Akun tidak eligible untuk mengirim pesan.',
-  131049: 'Nomor telepon tidak terdaftar di WhatsApp.',
-}
-
-/**
  * Get human-readable error message for Meta error code
+ * Uses centralized error-messages service with Indonesian locale for internal webhooks
  */
 function getReadableErrorMessage(errorCode: number, fallbackMessage: string): string {
-  return META_ERROR_MESSAGES[errorCode] || fallbackMessage
+  const errorMsg = getWhatsAppErrorMessage(errorCode, 'id')
+  return errorMsg?.message || fallbackMessage
 }
 
 export async function handleMessageStatus(
