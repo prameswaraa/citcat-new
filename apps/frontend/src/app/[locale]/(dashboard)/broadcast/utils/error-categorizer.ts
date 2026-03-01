@@ -6,140 +6,11 @@
  */
 
 /**
- * Indonesian error messages with recovery actions for each WhatsApp error code
+ * Translation function type from next-intl
+ * When t is provided, use t(`${code}.message`) and t(`${code}.recovery`)
+ * When t is NOT provided, return fallback message in English
  */
-export const WHATSAPP_ERROR_MESSAGES_ID: Record<string, {
-  message: string
-  recoveryAction: string
-}> = {
-  // Payment/Billing issues
-  '131042': {
-    message: 'Masalah pembayaran bisnis',
-    recoveryAction: 'Periksa metode pembayaran di Meta Business Suite dan pastikan tagihan terbayar',
-  },
-
-  // Rate limiting
-  '4': {
-    message: 'Terlalu banyak permintaan API',
-    recoveryAction: 'Tunggu beberapa menit sebelum mengirim lagi',
-  },
-  '80007': {
-    message: 'Batas pengiriman tercapai',
-    recoveryAction: 'Tunggu 24 jam sebelum mengirim lagi atau tingkatkan tier akun',
-  },
-  '130429': {
-    message: 'Terlalu banyak pesan dalam waktu singkat',
-    recoveryAction: 'Kurangi kecepatan pengiriman dan coba lagi nanti',
-  },
-  '131048': {
-    message: 'Batas spam tercapai',
-    recoveryAction: 'Tunggu beberapa jam dan pastikan pesan tidak dianggap spam',
-  },
-  '131056': {
-    message: 'Batas pasangan pesan tercapai',
-    recoveryAction: 'Tunggu 24 jam sebelum mengirim ke nomor ini lagi',
-  },
-
-  // Template issues
-  '132000': {
-    message: 'Jumlah parameter tidak sesuai',
-    recoveryAction: 'Periksa jumlah variabel di template dan pastikan sesuai dengan data',
-  },
-  '132001': {
-    message: 'Template tidak ditemukan',
-    recoveryAction: 'Pastikan nama template benar dan template sudah disetujui',
-  },
-  '132005': {
-    message: 'Teks parameter terlalu panjang',
-    recoveryAction: 'Persingkat isi variabel dalam template',
-  },
-  '132007': {
-    message: 'Format karakter tidak sesuai kebijakan',
-    recoveryAction: 'Hapus karakter khusus atau emoji yang tidak diizinkan',
-  },
-  '132012': {
-    message: 'Format parameter tidak sesuai',
-    recoveryAction: 'Periksa format data variabel (misal: tanggal, mata uang)',
-  },
-  '132015': {
-    message: 'Template dijeda sementara',
-    recoveryAction: 'Tunggu hingga template aktif kembali atau hubungi support Meta',
-  },
-  '132016': {
-    message: 'Template dinonaktifkan',
-    recoveryAction: 'Buat template baru atau ajukan banding ke Meta',
-  },
-  '132068': {
-    message: 'Flow diblokir',
-    recoveryAction: 'Periksa konfigurasi flow dan pastikan sesuai kebijakan',
-  },
-  '132069': {
-    message: 'Flow dibatasi',
-    recoveryAction: 'Kurangi frekuensi penggunaan flow',
-  },
-
-  // Recipient issues
-  '131021': {
-    message: 'Tidak bisa mengirim ke nomor sendiri',
-    recoveryAction: 'Gunakan nomor penerima yang berbeda dari nomor pengirim',
-  },
-  '131026': {
-    message: 'Pesan tidak dapat dikirim',
-    recoveryAction: 'Pastikan nomor penerima adalah nomor WhatsApp yang aktif',
-  },
-  '131047': {
-    message: 'Jendela 24 jam sudah berakhir',
-    recoveryAction: 'Gunakan template message untuk mengirim pesan di luar jendela 24 jam',
-  },
-  '131049': {
-    message: 'Meta memilih untuk tidak mengirim pesan',
-    recoveryAction: 'Penerima mungkin menandai pesan sebagai spam, coba kontak melalui channel lain',
-  },
-  '131050': {
-    message: 'Penerima berhenti dari pesan marketing',
-    recoveryAction: 'Hormati preferensi penerima, jangan kirim pesan marketing lagi',
-  },
-  '133010': {
-    message: 'Nomor tidak terdaftar di WhatsApp',
-    recoveryAction: 'Verifikasi nomor penerima dan pastikan mereka menggunakan WhatsApp',
-  },
-
-  // Authorization
-  '0': {
-    message: 'Kesalahan tidak diketahui',
-    recoveryAction: 'Coba lagi nanti atau hubungi support',
-  },
-  '3': {
-    message: 'Izin tidak mencukupi',
-    recoveryAction: 'Periksa izin akses di Meta Business Suite',
-  },
-  '10': {
-    message: 'Izin API tidak valid',
-    recoveryAction: 'Perbarui izin aplikasi di Meta Business Suite',
-  },
-  '190': {
-    message: 'Token akses kedaluwarsa',
-    recoveryAction: 'Hubungkan ulang akun WhatsApp Business Anda',
-  },
-  '131005': {
-    message: 'Akses ditolak',
-    recoveryAction: 'Periksa konfigurasi akun dan izin di Meta Business Suite',
-  },
-
-  // Integrity/Policy
-  '368': {
-    message: 'Akun diblokir sementara',
-    recoveryAction: 'Tunggu hingga pemblokiran berakhir atau ajukan banding ke Meta',
-  },
-  '130497': {
-    message: 'Negara penerima dibatasi',
-    recoveryAction: 'Periksa kebijakan pengiriman ke negara tersebut',
-  },
-  '131031': {
-    message: 'Akun terkunci',
-    recoveryAction: 'Hubungi support Meta untuk membuka kunci akun',
-  },
-}
+export type TranslationFunction = (key: string) => string
 
 /**
  * Error info returned by getErrorInfo
@@ -152,45 +23,91 @@ export interface WhatsAppErrorInfo {
 }
 
 /**
- * Get structured error info from error string and optional error code
+ * Default English fallback messages for common error codes
+ * Used when translation function is not provided
  */
-export function getErrorInfo(error: string, errorCode?: string): WhatsAppErrorInfo {
+const FALLBACK_ERROR_MESSAGES: Record<string, { message: string; recovery: string }> = {
+  unknown: {
+    message: 'An unknown error occurred.',
+    recovery: 'Please try again or contact support.',
+  },
+}
+
+/**
+ * Get structured error info from error string and optional error code
+ * @param error - The error string
+ * @param errorCode - Optional error code
+ * @param t - Optional translation function from next-intl useTranslations('whatsappErrors')
+ */
+export function getErrorInfo(
+  error: string,
+  errorCode?: string,
+  t?: TranslationFunction
+): WhatsAppErrorInfo {
   const code = errorCode || extractErrorCode(error, errorCode)
   const category = categorizeError(error, errorCode)
   
-  if (code && WHATSAPP_ERROR_MESSAGES_ID[code]) {
-    const errorInfo = WHATSAPP_ERROR_MESSAGES_ID[code]
-    return {
-      code,
-      message: errorInfo.message,
-      recoveryAction: errorInfo.recoveryAction,
-      category,
+  // When translation function is provided, use i18n
+  if (t && code) {
+    const message = t(`${code}.message`)
+    const recovery = t(`${code}.recovery`)
+    
+    // Check if translation exists (next-intl returns the key if not found)
+    const hasTranslation = message !== `${code}.message`
+    
+    if (hasTranslation) {
+      return {
+        code,
+        message,
+        recoveryAction: recovery,
+        category,
+      }
     }
   }
 
-  // Fallback for unknown error codes
+  // Fallback for unknown error codes (English)
   return {
     code,
-    message: error || 'Kesalahan tidak diketahui',
-    recoveryAction: 'Coba lagi nanti atau hubungi support',
+    message: error || FALLBACK_ERROR_MESSAGES.unknown.message,
+    recoveryAction: FALLBACK_ERROR_MESSAGES.unknown.recovery,
     category,
   }
 }
 
 /**
- * Get recovery action for a category
+ * Default English recovery actions for each category
  */
-export function getCategoryRecoveryAction(category: ErrorCategory): string {
-  const actions: Record<ErrorCategory, string> = {
-    PAYMENT: 'Periksa metode pembayaran di Meta Business Suite',
-    RATE_LIMIT: 'Tunggu beberapa saat dan kurangi kecepatan pengiriman',
-    TEMPLATE: 'Periksa konfigurasi template dan parameter',
-    RECIPIENT: 'Verifikasi nomor penerima dan status WhatsApp mereka',
-    AUTHORIZATION: 'Hubungkan ulang akun WhatsApp Business',
-    INTEGRITY: 'Tinjau kebijakan Meta dan ajukan banding jika perlu',
-    OTHER: 'Coba lagi nanti atau hubungi support',
+const FALLBACK_CATEGORY_RECOVERY_ACTIONS: Record<ErrorCategory, string> = {
+  PAYMENT: 'Check payment method in Meta Business Suite',
+  RATE_LIMIT: 'Wait a moment and reduce sending speed',
+  TEMPLATE: 'Check template configuration and parameters',
+  RECIPIENT: 'Verify recipient number and their WhatsApp status',
+  AUTHORIZATION: 'Reconnect your WhatsApp Business account',
+  INTEGRITY: 'Review Meta policies and appeal if necessary',
+  OTHER: 'Try again later or contact support',
+}
+
+/**
+ * Get recovery action for a category
+ * @param category - The error category
+ * @param t - Optional translation function from next-intl useTranslations('broadcast')
+ */
+export function getCategoryRecoveryAction(
+  category: ErrorCategory,
+  t?: TranslationFunction
+): string {
+  // When translation function is provided, use i18n
+  if (t) {
+    const key = `errors.recovery.${category}`
+    const translated = t(key)
+    // Check if translation exists (next-intl returns the key if not found)
+    if (translated !== key) {
+      return translated
+    }
   }
-  return actions[category]
+  
+  // Fallback to English
+  return FALLBACK_CATEGORY_RECOVERY_ACTIONS[category]
 }
 
 export type ErrorCategory =
