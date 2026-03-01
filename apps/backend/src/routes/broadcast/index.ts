@@ -154,7 +154,7 @@ app.post('/send', async (c: Context) => {
     let csvData: CsvRow[] = []
 
     if (recipientSource === 'customers' && customerIds) {
-      // Get customers and extract phone numbers
+      // Get customers and extract phone numbers with additional fields for personalization
       const customers = await prisma.customer.findMany({
         where: {
           id: { in: customerIds },
@@ -164,7 +164,13 @@ app.post('/send', async (c: Context) => {
         },
         select: {
           id: true,
-          phoneNumber: true
+          phoneNumber: true,
+          name: true,
+          email: true,
+          tags: true,
+          leadScore: true,
+          notes: true,
+          instagramUsername: true,
         }
       })
 
@@ -177,10 +183,37 @@ app.post('/send', async (c: Context) => {
         }, 400)
       }
 
-      csvData = customers.map(customer => ({
-        phoneNumber: customer.phoneNumber,
-        ...variableValues
-      }))
+      // Build CSV data with customer fields and resolve placeholders
+      csvData = customers.map(customer => {
+        // Start with customer data fields (for placeholder resolution)
+        const customerFields: Record<string, string> = {
+          customer_name: customer.name || '',
+          customer_email: customer.email || '',
+          customer_phone: customer.phoneNumber || '',
+          customer_tags: customer.tags?.join(', ') || '',
+          customer_lead_score: customer.leadScore?.toString() || '0',
+          customer_instagram: customer.instagramUsername || '',
+        }
+
+        // Process variable values - resolve any {customer_*} placeholders
+        const resolvedVariables: Record<string, string> = {}
+        for (const [key, value] of Object.entries(variableValues)) {
+          let resolvedValue = value
+          // Replace {customer_*} placeholders with actual customer data
+          for (const [fieldKey, fieldValue] of Object.entries(customerFields)) {
+            resolvedValue = resolvedValue.replace(new RegExp(`\\{${fieldKey}\\}`, 'gi'), fieldValue)
+          }
+          resolvedVariables[key] = resolvedValue
+        }
+
+        return {
+          phoneNumber: customer.phoneNumber,
+          ...resolvedVariables,
+          // Also include raw customer fields for potential direct use
+          __customer_name: customer.name || '',
+          __customer_email: customer.email || '',
+        }
+      })
     } else if (recipientSource === 'csv' && phoneNumbers) {
       // Validate phone numbers - must be E.164 format with country code
       const validPhones: string[] = []

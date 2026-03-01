@@ -36,7 +36,8 @@
     "title": "Variabel Template",
     "description": "Isi nilai variabel untuk template Anda",
     "placeholder": "Masukkan nilai untuk {{variable}}",
-    "required": "Field ini wajib diisi"
+    "required": "Field ini wajib diisi",
+    "customerPlaceholderHint": "Gunakan tombol 'Sisipkan Field' untuk menambahkan data customer seperti nama, email, dll. Data akan otomatis diisi dari database."
   },
   "recipientSelector": {
     "title": "Pilih Penerima",

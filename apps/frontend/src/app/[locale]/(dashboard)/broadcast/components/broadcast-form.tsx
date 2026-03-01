@@ -275,6 +275,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
             template={selectedTemplate}
             values={variableValues}
             onChange={setVariableValues}
+            recipientMode={recipientMode}
           />
         )}
 

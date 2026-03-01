@@ -1,19 +1,43 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { useTranslations } from "next-intl"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { IconVariable, IconAlertCircle, IconPhoto, IconVideo, IconFile, IconCopy } from "@tabler/icons-react"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { IconVariable, IconAlertCircle, IconPhoto, IconVideo, IconFile, IconCopy, IconUser, IconChevronDown } from "@tabler/icons-react"
 import type { Template } from "../../templates/data/schema"
 
 interface VariableInputProps {
   template: Template
   values: Record<string, string>
   onChange: (values: Record<string, string>) => void
+  /** Mode penerima - jika 'customers', tampilkan opsi placeholder customer */
+  recipientMode?: "customers" | "csv"
 }
+
+/**
+ * Customer field placeholders yang bisa digunakan
+ * Placeholder ini akan di-resolve di backend berdasarkan data customer
+ */
+const CUSTOMER_FIELD_PLACEHOLDERS = [
+  { key: "{customer_name}", label: "Nama Customer", description: "Nama dari database customer" },
+  { key: "{customer_email}", label: "Email Customer", description: "Email dari database customer" },
+  { key: "{customer_phone}", label: "Nomor Telepon", description: "Nomor telepon customer" },
+  { key: "{customer_tags}", label: "Tags", description: "Tags customer (dipisah koma)" },
+  { key: "{customer_lead_score}", label: "Lead Score", description: "Skor lead customer" },
+  { key: "{customer_instagram}", label: "Instagram", description: "Username Instagram customer" },
+] as const
 
 interface VariableInfo {
   key: string
@@ -197,7 +221,7 @@ function extractVariables(template: Template): VariableInfo[] {
   })
 }
 
-export function VariableInput({ template, values, onChange }: VariableInputProps) {
+export function VariableInput({ template, values, onChange, recipientMode = "customers" }: VariableInputProps) {
   const t = useTranslations("broadcast.variableInput")
 
   const variables = useMemo(() => extractVariables(template), [template])
@@ -209,14 +233,43 @@ export function VariableInput({ template, values, onChange }: VariableInputProps
     })
   }
 
+  // Insert customer field placeholder at cursor position or append to value
+  const insertPlaceholder = (variableKey: string, placeholder: string) => {
+    const currentValue = values[variableKey] || ""
+    const inputElement = document.getElementById(`var-${variableKey}`) as HTMLInputElement
+    
+    if (inputElement) {
+      const start = inputElement.selectionStart || currentValue.length
+      const end = inputElement.selectionEnd || currentValue.length
+      const newValue = currentValue.slice(0, start) + placeholder + currentValue.slice(end)
+      handleChange(variableKey, newValue)
+      
+      // Restore cursor position after the inserted placeholder
+      setTimeout(() => {
+        inputElement.focus()
+        inputElement.setSelectionRange(start + placeholder.length, start + placeholder.length)
+      }, 0)
+    } else {
+      handleChange(variableKey, currentValue + placeholder)
+    }
+  }
+
   // Check if all required variables are filled
   const missingVariables = useMemo(() => {
     return variables.filter((v) => !values[v.key]?.trim())
   }, [variables, values])
 
+  // Check if a variable contains customer placeholder
+  const hasCustomerPlaceholder = (value: string) => {
+    return CUSTOMER_FIELD_PLACEHOLDERS.some(p => value.includes(p.key))
+  }
+
   if (variables.length === 0) {
     return null
   }
+
+  // Only show customer field picker for body variables when using customer source
+  const showCustomerFieldPicker = recipientMode === "customers"
 
   return (
     <Card>
@@ -228,39 +281,101 @@ export function VariableInput({ template, values, onChange }: VariableInputProps
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {variables.map((variable) => (
-          <div key={variable.key} className="space-y-2">
-            <div className="flex items-center gap-2">
-              {variable.icon && <span className="text-muted-foreground">{variable.icon}</span>}
-              <Label htmlFor={`var-${variable.key}`} className="text-sm">
-                {variable.source === "header_media" || variable.source === "copy_code"
-                  ? variable.label
-                  : `{{${variable.key}}}`}
-              </Label>
-              <Badge variant="outline" className="text-xs">
-                {variable.source === "header_media" ? "header" : variable.source === "copy_code" ? "button" : variable.source}
-              </Badge>
-            </div>
-            <Input
-              id={`var-${variable.key}`}
-              type={variable.inputType === "url" ? "url" : "text"}
-              value={values[variable.key] || ""}
-              onChange={(e) => handleChange(variable.key, e.target.value)}
-              placeholder={variable.placeholder}
-              className={!values[variable.key]?.trim() ? "border-amber-300" : ""}
-            />
-            {variable.source === "header_media" && (
-              <p className="text-xs text-muted-foreground">
-                Enter a publicly accessible URL for the {variable.key.replace("header_", "")}
-              </p>
-            )}
-            {variable.source === "copy_code" && (
-              <p className="text-xs text-muted-foreground">
-                This code will be copied when user taps the button
-              </p>
-            )}
+        {/* Info about customer placeholders */}
+        {showCustomerFieldPicker && (
+          <div className="flex items-start gap-2 text-blue-600 text-sm bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
+            <IconUser className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>
+              {t("customerPlaceholderHint") || "Gunakan tombol 'Sisipkan Field' untuk menambahkan data customer seperti nama, email, dll. Data akan otomatis diisi dari database."}
+            </span>
           </div>
-        ))}
+        )}
+
+        {variables.map((variable) => {
+          const isBodyVariable = variable.source === "body" || variable.source === "header"
+          const canUseCustomerField = showCustomerFieldPicker && isBodyVariable
+          const currentValue = values[variable.key] || ""
+          const hasPlaceholder = hasCustomerPlaceholder(currentValue)
+
+          return (
+            <div key={variable.key} className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {variable.icon && <span className="text-muted-foreground">{variable.icon}</span>}
+                  <Label htmlFor={`var-${variable.key}`} className="text-sm">
+                    {variable.source === "header_media" || variable.source === "copy_code"
+                      ? variable.label
+                      : `{{${variable.key}}}`}
+                  </Label>
+                  <Badge variant="outline" className="text-xs">
+                    {variable.source === "header_media" ? "header" : variable.source === "copy_code" ? "button" : variable.source}
+                  </Badge>
+                  {hasPlaceholder && (
+                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                      <IconUser className="h-3 w-3 mr-1" />
+                      Personalisasi
+                    </Badge>
+                  )}
+                </div>
+                
+                {/* Customer Field Picker Dropdown */}
+                {canUseCustomerField && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                        <IconUser className="h-3 w-3" />
+                        Sisipkan Field
+                        <IconChevronDown className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Data Customer</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {CUSTOMER_FIELD_PLACEHOLDERS.map((field) => (
+                        <DropdownMenuItem
+                          key={field.key}
+                          onClick={() => insertPlaceholder(variable.key, field.key)}
+                          className="flex flex-col items-start py-2"
+                        >
+                          <span className="font-medium">{field.label}</span>
+                          <span className="text-xs text-muted-foreground">{field.description}</span>
+                          <code className="text-xs mt-1 px-1 py-0.5 bg-muted rounded">{field.key}</code>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+              
+              <Input
+                id={`var-${variable.key}`}
+                type={variable.inputType === "url" ? "url" : "text"}
+                value={currentValue}
+                onChange={(e) => handleChange(variable.key, e.target.value)}
+                placeholder={canUseCustomerField 
+                  ? `Contoh: Halo {customer_name}, ...` 
+                  : variable.placeholder}
+                className={!currentValue.trim() ? "border-amber-300" : hasPlaceholder ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : ""}
+              />
+              
+              {variable.source === "header_media" && (
+                <p className="text-xs text-muted-foreground">
+                  Enter a publicly accessible URL for the {variable.key.replace("header_", "")}
+                </p>
+              )}
+              {variable.source === "copy_code" && (
+                <p className="text-xs text-muted-foreground">
+                  This code will be copied when user taps the button
+                </p>
+              )}
+              {canUseCustomerField && currentValue && hasPlaceholder && (
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  Placeholder akan diganti dengan data customer saat broadcast
+                </p>
+              )}
+            </div>
+          )
+        })}
 
         {/* Validation warning */}
         {missingVariables.length > 0 && (

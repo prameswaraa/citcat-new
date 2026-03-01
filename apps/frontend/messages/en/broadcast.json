@@ -36,7 +36,8 @@
     "title": "Template Variables",
     "description": "Fill in the variable values for your template",
     "placeholder": "Enter value for {{variable}}",
-    "required": "This field is required"
+    "required": "This field is required",
+    "customerPlaceholderHint": "Use the 'Insert Field' button to add customer data like name, email, etc. Data will be automatically filled from the database."
   },
   "recipientSelector": {
     "title": "Select Recipients",
