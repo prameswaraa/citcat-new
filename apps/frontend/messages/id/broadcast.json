@@ -144,6 +144,15 @@
       "checkTemplate": "Tinjau template di Meta",
       "reconnect": "Hubungkan kembali WhatsApp Business Account",
       "reviewPolicy": "Tinjau kebijakan pengiriman pesan Meta"
+    },
+    "recovery": {
+      "PAYMENT": "Periksa metode pembayaran di Meta Business Suite",
+      "RATE_LIMIT": "Tunggu beberapa saat dan kurangi kecepatan pengiriman",
+      "TEMPLATE": "Periksa konfigurasi template dan parameter",
+      "RECIPIENT": "Verifikasi nomor penerima dan status WhatsApp mereka",
+      "AUTHORIZATION": "Hubungkan ulang akun WhatsApp Business",
+      "INTEGRITY": "Tinjau kebijakan Meta dan ajukan banding jika perlu",
+      "OTHER": "Coba lagi nanti atau hubungi dukungan"
     }
   },
   "preview": {

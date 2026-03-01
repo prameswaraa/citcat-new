@@ -144,6 +144,15 @@
       "checkTemplate": "Review template in Meta",
       "reconnect": "Reconnect WhatsApp Business Account",
       "reviewPolicy": "Review Meta's messaging policies"
+    },
+    "recovery": {
+      "PAYMENT": "Check payment method in Meta Business Suite",
+      "RATE_LIMIT": "Wait a moment and reduce sending speed",
+      "TEMPLATE": "Check template configuration and parameters",
+      "RECIPIENT": "Verify recipient number and their WhatsApp status",
+      "AUTHORIZATION": "Reconnect WhatsApp Business account",
+      "INTEGRITY": "Review Meta policies and appeal if necessary",
+      "OTHER": "Try again later or contact support"
     }
   },
   "preview": {
