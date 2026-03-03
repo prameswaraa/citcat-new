@@ -16,14 +16,23 @@ import {
 } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
 
+/** Satu baris data CSV dengan phoneNumber dan variable columns */
+export interface CsvRow {
+  phoneNumber: string
+  [variableName: string]: string
+}
+
 interface CsvUploaderProps {
   phoneNumbers: string[]
   onPhoneNumbersChange: (phones: string[]) => void
+  /** Callback untuk mengirim full CSV data (phone + variables) */
+  onCsvDataChange?: (data: CsvRow[], variableColumns: string[]) => void
 }
 
 interface ParseResult {
-  valid: string[]
+  valid: CsvRow[]
   invalid: string[]
+  variableColumns: string[]
 }
 
 // E.164 phone number validation (basic)
@@ -46,15 +55,27 @@ const normalizePhoneNumber = (phone: string): string => {
 
 const parseCSV = (content: string): ParseResult => {
   const lines = content.split(/\r?\n/).filter((line) => line.trim())
-  if (lines.length === 0) return { valid: [], invalid: [] }
+  if (lines.length === 0) return { valid: [], invalid: [], variableColumns: [] }
 
+  // Parse headers - keep original case for variable columns
+  const rawHeaders = lines[0].split(",").map((h) => h.trim())
+  const headers = rawHeaders.map((h) => h.toLowerCase())
+  
   // Find phoneNumber column
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
   const phoneIndex = headers.findIndex(
     (h) => h === "phonenumber" || h === "phone_number" || h === "phone" || h === "nomor" || h === "no_telepon"
   )
 
-  const valid: string[] = []
+  // Identify variable columns (all columns except phoneNumber)
+  // Variable columns should be named as "1", "2", "3" etc. to match template variables
+  const variableColumns: string[] = []
+  rawHeaders.forEach((header, idx) => {
+    if (idx !== phoneIndex && header) {
+      variableColumns.push(header)
+    }
+  })
+
+  const valid: CsvRow[] = []
   const invalid: string[] = []
   const seen = new Set<string>()
 
@@ -63,7 +84,8 @@ const parseCSV = (content: string): ParseResult => {
   const startRow = phoneIndex >= 0 ? 1 : 0
 
   for (let i = startRow; i < lines.length; i++) {
-    const cols = lines[i].split(",")
+    // Parse CSV line properly (handle quoted values)
+    const cols = parseCSVLine(lines[i])
     const rawPhone = cols[colIndex]?.trim()
     if (!rawPhone) continue
 
@@ -74,25 +96,58 @@ const parseCSV = (content: string): ParseResult => {
     seen.add(normalized)
 
     if (isValidPhoneNumber(normalized)) {
-      valid.push(normalized)
+      // Build row with phoneNumber and all variable values
+      const row: CsvRow = { phoneNumber: normalized }
+      rawHeaders.forEach((header, idx) => {
+        if (idx !== phoneIndex && header) {
+          row[header] = cols[idx]?.trim() || ""
+        }
+      })
+      valid.push(row)
     } else {
       invalid.push(rawPhone)
     }
   }
 
-  return { valid, invalid }
+  return { valid, invalid, variableColumns }
 }
 
-export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderProps) {
+/** Parse a single CSV line, handling quoted values with commas */
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ""
+  let inQuotes = false
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+    
+    if (char === '"') {
+      inQuotes = !inQuotes
+    } else if (char === ',' && !inQuotes) {
+      result.push(current)
+      current = ""
+    } else {
+      current += char
+    }
+  }
+  result.push(current)
+  
+  return result
+}
+
+export function CsvUploader({ phoneNumbers, onPhoneNumbersChange, onCsvDataChange }: CsvUploaderProps) {
   const t = useTranslations("broadcast.csvUploader")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [isDragging, setIsDragging] = useState(false)
   const [invalidNumbers, setInvalidNumbers] = useState<string[]>([])
   const [fileName, setFileName] = useState<string | null>(null)
-  // Store all extracted numbers separately from selected ones
-  const [allExtractedNumbers, setAllExtractedNumbers] = useState<string[]>([])
-  const [selectedNumbers, setSelectedNumbers] = useState<Set<string>>(new Set())
+  // Store all extracted rows (with variable data)
+  const [allExtractedRows, setAllExtractedRows] = useState<CsvRow[]>([])
+  // Track which phone numbers are selected
+  const [selectedPhones, setSelectedPhones] = useState<Set<string>>(new Set())
+  // Track variable columns from CSV
+  const [variableColumns, setVariableColumns] = useState<string[]>([])
 
   const handleFile = useCallback(
     (file: File) => {
@@ -104,18 +159,23 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
       reader.onload = (e) => {
         const content = e.target?.result as string
         const result = parseCSV(content)
-        // Store all valid numbers
-        setAllExtractedNumbers(result.valid)
-        // Select all by default
-        setSelectedNumbers(new Set(result.valid))
-        // Pass selected numbers to parent
-        onPhoneNumbersChange(result.valid)
+        // Store all valid rows (with variable data)
+        setAllExtractedRows(result.valid)
+        // Store variable columns
+        setVariableColumns(result.variableColumns)
+        // Select all by default (by phone number)
+        const phones = result.valid.map(row => row.phoneNumber)
+        setSelectedPhones(new Set(phones))
+        // Pass selected phone numbers to parent
+        onPhoneNumbersChange(phones)
+        // Pass full CSV data to parent
+        onCsvDataChange?.(result.valid, result.variableColumns)
         setInvalidNumbers(result.invalid)
         setFileName(file.name)
       }
       reader.readAsText(file)
     },
-    [onPhoneNumbersChange]
+    [onPhoneNumbersChange, onCsvDataChange]
   )
 
   const handleDrop = useCallback(
@@ -150,39 +210,51 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
 
   const handleClear = () => {
     onPhoneNumbersChange([])
+    onCsvDataChange?.([], [])
     setInvalidNumbers([])
     setFileName(null)
-    setAllExtractedNumbers([])
-    setSelectedNumbers(new Set())
+    setAllExtractedRows([])
+    setSelectedPhones(new Set())
+    setVariableColumns([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
   }
 
   const toggleNumber = (phone: string) => {
-    const newSelected = new Set(selectedNumbers)
+    const newSelected = new Set(selectedPhones)
     if (newSelected.has(phone)) {
       newSelected.delete(phone)
     } else {
       newSelected.add(phone)
     }
-    setSelectedNumbers(newSelected)
+    setSelectedPhones(newSelected)
+    // Update phone numbers
     onPhoneNumbersChange(Array.from(newSelected))
+    // Update CSV data - filter rows by selected phones
+    const selectedRows = allExtractedRows.filter(row => newSelected.has(row.phoneNumber))
+    onCsvDataChange?.(selectedRows, variableColumns)
   }
 
   const selectAll = () => {
-    const newSelected = new Set(allExtractedNumbers)
-    setSelectedNumbers(newSelected)
-    onPhoneNumbersChange(allExtractedNumbers)
+    const allPhones = allExtractedRows.map(row => row.phoneNumber)
+    const newSelected = new Set(allPhones)
+    setSelectedPhones(newSelected)
+    onPhoneNumbersChange(allPhones)
+    onCsvDataChange?.(allExtractedRows, variableColumns)
   }
 
   const deselectAll = () => {
-    setSelectedNumbers(new Set())
+    setSelectedPhones(new Set())
     onPhoneNumbersChange([])
+    onCsvDataChange?.([], variableColumns)
   }
 
   const downloadTemplate = () => {
-    const csvContent = "phoneNumber\n+6281234567890\n+6289876543210"
+    // Template with example variable columns (1, 2, 3, 4)
+    const csvContent = `phoneNumber,1,2,3,4
++6281234567890,Ahmad,Produk A,100000,Jakarta
++6289876543210,Budi,Produk B,200000,Surabaya`
     const blob = new Blob([csvContent], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
@@ -192,7 +264,7 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
     URL.revokeObjectURL(url)
   }
 
-  const hasData = allExtractedNumbers.length > 0 || invalidNumbers.length > 0
+  const hasData = allExtractedRows.length > 0 || invalidNumbers.length > 0
 
   return (
     <div className="space-y-4">
@@ -225,7 +297,7 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
             <div className="flex items-center justify-center gap-4">
               <Badge variant="default" className="gap-1">
                 <IconCheck className="h-3 w-3" />
-                {t("validCount", { count: allExtractedNumbers.length })}
+                {t("validCount", { count: allExtractedRows.length })}
               </Badge>
               {invalidNumbers.length > 0 && (
                 <Badge variant="destructive" className="gap-1">
@@ -259,19 +331,26 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
       </div>
 
       {/* Extracted phone numbers list with selection */}
-      {allExtractedNumbers.length > 0 && (
+      {allExtractedRows.length > 0 && (
         <div className="rounded-md border p-3">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm font-medium">
-              {t("extractedNumbers", { count: allExtractedNumbers.length })}
-            </p>
+            <div>
+              <p className="text-sm font-medium">
+                {t("extractedNumbers", { count: allExtractedRows.length })}
+              </p>
+              {variableColumns.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Kolom variable: {variableColumns.join(", ")}
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={selectAll}
-                disabled={selectedNumbers.size === allExtractedNumbers.length}
+                disabled={selectedPhones.size === allExtractedRows.length}
               >
                 {t("selectAll")}
               </Button>
@@ -280,7 +359,7 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
                 variant="outline"
                 size="sm"
                 onClick={deselectAll}
-                disabled={selectedNumbers.size === 0}
+                disabled={selectedPhones.size === 0}
               >
                 {t("deselectAll")}
               </Button>
@@ -288,22 +367,28 @@ export function CsvUploader({ phoneNumbers, onPhoneNumbersChange }: CsvUploaderP
           </div>
           <ScrollArea className="h-[200px]">
             <div className="space-y-2">
-              {allExtractedNumbers.map((phone, i) => (
+              {allExtractedRows.map((row, i) => (
                 <label
                   key={i}
                   className="flex cursor-pointer items-center gap-3 rounded-md p-2 hover:bg-muted/50"
                 >
                   <Checkbox
-                    checked={selectedNumbers.has(phone)}
-                    onCheckedChange={() => toggleNumber(phone)}
+                    checked={selectedPhones.has(row.phoneNumber)}
+                    onCheckedChange={() => toggleNumber(row.phoneNumber)}
                   />
-                  <span className="font-mono text-sm">{phone}</span>
+                  <span className="font-mono text-sm">{row.phoneNumber}</span>
+                  {/* Show variable values preview */}
+                  {variableColumns.length > 0 && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+                      ({variableColumns.map(col => row[col]).filter(Boolean).join(", ")})
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
           </ScrollArea>
           <div className="text-muted-foreground mt-2 border-t pt-2 text-sm">
-            {t("selectedForBroadcast", { selected: selectedNumbers.size, total: allExtractedNumbers.length })}
+            {t("selectedForBroadcast", { selected: selectedPhones.size, total: allExtractedRows.length })}
           </div>
         </div>
       )}

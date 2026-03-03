@@ -39,6 +39,8 @@ const createBroadcastSchema = z.object({
   recipientSource: z.enum(['customers', 'csv']),
   customerIds: z.array(z.string()).optional(),
   phoneNumbers: z.array(z.string()).optional(),
+  // CSV data with per-row variables (sent directly from frontend for hybrid CSV+manual mode)
+  csvData: z.array(z.record(z.string(), z.string())).optional(),
   phoneNumberId: z.string().optional(), // Selected sender phone number (multi-number support)
   messageDelayMs: z.number().min(0).max(30000).optional().default(1000), // 0-30 seconds, default 1s
 }).refine(
@@ -47,12 +49,14 @@ const createBroadcastSchema = z.object({
       return data.customerIds && data.customerIds.length > 0
     }
     if (data.recipientSource === 'csv') {
-      return data.phoneNumbers && data.phoneNumbers.length > 0
+      // Accept either phoneNumbers OR csvData (with per-row variables)
+      return (data.phoneNumbers && data.phoneNumbers.length > 0) || 
+             (data.csvData && data.csvData.length > 0)
     }
     return false
   },
   {
-    message: 'customerIds required for customers source, phoneNumbers required for csv source'
+    message: 'customerIds required for customers source, phoneNumbers or csvData required for csv source'
   }
 )
 
@@ -104,7 +108,7 @@ app.post('/send', async (c: Context) => {
       return handleValidationError(validation.error, c)
     }
 
-    const { templateName, languageCode, variableValues, recipientSource, customerIds, phoneNumbers, phoneNumberId } = validation.data
+    const { templateName, languageCode, variableValues, recipientSource, customerIds, phoneNumbers, csvData: directCsvData, phoneNumberId } = validation.data
 
     // Resolve credentials: use selected phone number if provided, otherwise fallback
     let credentials = null
@@ -214,49 +218,96 @@ app.post('/send', async (c: Context) => {
           __customer_email: customer.email || '',
         }
       })
-    } else if (recipientSource === 'csv' && phoneNumbers) {
-      // Validate phone numbers - must be E.164 format with country code
-      const validPhones: string[] = []
-      const invalidPhones: string[] = []
+    } else if (recipientSource === 'csv') {
+      // Check if we have direct csvData (with per-row variables from frontend)
+      if (directCsvData && directCsvData.length > 0) {
+        // Use csvData directly from frontend (already contains per-row variables)
+        // Validate phone numbers in csvData
+        const validRows: CsvRow[] = []
+        const invalidPhones: string[] = []
 
-      for (const phone of phoneNumbers) {
-        const cleaned = phone.replace(/[\s-]/g, '')
-        // Must start with + and country code, 10-15 digits total
-        if (/^\+[1-9]\d{9,14}$/.test(cleaned)) {
-          validPhones.push(cleaned)
-        } else {
-          invalidPhones.push(phone)
+        for (const row of directCsvData) {
+          const phone = row.phoneNumber
+          if (!phone) {
+            invalidPhones.push('(empty)')
+            continue
+          }
+          const cleaned = phone.replace(/[\s-]/g, '')
+          if (/^\+[1-9]\d{9,14}$/.test(cleaned)) {
+            validRows.push({ ...row, phoneNumber: cleaned })
+          } else {
+            invalidPhones.push(phone)
+          }
         }
-      }
 
-      // Reject if ANY phone number is invalid
-      if (invalidPhones.length > 0) {
-        return c.json({
-          error: {
-            code: 'ValidationError',
-            message: `Format nomor telepon tidak valid. Gunakan format E.164 dengan kode negara (contoh: +6281234567890)`,
-            details: {
-              invalidPhones: invalidPhones.slice(0, 10), // Show first 10 invalid numbers
-              totalInvalid: invalidPhones.length,
-              hint: 'Pastikan semua nomor dimulai dengan + dan kode negara (contoh: +62 untuk Indonesia)'
+        if (invalidPhones.length > 0) {
+          return c.json({
+            error: {
+              code: 'ValidationError',
+              message: `Format nomor telepon tidak valid. Gunakan format E.164 dengan kode negara (contoh: +6281234567890)`,
+              details: {
+                invalidPhones: invalidPhones.slice(0, 10),
+                totalInvalid: invalidPhones.length,
+                hint: 'Pastikan semua nomor dimulai dengan + dan kode negara (contoh: +62 untuk Indonesia)'
+              }
             }
-          }
-        }, 400)
-      }
+          }, 400)
+        }
 
-      if (validPhones.length === 0) {
-        return c.json({
-          error: {
-            code: 'ValidationError',
-            message: 'Tidak ada nomor telepon yang valid. Pastikan CSV memiliki kolom phoneNumber dengan format E.164 (contoh: +6281234567890)'
-          }
-        }, 400)
-      }
+        if (validRows.length === 0) {
+          return c.json({
+            error: {
+              code: 'ValidationError',
+              message: 'Tidak ada nomor telepon yang valid dalam csvData'
+            }
+          }, 400)
+        }
 
-      csvData = validPhones.map(phone => ({
-        phoneNumber: phone,
-        ...variableValues
-      }))
+        csvData = validRows
+      } else if (phoneNumbers && phoneNumbers.length > 0) {
+        // Fallback: use phoneNumbers array with variableValues (legacy behavior)
+        const validPhones: string[] = []
+        const invalidPhones: string[] = []
+
+        for (const phone of phoneNumbers) {
+          const cleaned = phone.replace(/[\s-]/g, '')
+          // Must start with + and country code, 10-15 digits total
+          if (/^\+[1-9]\d{9,14}$/.test(cleaned)) {
+            validPhones.push(cleaned)
+          } else {
+            invalidPhones.push(phone)
+          }
+        }
+
+        // Reject if ANY phone number is invalid
+        if (invalidPhones.length > 0) {
+          return c.json({
+            error: {
+              code: 'ValidationError',
+              message: `Format nomor telepon tidak valid. Gunakan format E.164 dengan kode negara (contoh: +6281234567890)`,
+              details: {
+                invalidPhones: invalidPhones.slice(0, 10), // Show first 10 invalid numbers
+                totalInvalid: invalidPhones.length,
+                hint: 'Pastikan semua nomor dimulai dengan + dan kode negara (contoh: +62 untuk Indonesia)'
+              }
+            }
+          }, 400)
+        }
+
+        if (validPhones.length === 0) {
+          return c.json({
+            error: {
+              code: 'ValidationError',
+              message: 'Tidak ada nomor telepon yang valid. Pastikan CSV memiliki kolom phoneNumber dengan format E.164 (contoh: +6281234567890)'
+            }
+          }, 400)
+        }
+
+        csvData = validPhones.map(phone => ({
+          phoneNumber: phone,
+          ...variableValues
+        }))
+      }
     }
 
     // Create bulk send job

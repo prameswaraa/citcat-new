@@ -35,7 +35,7 @@ import { toast } from "@/hooks/use-toast"
 import { TemplateSelector } from "./template-selector"
 import { VariableInput, validateVariables } from "./variable-input"
 import { CustomerSelector } from "./customer-selector"
-import { CsvUploader } from "./csv-uploader"
+import { CsvUploader, type CsvRow } from "./csv-uploader"
 import { TemplatePreviewLive } from "./template-preview-live"
 import type { Template } from "../../templates/data/schema"
 import { useWhatsAppPhoneNumbers } from "@/hooks/use-whatsapp-phone-numbers"
@@ -89,17 +89,30 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
   const [phoneNumbers, setPhoneNumbers] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [messageDelay, setMessageDelay] = useState("1000") // Default 1 second
+  // CSV data with variable columns
+  const [csvData, setCsvData] = useState<CsvRow[]>([])
+  const [csvVariableColumns, setCsvVariableColumns] = useState<string[]>([])
 
   // Reset template and customers when phone number changes (templates are per-account)
   useEffect(() => {
     setSelectedTemplate(null)
     setVariableValues({})
     setSelectedCustomerIds([])
+    setCsvData([])
+    setCsvVariableColumns([])
   }, [selectedPhoneNumberId])
+
+  // Handle CSV data change from uploader
+  const handleCsvDataChange = (data: CsvRow[], variableColumns: string[]) => {
+    setCsvData(data)
+    setCsvVariableColumns(variableColumns)
+  }
 
   // Reset variables when template changes
   const handleTemplateSelect = (template: Template | null) => {
     setSelectedTemplate(template)
+    // Keep CSV variable columns but clear manual values
+    // This allows CSV data to persist when changing templates
     setVariableValues({})
   }
 
@@ -107,8 +120,8 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
   const isValid = useMemo(() => {
     if (!selectedTemplate) return false
 
-    // Check variables are filled
-    if (!validateVariables(selectedTemplate, variableValues)) return false
+    // Check variables are filled (skip CSV-provided variables)
+    if (!validateVariables(selectedTemplate, variableValues, csvVariableColumns)) return false
 
     // Check recipients
     if (recipientMode === "customers" && selectedCustomerIds.length === 0)
@@ -122,6 +135,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
     recipientMode,
     selectedCustomerIds,
     phoneNumbers,
+    csvVariableColumns,
   ])
 
   // Get recipient count
@@ -147,16 +161,48 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
       // Use templateName from API response (backend uses templateName)
       const templateName = selectedTemplate.templateName
       
-      const payload = {
-        templateName,
-        languageCode: selectedTemplate.language,
-        variableValues,
-        recipientSource: recipientMode,
-        messageDelayMs: parseInt(messageDelay, 10),
-        ...(selectedPhoneNumber ? { phoneNumberId: selectedPhoneNumber.phoneNumberId } : {}),
-        ...(recipientMode === "customers"
-          ? { customerIds: selectedCustomerIds }
-          : { phoneNumbers }),
+      // For CSV mode with variable columns, merge CSV data with manual variable values
+      let finalPayload: Record<string, unknown>
+      
+      if (recipientMode === "csv" && csvVariableColumns.length > 0) {
+        // Merge CSV data per-row with manual variable values
+        // CSV columns override manual values for those specific variables
+        const mergedCsvData = csvData.map(row => {
+          const merged: Record<string, string> = { phoneNumber: row.phoneNumber }
+          // First, add manual variable values
+          for (const [key, value] of Object.entries(variableValues)) {
+            merged[key] = value
+          }
+          // Then, override with CSV values (CSV takes precedence)
+          for (const col of csvVariableColumns) {
+            if (row[col]) {
+              merged[col] = row[col]
+            }
+          }
+          return merged
+        })
+        
+        finalPayload = {
+          templateName,
+          languageCode: selectedTemplate.language,
+          csvData: mergedCsvData,
+          recipientSource: recipientMode,
+          messageDelayMs: parseInt(messageDelay, 10),
+          ...(selectedPhoneNumber ? { phoneNumberId: selectedPhoneNumber.phoneNumberId } : {}),
+        }
+      } else {
+        // Original behavior for customers mode or CSV without variable columns
+        finalPayload = {
+          templateName,
+          languageCode: selectedTemplate.language,
+          variableValues,
+          recipientSource: recipientMode,
+          messageDelayMs: parseInt(messageDelay, 10),
+          ...(selectedPhoneNumber ? { phoneNumberId: selectedPhoneNumber.phoneNumberId } : {}),
+          ...(recipientMode === "customers"
+            ? { customerIds: selectedCustomerIds }
+            : { phoneNumbers }),
+        }
       }
 
       const response = await fetch(`${apiUrl}/api/v1/broadcast/send`, {
@@ -165,7 +211,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(finalPayload),
       })
 
       const result = await response.json()
@@ -276,6 +322,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
             values={variableValues}
             onChange={setVariableValues}
             recipientMode={recipientMode}
+            csvVariableColumns={csvVariableColumns}
           />
         )}
 
@@ -315,6 +362,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
                   <CsvUploader
                     phoneNumbers={phoneNumbers}
                     onPhoneNumbersChange={setPhoneNumbers}
+                    onCsvDataChange={handleCsvDataChange}
                   />
                 </TabsContent>
               </Tabs>

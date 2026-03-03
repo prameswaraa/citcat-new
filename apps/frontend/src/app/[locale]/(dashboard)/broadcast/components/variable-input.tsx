@@ -15,7 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { IconVariable, IconAlertCircle, IconPhoto, IconVideo, IconFile, IconCopy, IconUser, IconChevronDown } from "@tabler/icons-react"
+import { IconVariable, IconAlertCircle, IconPhoto, IconVideo, IconFile, IconCopy, IconUser, IconChevronDown, IconFileTypeCsv } from "@tabler/icons-react"
 import type { Template } from "../../templates/data/schema"
 
 interface VariableInputProps {
@@ -24,6 +24,8 @@ interface VariableInputProps {
   onChange: (values: Record<string, string>) => void
   /** Mode penerima - jika 'customers', tampilkan opsi placeholder customer */
   recipientMode?: "customers" | "csv"
+  /** Variable columns from CSV file - these will be disabled for manual input */
+  csvVariableColumns?: string[]
 }
 
 /**
@@ -221,7 +223,7 @@ function extractVariables(template: Template): VariableInfo[] {
   })
 }
 
-export function VariableInput({ template, values, onChange, recipientMode = "customers" }: VariableInputProps) {
+export function VariableInput({ template, values, onChange, recipientMode = "customers", csvVariableColumns = [] }: VariableInputProps) {
   const t = useTranslations("broadcast.variableInput")
 
   const variables = useMemo(() => extractVariables(template), [template])
@@ -254,10 +256,14 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
     }
   }
 
-  // Check if all required variables are filled
+  // Check if all required variables are filled (skip CSV-provided variables)
   const missingVariables = useMemo(() => {
-    return variables.filter((v) => !values[v.key]?.trim())
-  }, [variables, values])
+    return variables.filter((v) => {
+      // Skip variables that come from CSV
+      if (csvVariableColumns.includes(v.key)) return false
+      return !values[v.key]?.trim()
+    })
+  }, [variables, values, csvVariableColumns])
 
   // Check if a variable contains customer placeholder
   const hasCustomerPlaceholder = (value: string) => {
@@ -296,6 +302,8 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
           const canUseCustomerField = showCustomerFieldPicker && isBodyVariable
           const currentValue = values[variable.key] || ""
           const hasPlaceholder = hasCustomerPlaceholder(currentValue)
+          // Check if this variable is provided from CSV
+          const isFromCsv = csvVariableColumns.includes(variable.key)
 
           return (
             <div key={variable.key} className="space-y-2">
@@ -310,7 +318,13 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
                   <Badge variant="outline" className="text-xs">
                     {variable.source === "header_media" ? "header" : variable.source === "copy_code" ? "button" : variable.source}
                   </Badge>
-                  {hasPlaceholder && (
+                  {isFromCsv && (
+                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                      <IconFileTypeCsv className="h-3 w-3 mr-1" />
+                      Dari CSV
+                    </Badge>
+                  )}
+                  {hasPlaceholder && !isFromCsv && (
                     <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
                       <IconUser className="h-3 w-3 mr-1" />
                       Personalisasi
@@ -318,8 +332,8 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
                   )}
                 </div>
                 
-                {/* Customer Field Picker Dropdown */}
-                {canUseCustomerField && (
+                {/* Customer Field Picker Dropdown - hide if from CSV */}
+                {canUseCustomerField && !isFromCsv && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
@@ -347,28 +361,46 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
                 )}
               </div>
               
-              <Input
-                id={`var-${variable.key}`}
-                type={variable.inputType === "url" ? "url" : "text"}
-                value={currentValue}
-                onChange={(e) => handleChange(variable.key, e.target.value)}
-                placeholder={canUseCustomerField 
-                  ? `Contoh: Halo {customer_name}, ...` 
-                  : variable.placeholder}
-                className={!currentValue.trim() ? "border-amber-300" : hasPlaceholder ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : ""}
-              />
+              {isFromCsv ? (
+                // Show disabled input with CSV indicator
+                <div className="relative">
+                  <Input
+                    id={`var-${variable.key}`}
+                    type="text"
+                    value={`Nilai dari kolom CSV "${variable.key}"`}
+                    disabled
+                    className="bg-green-50 dark:bg-green-950/20 border-green-300 text-green-700 dark:text-green-300"
+                  />
+                </div>
+              ) : (
+                <Input
+                  id={`var-${variable.key}`}
+                  type={variable.inputType === "url" ? "url" : "text"}
+                  value={currentValue}
+                  onChange={(e) => handleChange(variable.key, e.target.value)}
+                  placeholder={canUseCustomerField 
+                    ? `Contoh: Halo {customer_name}, ...` 
+                    : variable.placeholder}
+                  className={!currentValue.trim() ? "border-amber-300" : hasPlaceholder ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : ""}
+                />
+              )}
               
-              {variable.source === "header_media" && (
+              {variable.source === "header_media" && !isFromCsv && (
                 <p className="text-xs text-muted-foreground">
                   Enter a publicly accessible URL for the {variable.key.replace("header_", "")}
                 </p>
               )}
-              {variable.source === "copy_code" && (
+              {variable.source === "copy_code" && !isFromCsv && (
                 <p className="text-xs text-muted-foreground">
                   This code will be copied when user taps the button
                 </p>
               )}
-              {canUseCustomerField && currentValue && hasPlaceholder && (
+              {isFromCsv && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  Nilai akan diambil dari kolom &quot;{variable.key}&quot; di file CSV untuk setiap penerima
+                </p>
+              )}
+              {canUseCustomerField && currentValue && hasPlaceholder && !isFromCsv && (
                 <p className="text-xs text-blue-600 dark:text-blue-400">
                   Placeholder akan diganti dengan data customer saat broadcast
                 </p>
@@ -393,10 +425,19 @@ export function VariableInput({ template, values, onChange, recipientMode = "cus
 
 /**
  * Check if all variables in a template are filled
+ * @param csvVariableColumns - Variable columns from CSV that don't need manual input
  */
-export function validateVariables(template: Template, values: Record<string, string>): boolean {
+export function validateVariables(
+  template: Template, 
+  values: Record<string, string>, 
+  csvVariableColumns: string[] = []
+): boolean {
   const variables = extractVariables(template)
-  return variables.every((v) => values[v.key]?.trim())
+  return variables.every((v) => {
+    // Skip validation for CSV-provided variables
+    if (csvVariableColumns.includes(v.key)) return true
+    return values[v.key]?.trim()
+  })
 }
 
 export default VariableInput
