@@ -49,6 +49,15 @@ interface SendMessageParams {
     caption?: string
     filename?: string
   }
+  audio?: {
+    link?: string
+    id?: string
+  }
+  video?: {
+    link?: string
+    id?: string
+    caption?: string
+  }
   interactive?: {
     type: 'cta_url' | 'button' | 'list'
     header?: {
@@ -179,6 +188,10 @@ export class WhatsAppAPI {
       payload.image = messageData.image
     } else if (type === 'document' && messageData.document) {
       payload.document = messageData.document
+    } else if (type === 'audio' && messageData.audio) {
+      payload.audio = messageData.audio
+    } else if (type === 'video' && messageData.video) {
+      payload.video = messageData.video
     } else if (type === 'interactive' && messageData.interactive) {
       payload.interactive = messageData.interactive
     }
