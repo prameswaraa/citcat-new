@@ -398,6 +398,7 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
         }).catch(err => console.error('Failed to log message received:', err))
 
         // Emit webhook event for message.received (Requirement 3.1, 8.1, 8.2, 8.4)
+        // Include raw WhatsApp message for advanced integrations
         webhookService.emitEvent(
             user.id,
             'message.received',
@@ -410,7 +411,8 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                 message_type: message.type,
                 content: content || undefined,
                 media_url: mediaUrl || undefined,
-            }
+            },
+            message // Pass raw WhatsApp message
         ).catch(err => console.error('Failed to emit message.received webhook:', err))
 
         // Emit WebSocket event for real-time UI update to ALL team members (business owner + agents)

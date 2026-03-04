@@ -74,6 +74,30 @@ export interface TestEndpointResult {
 }
 
 /**
+ * Sanitized raw WhatsApp message (sensitive fields removed)
+ */
+export interface SanitizedWhatsAppRaw {
+  id: string;
+  from: string;
+  timestamp: string;
+  type: string;
+  text?: { body: string };
+  image?: { caption?: string; mime_type?: string; sha256?: string };
+  video?: { caption?: string; mime_type?: string; sha256?: string };
+  audio?: { mime_type?: string; sha256?: string };
+  document?: { caption?: string; filename?: string; mime_type?: string; sha256?: string };
+  sticker?: { mime_type?: string; sha256?: string };
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
+  contacts?: Array<{ name?: { formatted_name?: string }; phones?: Array<{ phone?: string }> }>;
+  reaction?: { emoji?: string; message_id?: string };
+  interactive?: { type?: string; button_reply?: { id?: string; title?: string }; list_reply?: { id?: string; title?: string } };
+  button?: { text?: string; payload?: string };
+  context?: { from?: string; id?: string; referred_product?: unknown };
+  referral?: unknown;
+  errors?: Array<{ code?: number; title?: string; message?: string }>;
+}
+
+/**
  * Webhook payload structure (as per requirements 8.1, 8.2, 8.4)
  */
 export interface WebhookPayload {
@@ -90,6 +114,7 @@ export interface WebhookPayload {
     content?: string;
     media_url?: string;
     channel: 'whatsapp' | 'instagram' | 'messenger';
+    raw?: SanitizedWhatsAppRaw; // Raw WhatsApp message (WhatsApp only, sensitive fields removed)
   };
 }
 
@@ -627,6 +652,137 @@ export class WebhookService {
   }
 
   /**
+   * Sanitize raw WhatsApp message by removing sensitive fields
+   * Removes: media IDs (can be used to download), internal WhatsApp IDs
+   * Keeps: message structure, content, metadata useful for integrations
+   */
+  private sanitizeWhatsAppRaw(raw: any): SanitizedWhatsAppRaw | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+
+    const sanitized: SanitizedWhatsAppRaw = {
+      id: raw.id,
+      from: raw.from,
+      timestamp: raw.timestamp,
+      type: raw.type,
+    };
+
+    // Copy text content
+    if (raw.text?.body) {
+      sanitized.text = { body: raw.text.body };
+    }
+
+    // Copy media metadata (without media ID which can be used for unauthorized downloads)
+    if (raw.image) {
+      sanitized.image = {
+        caption: raw.image.caption,
+        mime_type: raw.image.mime_type,
+        sha256: raw.image.sha256,
+      };
+    }
+    if (raw.video) {
+      sanitized.video = {
+        caption: raw.video.caption,
+        mime_type: raw.video.mime_type,
+        sha256: raw.video.sha256,
+      };
+    }
+    if (raw.audio) {
+      sanitized.audio = {
+        mime_type: raw.audio.mime_type,
+        sha256: raw.audio.sha256,
+      };
+    }
+    if (raw.document) {
+      sanitized.document = {
+        caption: raw.document.caption,
+        filename: raw.document.filename,
+        mime_type: raw.document.mime_type,
+        sha256: raw.document.sha256,
+      };
+    }
+    if (raw.sticker) {
+      sanitized.sticker = {
+        mime_type: raw.sticker.mime_type,
+        sha256: raw.sticker.sha256,
+      };
+    }
+
+    // Copy location data
+    if (raw.location) {
+      sanitized.location = {
+        latitude: raw.location.latitude,
+        longitude: raw.location.longitude,
+        name: raw.location.name,
+        address: raw.location.address,
+      };
+    }
+
+    // Copy contacts (sanitized)
+    if (raw.contacts && Array.isArray(raw.contacts)) {
+      sanitized.contacts = raw.contacts.map((c: any) => ({
+        name: c.name ? { formatted_name: c.name.formatted_name } : undefined,
+        phones: c.phones?.map((p: any) => ({ phone: p.phone })),
+      }));
+    }
+
+    // Copy reaction data
+    if (raw.reaction) {
+      sanitized.reaction = {
+        emoji: raw.reaction.emoji,
+        message_id: raw.reaction.message_id,
+      };
+    }
+
+    // Copy interactive response data
+    if (raw.interactive) {
+      sanitized.interactive = {
+        type: raw.interactive.type,
+        button_reply: raw.interactive.button_reply ? {
+          id: raw.interactive.button_reply.id,
+          title: raw.interactive.button_reply.title,
+        } : undefined,
+        list_reply: raw.interactive.list_reply ? {
+          id: raw.interactive.list_reply.id,
+          title: raw.interactive.list_reply.title,
+        } : undefined,
+      };
+    }
+
+    // Copy button response
+    if (raw.button) {
+      sanitized.button = {
+        text: raw.button.text,
+        payload: raw.button.payload,
+      };
+    }
+
+    // Copy context (reply info) - exclude sensitive fields
+    if (raw.context) {
+      sanitized.context = {
+        from: raw.context.from,
+        id: raw.context.id,
+        referred_product: raw.context.referred_product,
+      };
+    }
+
+    // Copy referral data (for ads click-to-whatsapp)
+    if (raw.referral) {
+      sanitized.referral = raw.referral;
+    }
+
+    // Copy error information if present
+    if (raw.errors && Array.isArray(raw.errors)) {
+      sanitized.errors = raw.errors.map((e: any) => ({
+        code: e.code,
+        title: e.title,
+        message: e.message,
+      }));
+    }
+
+    return sanitized;
+  }
+
+  /**
    * Emit a webhook event to all matching endpoints for a user
    * Queues webhook delivery jobs to BullMQ within 100ms (Requirement 3.1)
    * 
@@ -637,6 +793,7 @@ export class WebhookService {
    * @param eventType - The type of event
    * @param channel - The channel (whatsapp, instagram, or messenger)
    * @param data - The event data
+   * @param rawWhatsApp - Optional raw WhatsApp message (only for WhatsApp channel)
    */
   async emitEvent(
     userId: string,
@@ -651,7 +808,8 @@ export class WebhookService {
       message_type: string;
       content?: string;
       media_url?: string;
-    }
+    },
+    rawWhatsApp?: any
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -714,6 +872,11 @@ export class WebhookService {
       const idempotencyKey = `${data.message_id}_${eventType}_${Math.floor(Date.now() / 60000)}`;
 
       // Create the webhook payload (Requirements 8.1, 8.2, 8.4)
+      // Include sanitized raw WhatsApp data if available (WhatsApp channel only)
+      const sanitizedRaw = channel === 'whatsapp' && rawWhatsApp 
+        ? this.sanitizeWhatsAppRaw(rawWhatsApp) 
+        : undefined;
+
       const payload: WebhookPayload = {
         event_type: eventType,
         event_id: eventId,
@@ -728,6 +891,7 @@ export class WebhookService {
           content: data.content,
           media_url: data.media_url,
           channel,
+          raw: sanitizedRaw,
         },
       };
 

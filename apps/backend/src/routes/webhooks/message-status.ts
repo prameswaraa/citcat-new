@@ -204,6 +204,8 @@ export async function handleMessageStatus(
       }
 
       if (eventType) {
+        // Include raw status object for status events
+        // Contains: id, status, timestamp, recipient_id, errors (if failed)
         webhookService.emitEvent(
           user.id,
           eventType,
@@ -216,7 +218,8 @@ export async function handleMessageStatus(
             message_type: message.messageType.toLowerCase(),
             content: message.content || undefined,
             media_url: message.mediaUrl || undefined,
-          }
+          },
+          status // Pass raw WhatsApp status object
         ).catch(err => console.error(`Failed to emit ${eventType} webhook:`, err))
       }
     }
