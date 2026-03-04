@@ -691,6 +691,8 @@ app.post('/send', async (c: Context) => {
         message_type: data.type,
         content: content || undefined,
         media_url: mediaUrl || undefined,
+        phone_number_id: credentials.phoneNumberRecordId,
+        business_phone: credentials.displayPhoneNumber,
       }
     ).catch(err => console.error('Failed to emit message.sent webhook:', err))
 

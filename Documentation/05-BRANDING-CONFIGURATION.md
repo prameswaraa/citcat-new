@@ -21,6 +21,11 @@ Aplikasi ini mendukung white-label branding yang memungkinkan Anda mengubah:
 # Contoh: "kc" menghasilkan "kc_live_xxx"
 # Ubah sesuai brand Anda (e.g., "otk" untuk Otika, "myapp" untuk MyApp)
 API_KEY_PREFIX=kc
+
+# Webhook header prefix untuk white-label (default: KirimChat)
+# Mengubah header webhook: X-{PREFIX}-Signature, X-{PREFIX}-Event, dll
+# Contoh: WEBHOOK_HEADER_PREFIX=MyBrand -> X-MyBrand-Signature
+WEBHOOK_HEADER_PREFIX=KirimChat
 ```
 
 ### Frontend (.env)
@@ -90,6 +95,7 @@ API key dengan prefix lama (`kc_live_`) tetap valid meskipun Anda mengubah `API_
 **Backend:**
 ```env
 API_KEY_PREFIX=myapp
+WEBHOOK_HEADER_PREFIX=MyApp
 ```
 
 **Frontend:**
@@ -135,7 +141,7 @@ docker compose restart
 ### Backend
 - Generated API keys
 - Email notifications
-- Webhook signatures
+- Webhook headers (X-{PREFIX}-Signature, X-{PREFIX}-Event, X-{PREFIX}-Delivery, X-{PREFIX}-Idempotency-Key)
 
 ## Troubleshooting
 

@@ -259,6 +259,10 @@ JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 
 API_KEY_PREFIX="kc"
 
+# Webhook header prefix for white-label (default: KirimChat)
+# Changes webhook headers: X-{PREFIX}-Signature, X-{PREFIX}-Event, etc.
+WEBHOOK_HEADER_PREFIX="YourBrand"
+
 # Server Configuration
 NODE_ENV="production"
 PORT=3005

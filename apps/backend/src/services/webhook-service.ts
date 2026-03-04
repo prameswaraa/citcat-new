@@ -15,6 +15,10 @@ const ipv4Agent = new Agent({
 const DEDUP_KEY_PREFIX = 'webhook:dedup:';
 const DEDUP_TTL_SECONDS = 86400; // 24 hours - prevents re-emit for same message
 
+// Webhook header prefix - configurable for white-label (default: KirimChat)
+// Example: X-KirimChat-Signature, X-KirimChat-Event, etc.
+const WEBHOOK_HEADER_PREFIX = process.env.WEBHOOK_HEADER_PREFIX || 'KirimChat';
+
 /**
  * Webhook event types supported by the system
  */
@@ -122,6 +126,8 @@ export interface WebhookPayload {
     content?: string;
     media_url?: string;
     channel: 'whatsapp' | 'instagram' | 'messenger';
+    phone_number_id?: string; // WhatsApp phone number ID (internal)
+    business_phone?: string; // Business phone number that received/sent the message
     raw?: SanitizedWhatsAppRaw; // Raw WhatsApp message (WhatsApp only, sensitive fields removed)
   };
 }
@@ -480,7 +486,7 @@ export class WebhookService {
       event_id: `test_${Date.now()}`,
       timestamp: new Date().toISOString(),
       data: {
-        message: 'This is a test webhook from KirimChat',
+        message: `This is a test webhook from ${WEBHOOK_HEADER_PREFIX}`,
         endpoint_id: endpointId,
       },
     };
@@ -503,8 +509,8 @@ export class WebhookService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-KirimChat-Signature': signature,
-          'X-KirimChat-Event': 'test',
+          [`X-${WEBHOOK_HEADER_PREFIX}-Signature`]: signature,
+          [`X-${WEBHOOK_HEADER_PREFIX}-Event`]: 'test',
         },
         body: payloadString,
         signal: controller.signal,
@@ -818,6 +824,8 @@ export class WebhookService {
       message_type: string;
       content?: string;
       media_url?: string;
+      phone_number_id?: string; // WhatsApp phone number ID (internal)
+      business_phone?: string; // Business phone number that received/sent the message
     },
     rawWhatsApp?: any
   ): Promise<void> {
@@ -901,6 +909,8 @@ export class WebhookService {
           content: data.content,
           media_url: data.media_url,
           channel,
+          phone_number_id: data.phone_number_id,
+          business_phone: data.business_phone,
           raw: sanitizedRaw,
         },
       };

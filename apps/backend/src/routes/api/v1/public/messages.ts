@@ -691,6 +691,8 @@ async function sendWhatsAppMessage(
       message_type: data.message_type,
       content: data.content || data.caption || undefined,
       media_url: data.media_url || undefined,
+      phone_number_id: credentials.phoneNumberRecordId,
+      business_phone: credentials.displayPhoneNumber,
     }
   ).catch(err => logger.error('Failed to emit message.sent webhook:', err));
   

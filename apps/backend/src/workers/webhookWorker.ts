@@ -411,6 +411,8 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                 message_type: message.type,
                 content: content || undefined,
                 media_url: mediaUrl || undefined,
+                phone_number_id: phoneNumberRecord?.id,
+                business_phone: phoneNumberRecord?.displayPhoneNumber,
             },
             message // Pass raw WhatsApp message
         ).catch(err => console.error('Failed to emit message.received webhook:', err))
@@ -726,6 +728,8 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                             direction: 'outbound',
                             message_type: 'text',
                             content: response,
+                            phone_number_id: phoneNumberRecord?.id,
+                            business_phone: phoneNumberRecord?.displayPhoneNumber,
                         }
                     ).catch(err => console.error('Failed to emit message.sent webhook:', err))
                 }

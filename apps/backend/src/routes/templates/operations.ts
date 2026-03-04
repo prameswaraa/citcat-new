@@ -480,7 +480,9 @@ app.post('/send', async (c: Context) => {
         customer_phone: customer.phoneNumber,
         direction: 'outbound',
         message_type: 'template',
-        content: content || undefined
+        content: content || undefined,
+        phone_number_id: credentials.phoneNumberRecordId,
+        business_phone: credentials.displayPhoneNumber,
       }
     ).catch(err => logDetailedError(err, { path: c.req.path, method: c.req.method }))
 

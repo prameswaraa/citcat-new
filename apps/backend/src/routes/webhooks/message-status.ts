@@ -51,6 +51,13 @@ export async function handleMessageStatus(
         mediaUrl: true,
         status: true,
         bulkSendJobId: true,
+        whatsappPhoneNumberId: true,
+        whatsappPhoneNumber: {
+          select: {
+            id: true,
+            displayPhoneNumber: true,
+          }
+        },
         customer: {
           select: {
             id: true,
@@ -218,6 +225,8 @@ export async function handleMessageStatus(
             message_type: message.messageType.toLowerCase(),
             content: message.content || undefined,
             media_url: message.mediaUrl || undefined,
+            phone_number_id: message.whatsappPhoneNumber?.id,
+            business_phone: message.whatsappPhoneNumber?.displayPhoneNumber,
           },
           status // Pass raw WhatsApp status object
         ).catch(err => console.error(`Failed to emit ${eventType} webhook:`, err))

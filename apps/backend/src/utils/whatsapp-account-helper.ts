@@ -25,6 +25,7 @@ export type PhoneNumberWithAccount = PhoneNumber & {
 export interface WhatsAppCredentials {
   phoneNumberId: string
   phoneNumberRecordId: string // PhoneNumber.id (CUID) for saving on Message/Customer
+  displayPhoneNumber: string // E.164 formatted phone number for display
   accessToken: string
   wabaId: string
   whatsappAccountId: string
@@ -148,6 +149,7 @@ export async function resolveCredentialsByPhoneNumber(
   return {
     phoneNumberId: phoneNumberRecord.phoneNumberId,
     phoneNumberRecordId: phoneNumberRecord.id,
+    displayPhoneNumber: phoneNumberRecord.displayPhoneNumber,
     accessToken: decryptAccountToken(account),
     wabaId: account.wabaId,
     whatsappAccountId: account.id,
@@ -183,6 +185,7 @@ export async function resolveCredentialsForSending(
       return {
         phoneNumberId: phoneRecord.phoneNumberId,
         phoneNumberRecordId: phoneRecord.id,
+        displayPhoneNumber: phoneRecord.displayPhoneNumber,
         accessToken: decryptAccountToken(phoneRecord.whatsappAccount),
         wabaId: phoneRecord.whatsappAccount.wabaId,
         whatsappAccountId: phoneRecord.whatsappAccount.id,
@@ -211,6 +214,7 @@ export async function resolveCredentialsForSending(
         return {
           phoneNumberId: customer.whatsappPhoneNumber.phoneNumberId,
           phoneNumberRecordId: customer.whatsappPhoneNumber.id,
+          displayPhoneNumber: customer.whatsappPhoneNumber.displayPhoneNumber,
           accessToken: decryptAccountToken(account),
           wabaId: account.wabaId,
           whatsappAccountId: account.id,
@@ -238,6 +242,7 @@ export async function resolveCredentialsForSending(
     return {
       phoneNumberId: primaryPhone.phoneNumberId,
       phoneNumberRecordId: primaryPhone.id,
+      displayPhoneNumber: primaryPhone.displayPhoneNumber,
       accessToken: decryptAccountToken(primaryPhone.whatsappAccount),
       wabaId: primaryPhone.whatsappAccount.wabaId,
       whatsappAccountId: primaryPhone.whatsappAccount.id,
@@ -262,6 +267,7 @@ export async function resolveCredentialsForSending(
     return {
       phoneNumberId: anyPhone.phoneNumberId,
       phoneNumberRecordId: anyPhone.id,
+      displayPhoneNumber: anyPhone.displayPhoneNumber,
       accessToken: decryptAccountToken(anyPhone.whatsappAccount),
       wabaId: anyPhone.whatsappAccount.wabaId,
       whatsappAccountId: anyPhone.whatsappAccount.id,

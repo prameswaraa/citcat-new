@@ -218,6 +218,7 @@ app.post('/', async (c: Context) => {
         credentials = {
           phoneNumberId: primaryPhone.phoneNumberId,
           phoneNumberRecordId: primaryPhone.id,
+          displayPhoneNumber: primaryPhone.displayPhoneNumber,
           accessToken: decryptAccountToken(account),
           wabaId: account.wabaId,
           whatsappAccountId: account.id,
