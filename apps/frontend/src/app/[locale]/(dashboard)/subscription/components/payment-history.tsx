@@ -6,7 +6,8 @@
  * Requirements: 8.1, 8.2, 8.3, 8.4
  */
 
-import { History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw } from 'lucide-react'
+import { History, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, FileText } from 'lucide-react'
+import { useLocale } from 'next-intl'
 import {
   Card,
   CardContent,
@@ -68,6 +69,7 @@ function formatPrice(amount: number): string {
 }
 
 export function PaymentHistory() {
+  const locale = useLocale()
   const {
     transactions,
     pagination,
@@ -125,6 +127,7 @@ export function PaymentHistory() {
                     <TableHead>Metode</TableHead>
                     <TableHead>Paket</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -155,6 +158,19 @@ export function PaymentHistory() {
                             </Button>
                           )}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {tx.status === 'COMPLETED' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => window.open(`/${locale}/subscription/invoice/${tx.orderId}`, '_blank')}
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Invoice
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

@@ -19,7 +19,8 @@ import { paymentGatewayManager } from './payment/gateway-manager.js';
 import { duitkuProvider } from './payment/providers/duitku-provider.js';
 import { notificationService } from './notification-service.js';
 import { prorateCalculationService, type ProrateInfo } from './prorate-calculation-service.js';
-import type { DuitkuSettings } from '../types/admin-settings.js';
+import type { DuitkuSettings, BrandingSettings } from '../types/admin-settings.js';
+import { DEFAULT_BRANDING } from '../types/admin-settings.js';
 import type { PaymentProvider, PaymentMethod } from './payment/types.js';
 
 // Register providers on module load
@@ -235,13 +236,15 @@ export class PaymentService {
 
   /**
    * Generate unique order ID for payment transaction
-   * Format: KC-{timestamp}-{random}
+   * Format: {PREFIX}-{timestamp}-{random}
+   * PREFIX is configurable via API_KEY_PREFIX env var (default: 'KC')
    * Requirements: 5.2
    */
   generateOrderId(): string {
+    const prefix = (process.env.API_KEY_PREFIX || 'kc').toUpperCase();
     const timestamp = Date.now().toString(36).toUpperCase();
     const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `KC-${timestamp}-${random}`;
+    return `${prefix}-${timestamp}-${random}`;
   }
 
   // ===========================================================================
@@ -1297,6 +1300,115 @@ export class PaymentService {
       });
 
       return { success: false, message: 'Gagal membatalkan transaksi' };
+    }
+  }
+
+  // ===========================================================================
+  // Invoice Data (Task 3.8)
+  // Get invoice data for completed transactions
+  // ===========================================================================
+
+  /**
+   * Get invoice data for a completed transaction
+   * Returns transaction details with user info for invoice display
+   * Uses branding settings for issuer information (whitelabel support)
+   */
+  async getInvoiceData(orderId: string, userId: string): Promise<{
+    orderId: string;
+    invoiceNumber: string;
+    amount: number;
+    discountAmount: number | null;
+    prorateCredit: number | null;
+    paymentMethod: string;
+    targetTier: string;
+    durationDays: number;
+    status: string;
+    createdAt: string;
+    paidAt: string | null;
+    user: {
+      name: string;
+      email: string;
+    };
+    issuer: {
+      name: string;
+      email: string;
+      website: string;
+    };
+  } | null> {
+    try {
+      const transaction = await prisma.paymentTransaction.findFirst({
+        where: {
+          orderId,
+          userId,
+        },
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      if (!transaction) {
+        return null;
+      }
+
+      // Get branding settings for issuer info
+      let branding: BrandingSettings = { ...DEFAULT_BRANDING };
+      try {
+        const brandingSettings = await adminSettingsService.getDecryptedSettings<BrandingSettings>('branding');
+        branding = { ...DEFAULT_BRANDING, ...brandingSettings };
+      } catch (brandingError) {
+        logger.warn('Failed to get branding settings, using defaults', {
+          error: brandingError instanceof Error ? brandingError.message : 'Unknown error',
+        });
+      }
+
+      // Generate invoice number from orderId
+      const invoiceNumber = `INV-${transaction.orderId}`;
+
+      // Extract domain from termsUrl or privacyUrl for website
+      let websiteUrl = '';
+      if (branding.termsUrl) {
+        try {
+          const url = new URL(branding.termsUrl);
+          websiteUrl = `${url.protocol}//${url.host}`;
+        } catch {
+          websiteUrl = branding.termsUrl;
+        }
+      }
+
+      return {
+        orderId: transaction.orderId,
+        invoiceNumber,
+        amount: transaction.amount,
+        discountAmount: transaction.discountAmount,
+        prorateCredit: transaction.prorateCredit,
+        paymentMethod: transaction.paymentMethod,
+        targetTier: transaction.targetTier,
+        durationDays: transaction.durationDays,
+        status: transaction.status,
+        createdAt: transaction.createdAt.toISOString(),
+        paidAt: transaction.paidAt?.toISOString() || null,
+        user: {
+          name: transaction.user.name,
+          email: transaction.user.email,
+        },
+        issuer: {
+          name: branding.websiteName,
+          email: branding.supportEmail,
+          website: websiteUrl,
+        },
+      };
+    } catch (error) {
+      logger.error('Failed to get invoice data', {
+        orderId,
+        userId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return null;
     }
   }
 }

@@ -397,6 +397,53 @@ app.get('/prorate', async (c: Context) => {
 });
 
 // =============================================================================
+// GET /api/v1/payment/invoice/:orderId
+// Get invoice data for a completed transaction
+// =============================================================================
+
+app.get('/invoice/:orderId', async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({
+        error: { code: 'Unauthorized', message: 'Authentication required' },
+      }, 401);
+    }
+
+    const orderId = c.req.param('orderId');
+
+    if (!orderId) {
+      return c.json({
+        error: { code: 'InvalidRequest', message: 'Order ID is required' },
+      }, 400);
+    }
+
+    const invoice = await paymentService.getInvoiceData(orderId, c.user.id);
+
+    if (!invoice) {
+      return c.json({
+        error: { code: 'NotFound', message: 'Invoice not found' },
+      }, 404);
+    }
+
+    if (invoice.status !== 'COMPLETED') {
+      return c.json({
+        error: { code: 'InvalidRequest', message: 'Invoice only available for completed transactions' },
+      }, 400);
+    }
+
+    return c.json({
+      success: true,
+      data: invoice,
+    });
+  } catch (error) {
+    logger.error('Invoice fetch error:', { error: error instanceof Error ? error.message : 'Unknown error' });
+    return c.json({
+      error: { code: 'InternalError', message: 'Failed to get invoice' },
+    }, 500);
+  }
+});
+
+// =============================================================================
 // GET /api/v1/payment/providers
 // Get all registered payment providers with their status
 // Requirements: 8.1, 8.2, 8.3, 8.4
