@@ -37,9 +37,9 @@ function generateVerifyToken(): string {
  * Validate access token by calling Meta Graph API
  */
 async function validateTokenAndFetchWABA(accessToken: string, wabaId: string) {
-  // Fetch WABA details
+  // Fetch WABA details including messaging limit at WABA level
   const wabaResponse = await fetch(
-    `https://graph.facebook.com/v22.0/${wabaId}?fields=id,name,timezone_id,currency,message_template_namespace&access_token=${accessToken}`
+    `https://graph.facebook.com/v22.0/${wabaId}?fields=id,name,timezone_id,currency,message_template_namespace,whatsapp_business_manager_messaging_limit&access_token=${accessToken}`
   )
 
   if (!wabaResponse.ok) {
@@ -53,6 +53,7 @@ async function validateTokenAndFetchWABA(accessToken: string, wabaId: string) {
     timezone_id?: string
     currency?: string
     message_template_namespace?: string
+    whatsapp_business_manager_messaging_limit?: string
   }
 
   // Fetch phone numbers for this WABA
@@ -86,6 +87,7 @@ async function validateTokenAndFetchWABA(accessToken: string, wabaId: string) {
       timezoneId: wabaData.timezone_id,
       currency: wabaData.currency,
       messageTemplateNamespace: wabaData.message_template_namespace,
+      messagingLimitTier: wabaData.whatsapp_business_manager_messaging_limit,
     },
     phoneNumbers: phoneData.data || [],
   }
@@ -157,6 +159,7 @@ app.post('/connect', async (c: Context) => {
         timezoneId: wabaData.waba.timezoneId,
         currency: wabaData.waba.currency,
         messageTemplateNamespace: wabaData.waba.messageTemplateNamespace,
+        messagingTier: wabaData.waba.messagingLimitTier,
         webhookVerifyToken: webhookVerifyToken,
         isManualLogin: true,
         userId: c.user.id,
@@ -173,6 +176,7 @@ app.post('/connect', async (c: Context) => {
         timezoneId: wabaData.waba.timezoneId,
         currency: wabaData.waba.currency,
         messageTemplateNamespace: wabaData.waba.messageTemplateNamespace,
+        messagingTier: wabaData.waba.messagingLimitTier,
         webhookVerifyToken: webhookVerifyToken,
         isManualLogin: true,
         userId: c.user.id,

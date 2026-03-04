@@ -120,6 +120,7 @@ export class WABAResourceDiscovery {
         timezone: wabaDetails.timezone_id || 'UTC',
         currency: wabaDetails.currency || 'USD',
         messageTemplateNamespace: wabaDetails.message_template_namespace || '',
+        messagingLimitTier: wabaDetails.whatsapp_business_manager_messaging_limit || null,
         phoneNumbers,
       };
     } catch (error) {
@@ -230,7 +231,7 @@ export class WABAResourceDiscovery {
         `https://graph.facebook.com/${apiVersion}/${wabaId}`,
         {
           params: {
-            fields: 'id,name,timezone_id,currency,message_template_namespace,account_review_status',
+            fields: 'id,name,timezone_id,currency,message_template_namespace,account_review_status,whatsapp_business_manager_messaging_limit',
             access_token: accessToken,
           },
           timeout: 60000,
@@ -246,7 +247,7 @@ export class WABAResourceDiscovery {
         );
       }
 
-      console.log('WABA details fetched:', response.data.name);
+      console.log('WABA details fetched:', response.data.name, '| Messaging Limit:', response.data.whatsapp_business_manager_messaging_limit);
       return response.data;
     } catch (error) {
       if (error instanceof WABAServiceError) {

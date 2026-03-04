@@ -60,6 +60,7 @@ export interface WABAResources {
   timezone: string;
   currency: string;
   messageTemplateNamespace: string;
+  messagingLimitTier?: string;
   phoneNumbers: PhoneNumberDetails[];
 }
 
@@ -89,6 +90,7 @@ export interface WABADetails {
   currency: string;
   message_template_namespace: string;
   account_review_status?: string;
+  whatsapp_business_manager_messaging_limit?: string;
 }
 
 // ============================================================================

@@ -48,6 +48,7 @@ export interface WhatsAppAccountWithPhoneNumbers {
   lastSyncAt?: string | null
   isCoexistence?: boolean
   isManualLogin?: boolean
+  messagingTier?: string | null
   phoneNumbers: {
     id: string
     phoneNumberId: string

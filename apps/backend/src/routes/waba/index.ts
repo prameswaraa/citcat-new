@@ -43,6 +43,7 @@ app.get('/accounts', async (c: Context) => {
         lastSyncAt: account.lastSyncAt,
         isCoexistence: account.isCoexistence,
         isManualLogin: (account as any).isManualLogin || false,
+        messagingTier: account.messagingTier,
         phoneNumbers: account.phoneNumbers.map(pn => ({
           id: pn.id,
           phoneNumberId: pn.phoneNumberId,

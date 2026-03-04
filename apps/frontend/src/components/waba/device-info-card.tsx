@@ -127,7 +127,8 @@ export function DeviceInfoCard({
   }
 
   const getTierBadge = () => {
-    const tierInfo = getTierInfo(phoneNumber.messagingLimitTier)
+    // Use WABA-level messaging tier instead of phone number level
+    const tierInfo = getTierInfo(account.messagingTier)
     return (
       <Badge variant="outline" className="text-[11px] font-medium gap-1">
         <IconWifi className="h-3 w-3" />

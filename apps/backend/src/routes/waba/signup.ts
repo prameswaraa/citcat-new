@@ -271,6 +271,7 @@ app.get('/callback', async (c: Context) => {
         timezoneId: wabaResources.timezone,
         currency: wabaResources.currency,
         messageTemplateNamespace: wabaResources.messageTemplateNamespace,
+        messagingTier: wabaResources.messagingLimitTier,
         metaAppId: metaApp.id,
         userId: userId,
       },
@@ -286,6 +287,7 @@ app.get('/callback', async (c: Context) => {
         timezoneId: wabaResources.timezone,
         currency: wabaResources.currency,
         messageTemplateNamespace: wabaResources.messageTemplateNamespace,
+        messagingTier: wabaResources.messagingLimitTier,
         metaAppId: metaApp.id,
         userId: userId,
       }

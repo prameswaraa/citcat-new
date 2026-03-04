@@ -124,6 +124,9 @@ app.post('/sync', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) =
 
     const accessToken = decryptAccountToken(account)
 
+    // Fetch WABA details to get messaging limit at WABA level
+    const wabaDetails = await wabaResourcesModule.getWABADetails(wabaId, accessToken)
+
     // Fetch phone numbers from Meta using the known wabaId directly
     // (discoverWABAResources may pick the wrong WABA from target_ids)
     const metaPhoneNumbers = await wabaResourcesModule.getPhoneNumbers(wabaId, accessToken)
@@ -201,10 +204,13 @@ app.post('/sync', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) =
       updatedPhoneNumbers[0].isPrimary = true
     }
 
-    // Update lastSyncAt on the WhatsAppAccount
+    // Update lastSyncAt and messagingTier on the WhatsAppAccount
     await prisma.whatsAppAccount.update({
       where: { id: account.id },
-      data: { lastSyncAt: new Date() }
+      data: { 
+        lastSyncAt: new Date(),
+        messagingTier: wabaDetails.whatsapp_business_manager_messaging_limit || null
+      }
     })
 
     // Audit log
