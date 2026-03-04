@@ -206,16 +206,9 @@ async function processWebhookDelivery(job: Job<WebhookOutboundJobData>): Promise
   });
 
   if (!endpoint) {
-    console.error(`❌ Webhook endpoint ${webhookEndpointId} not found`);
-    await createDeliveryLog({
-      webhookEndpointId,
-      eventId,
-      eventType,
-      payload,
-      status: 'failed',
-      attemptNumber: currentAttempt,
-      errorMessage: 'Webhook endpoint not found',
-    });
+    // Endpoint was deleted - skip delivery without creating log
+    // (can't create delivery log due to foreign key constraint)
+    console.warn(`⏭️ Skipping webhook delivery - endpoint ${webhookEndpointId} was deleted`);
     return;
   }
 
