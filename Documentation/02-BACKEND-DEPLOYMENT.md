@@ -257,6 +257,8 @@ DATABASE_URL="postgresql://postgres:YOUR_STRONG_DB_PASSWORD@localhost:5432/kirim
 # JWT Secret (generate dengan: openssl rand -base64 32)
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 
+API_KEY_PREFIX="kc"
+
 # Server Configuration
 NODE_ENV="production"
 PORT=3005
