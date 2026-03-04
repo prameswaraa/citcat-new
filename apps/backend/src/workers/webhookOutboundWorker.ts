@@ -1,11 +1,19 @@
 import { Worker, Job } from 'bullmq';
 import { Redis } from 'ioredis';
+import { Agent } from 'undici';
 import { createHmac } from 'crypto';
 import { prisma } from '../utils/database.js';
 import { tokenEncryption } from '../utils/tokenEncryption.js';
 import { QUEUE_NAMES } from '../utils/queue.js';
 import { emailService } from '../services/email/index.js';
 import type { WebhookOutboundJobData, WebhookPayload } from '../services/webhook-service.js';
+
+// Create agent that forces IPv4 (fixes ETIMEDOUT/fetch failed on some servers)
+const ipv4Agent = new Agent({
+  connect: {
+    family: 4, // Force IPv4
+  },
+});
 
 // Redis connection for worker
 const redisConnection = new Redis({
@@ -262,6 +270,8 @@ async function processWebhookDelivery(job: Job<WebhookOutboundJobData>): Promise
       },
       body: payloadString,
       signal: controller.signal,
+      // @ts-expect-error - dispatcher is valid for Node.js fetch with undici
+      dispatcher: ipv4Agent,
     });
 
     clearTimeout(timeoutId);

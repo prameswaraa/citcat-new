@@ -1,7 +1,15 @@
 import { randomBytes, randomUUID } from 'crypto';
+import { Agent } from 'undici';
 import { prisma } from '../utils/database.js';
 import { tokenEncryption } from '../utils/tokenEncryption.js';
 import { webhookOutboundQueue, redisConnection } from '../utils/queue.js';
+
+// Create agent that forces IPv4 (fixes ETIMEDOUT/fetch failed on some servers)
+const ipv4Agent = new Agent({
+  connect: {
+    family: 4, // Force IPv4
+  },
+});
 
 // Deduplication key prefix and TTL
 const DEDUP_KEY_PREFIX = 'webhook:dedup:';
@@ -500,6 +508,8 @@ export class WebhookService {
         },
         body: payloadString,
         signal: controller.signal,
+        // @ts-expect-error - dispatcher is valid for Node.js fetch with undici
+        dispatcher: ipv4Agent,
       });
 
       clearTimeout(timeoutId);
