@@ -1,6 +1,5 @@
 import { Header } from "@/components/layout/header"
 import Overview from "../boards/overview"
-import DashboardActions from "../components/dashboard-actions"
 
 export default async function DashboardPage() {
   return (
@@ -15,7 +14,6 @@ export default async function DashboardPage() {
               WhatsApp Business Overview
             </p>
           </div>
-          <DashboardActions />
         </div>
         <Overview />
       </div>

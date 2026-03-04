@@ -20,7 +20,7 @@ import {
   useMessageVolume,
 } from "@/hooks/use-dashboard-stats"
 import { queryKeys } from "@/lib/query-keys"
-import { useDashboardFilter } from "../context/dashboard-filter-context"
+import { useDashboardFilter, type DateRange } from "../context/dashboard-filter-context"
 import type {
   EnhancedDashboardStats,
   MessageVolumeData,
@@ -41,9 +41,19 @@ export function useDashboardStats(filters?: { whatsappPhoneNumberId?: string }):
   const contextFilter = useDashboardFilter()
 
   // Use explicit filters if provided, otherwise fall back to context filter
-  const effectiveFilters = filters ?? (contextFilter.whatsappPhoneNumberId
+  const baseFilters = filters ?? (contextFilter.whatsappPhoneNumberId
     ? { whatsappPhoneNumberId: contextFilter.whatsappPhoneNumberId }
     : undefined)
+
+  // Get days and date range from context
+  const { days, dateRange } = contextFilter
+
+  // Add date range to filters
+  const effectiveFilters = {
+    ...baseFilters,
+    startDate: dateRange.from.toISOString(),
+    endDate: dateRange.to.toISOString(),
+  }
 
   // Use centralized dashboard stats hook with proper cache config
   // Requirements: 2.1, 2.2
@@ -62,7 +72,7 @@ export function useDashboardStats(filters?: { whatsappPhoneNumberId?: string }):
     isLoading: isVolumeLoading,
     isFetching: isVolumeFetching,
     error: volumeError,
-  } = useMessageVolume(30, effectiveFilters)
+  } = useMessageVolume(days, baseFilters)
 
   // Refetch all dashboard data by invalidating queries
   // Requirements: 2.3

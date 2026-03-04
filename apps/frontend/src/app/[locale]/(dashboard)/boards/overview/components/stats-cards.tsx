@@ -20,6 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useDashboardStats } from "../hooks/use-dashboard-stats"
+import { useDashboardFilter } from "../context/dashboard-filter-context"
 
 interface StatsCardData {
   label: string
@@ -54,6 +55,15 @@ const badgeColorClasses = {
 
 export default function StatsCards() {
   const { stats, isLoading } = useDashboardStats()
+  const { days } = useDashboardFilter()
+
+  // Generate simple label based on days
+  const getDateRangeLabel = () => {
+    if (days === 1) return "Today"
+    return `${days}D`
+  }
+
+  const dateRangeLabel = getDateRangeLabel()
 
   if (isLoading) {
     return (
@@ -89,13 +99,16 @@ export default function StatsCards() {
   const qualityColor = qualityRating ? qualityColors[qualityRating] : "green"
   const messagingTier = stats?.quality?.messagingTier ?? "N/A"
 
+  // Get messages in selected range (thisMonth now represents the selected range from backend)
+  const messagesInRange = stats?.messages?.thisMonth ?? 0
+
   // Build stats cards data with real data from API
   // Requirements: 1.1, 1.2, 2.1, 2.2, 5.1
   const statsData: StatsCardData[] = [
     {
-      label: "Messages Today",
-      description: "Total messages sent today with delivery rate",
-      stats: stats?.messages?.today ?? 0,
+      label: `Messages (${dateRangeLabel})`,
+      description: `Total messages in selected date range with delivery rate`,
+      stats: messagesInRange,
       subStats: deliveryRateFormatted,
       type: deliveryRate >= 90 ? "up" : deliveryRate >= 70 ? "neutral" : "down",
       percentage: deliveryRate,
@@ -103,16 +116,16 @@ export default function StatsCards() {
         { value: stats?.messages?.sent ?? 20 },
         { value: stats?.messages?.delivered ?? 35 },
         { value: stats?.messages?.read ?? 28 },
-        { value: stats?.messages?.today ?? 42 },
+        { value: messagesInRange },
       ],
       strokeColor: "hsl(var(--chart-1))",
       icon: IconMessageCircle,
     },
     {
       label: "Total Customers",
-      description: "All registered customers with new this week",
+      description: `All registered customers with new in ${dateRangeLabel.toLowerCase()}`,
       stats: totalCustomers,
-      subStats: `+${newCustomersThisWeek} new this week`,
+      subStats: `+${newCustomersThisWeek} new (${dateRangeLabel.toLowerCase()})`,
       type: newCustomersThisWeek > 0 ? "up" : "neutral",
       percentage: newCustomersPercentage,
       chartData: [

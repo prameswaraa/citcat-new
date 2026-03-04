@@ -117,10 +117,20 @@ export interface QualityMetrics {
 }
 
 export const dashboardApi = {
-  async getStats(filters?: { whatsappPhoneNumberId?: string }): Promise<EnhancedDashboardStats> {
+  async getStats(filters?: { 
+    whatsappPhoneNumberId?: string
+    startDate?: string
+    endDate?: string 
+  }): Promise<EnhancedDashboardStats> {
     const params = new URLSearchParams()
     if (filters?.whatsappPhoneNumberId) {
       params.append('whatsappPhoneNumberId', filters.whatsappPhoneNumberId)
+    }
+    if (filters?.startDate) {
+      params.append('startDate', filters.startDate)
+    }
+    if (filters?.endDate) {
+      params.append('endDate', filters.endDate)
     }
     const queryString = params.toString()
     const url = `${API_URL}/api/v1/dashboard/stats${queryString ? `?${queryString}` : ''}`

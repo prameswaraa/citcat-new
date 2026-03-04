@@ -24,9 +24,18 @@ import { CACHE_TIMES } from '@/lib/cache-config'
  * Caches data for 2 minutes (stale time) and keeps in memory for 10 minutes (gc time).
  * Returns cached data immediately on subsequent visits while revalidating in background.
  */
-export function useDashboardStats(filters?: { whatsappPhoneNumberId?: string }) {
+export function useDashboardStats(filters?: { 
+  whatsappPhoneNumberId?: string
+  startDate?: string
+  endDate?: string 
+}) {
   return useQuery<EnhancedDashboardStats, Error>({
-    queryKey: [...queryKeys.dashboard.stats(), filters?.whatsappPhoneNumberId || 'all'],
+    queryKey: [
+      ...queryKeys.dashboard.stats(), 
+      filters?.whatsappPhoneNumberId || 'all',
+      filters?.startDate || 'default',
+      filters?.endDate || 'default'
+    ],
     queryFn: () => dashboardApi.getStats(filters),
     ...CACHE_TIMES.dashboard,
     // Show cached data on error

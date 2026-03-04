@@ -123,11 +123,22 @@ export class DashboardStatsService {
    * Get comprehensive enhanced stats for user dashboard
    * Requirements: 1.1-1.5, 2.1-2.6, 3.1-3.4, 4.1-4.3, 5.1-5.4
    */
-  static async getEnhancedStats(userId: string, whatsappPhoneNumberId?: string): Promise<EnhancedDashboardStats> {
+  static async getEnhancedStats(
+    userId: string, 
+    whatsappPhoneNumberId?: string,
+    customStartDate?: Date,
+    customEndDate?: Date
+  ): Promise<EnhancedDashboardStats> {
     const now = new Date()
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    
+    // Use custom date range if provided
+    const rangeStart = customStartDate || oneMonthAgo
+    // Set rangeEnd to end of day (23:59:59.999) to include all messages on that day
+    const rangeEndDate = customEndDate || now
+    const rangeEnd = new Date(rangeEndDate.getFullYear(), rangeEndDate.getMonth(), rangeEndDate.getDate(), 23, 59, 59, 999)
 
     // Execute all queries in parallel for performance
     const [
@@ -143,18 +154,18 @@ export class DashboardStatsService {
       activeWindowsCount,
       customerInsights
     ] = await Promise.all([
-      // Message stats with delivery/read rates
-      this.getMessageStats(userId, startOfToday, oneWeekAgo, oneMonthAgo, whatsappPhoneNumberId),
-      // Message type breakdown
-      this.getMessageTypeStats(userId, whatsappPhoneNumberId),
-      // Customer stats
-      this.getCustomerStats(userId, oneWeekAgo, whatsappPhoneNumberId),
+      // Message stats with delivery/read rates (uses custom date range)
+      this.getMessageStats(userId, startOfToday, oneWeekAgo, rangeStart, rangeEnd, whatsappPhoneNumberId),
+      // Message type breakdown (uses custom date range)
+      this.getMessageTypeStats(userId, rangeStart, rangeEnd, whatsappPhoneNumberId),
+      // Customer stats (uses custom date range for "new" count)
+      this.getCustomerStats(userId, rangeStart, rangeEnd, whatsappPhoneNumberId),
       // Template stats by status
       this.getTemplateStats(userId),
       // Template stats by category
       this.getTemplateCategoryStats(userId),
-      // Template usage this month
-      this.getTemplateUsageThisMonth(userId, oneMonthAgo, whatsappPhoneNumberId),
+      // Template usage (uses custom date range)
+      this.getTemplateUsageThisMonth(userId, rangeStart, rangeEnd, whatsappPhoneNumberId),
       // WhatsApp connection status
       this.getWhatsAppStatus(userId),
       // Instagram stats
@@ -436,53 +447,63 @@ export class DashboardStatsService {
     userId: string,
     startOfToday: Date,
     oneWeekAgo: Date,
-    oneMonthAgo: Date,
+    rangeStart: Date,
+    rangeEnd: Date,
     whatsappPhoneNumberId?: string
   ) {
     const stats = await prisma.$queryRaw<Array<{
       total: bigint
       today: bigint
       thisWeek: bigint
-      thisMonth: bigint
+      inRange: bigint
       sent: bigint
       delivered: bigint
       read: bigint
       failed: bigint
+      sentInRange: bigint
+      deliveredInRange: bigint
+      readInRange: bigint
+      failedInRange: bigint
     }>>`
       SELECT
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE timestamp >= ${startOfToday}) as today,
         COUNT(*) FILTER (WHERE timestamp >= ${oneWeekAgo}) as "thisWeek",
-        COUNT(*) FILTER (WHERE timestamp >= ${oneMonthAgo}) as "thisMonth",
+        COUNT(*) FILTER (WHERE timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}) as "inRange",
         COUNT(*) FILTER (WHERE direction = 'OUTBOUND') as sent,
         COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'DELIVERED') as delivered,
         COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'READ') as read,
-        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'FAILED') as failed
+        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'FAILED') as failed,
+        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}) as "sentInRange",
+        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'DELIVERED' AND timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}) as "deliveredInRange",
+        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'READ' AND timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}) as "readInRange",
+        COUNT(*) FILTER (WHERE direction = 'OUTBOUND' AND status = 'FAILED' AND timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}) as "failedInRange"
       FROM "Message"
       WHERE "userId" = ${userId}
       ${whatsappPhoneNumberId ? Prisma.sql`AND "whatsappPhoneNumberId" = ${whatsappPhoneNumberId}` : Prisma.empty}
     `
 
     const row = stats[0]
-    const sent = Number(row.sent)
-    const delivered = Number(row.delivered)
-    const read = Number(row.read)
+    const sent = Number(row.sentInRange)
+    const delivered = Number(row.deliveredInRange)
+    const read = Number(row.readInRange)
 
     return {
       total: Number(row.total),
       today: Number(row.today),
       thisWeek: Number(row.thisWeek),
-      thisMonth: Number(row.thisMonth),
+      thisMonth: Number(row.inRange), // Now represents selected range
+      inRange: Number(row.inRange),
       sent,
       delivered,
       read,
-      failed: Number(row.failed),
+      failed: Number(row.failedInRange),
       deliveryRate: sent > 0 ? Math.round((delivered / sent) * 100 * 10) / 10 : 0,
       readRate: delivered > 0 ? Math.round((read / delivered) * 100 * 10) / 10 : 0
     }
   }
 
-  private static async getMessageTypeStats(userId: string, whatsappPhoneNumberId?: string) {
+  private static async getMessageTypeStats(userId: string, rangeStart: Date, rangeEnd: Date, whatsappPhoneNumberId?: string) {
     const stats = await prisma.$queryRaw<Array<{
       text: bigint
       image: bigint
@@ -500,6 +521,7 @@ export class DashboardStatsService {
         COUNT(*) FILTER (WHERE "messageType" NOT IN ('TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT', 'TEMPLATE')) as other
       FROM "Message"
       WHERE "userId" = ${userId}
+      AND timestamp >= ${rangeStart} AND timestamp <= ${rangeEnd}
       ${whatsappPhoneNumberId ? Prisma.sql`AND "whatsappPhoneNumberId" = ${whatsappPhoneNumberId}` : Prisma.empty}
     `
 
@@ -514,16 +536,16 @@ export class DashboardStatsService {
     }
   }
 
-  private static async getCustomerStats(userId: string, oneWeekAgo: Date, whatsappPhoneNumberId?: string) {
+  private static async getCustomerStats(userId: string, rangeStart: Date, rangeEnd: Date, whatsappPhoneNumberId?: string) {
     const stats = await prisma.$queryRaw<Array<{
       total: bigint
-      newThisWeek: bigint
+      newInRange: bigint
       consented: bigint
       blacklisted: bigint
     }>>`
       SELECT
         COUNT(*) as total,
-        COUNT(*) FILTER (WHERE "createdAt" >= ${oneWeekAgo}) as "newThisWeek",
+        COUNT(*) FILTER (WHERE "createdAt" >= ${rangeStart} AND "createdAt" <= ${rangeEnd}) as "newInRange",
         COUNT(*) FILTER (WHERE "consentStatus" = true) as consented,
         COUNT(*) FILTER (WHERE blacklisted = true) as blacklisted
       FROM "Customer"
@@ -534,7 +556,7 @@ export class DashboardStatsService {
     const row = stats[0]
     return {
       total: Number(row.total),
-      newThisWeek: Number(row.newThisWeek),
+      newThisWeek: Number(row.newInRange), // Now represents selected range
       consented: Number(row.consented),
       blacklisted: Number(row.blacklisted)
     }
@@ -587,12 +609,12 @@ export class DashboardStatsService {
     }
   }
 
-  private static async getTemplateUsageThisMonth(userId: string, oneMonthAgo: Date, whatsappPhoneNumberId?: string) {
+  private static async getTemplateUsageThisMonth(userId: string, rangeStart: Date, rangeEnd: Date, whatsappPhoneNumberId?: string) {
     const count = await prisma.message.count({
       where: {
         userId,
         messageType: 'TEMPLATE',
-        timestamp: { gte: oneMonthAgo },
+        timestamp: { gte: rangeStart, lte: rangeEnd },
         ...(whatsappPhoneNumberId ? { whatsappPhoneNumberId } : {}),
       }
     })
