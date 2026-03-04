@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Header } from "@/components/layout/header"
 import { RefreshCw, User, PanelRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -38,8 +39,13 @@ function useMediaQuery(query: string) {
 }
 
 export default function OneInboxPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const phoneParam = searchParams.get("phone")
+  
   const {
     filteredConversations,
+    conversations,
     selectedConversation,
     selectConversation,
     channelFilter,
@@ -113,6 +119,9 @@ export default function OneInboxPage() {
 
   // State for mobile panel sheet
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+  
+  // Track if we've already handled the phone param to avoid repeated selections
+  const phoneParamHandledRef = useRef<string | null>(null)
 
   // Detect if we're on desktop (lg breakpoint = 1024px)
   const isDesktop = useMediaQuery("(min-width: 1024px)")
@@ -123,6 +132,26 @@ export default function OneInboxPage() {
       loadAssignableUsers()
     }
   }, [userId, loadAssignableUsers])
+
+  // Auto-select conversation when phone query param is provided (e.g., from customer page)
+  useEffect(() => {
+    if (!phoneParam || loading || conversations.length === 0) return
+    if (phoneParamHandledRef.current === phoneParam) return // Already handled this phone param
+    
+    // Find conversation matching the phone number
+    const conversation = conversations.find(
+      (c) => c.channel === "whatsapp" && c.participantIdentifier === phoneParam
+    )
+    
+    if (conversation) {
+      phoneParamHandledRef.current = phoneParam
+      selectConversation(conversation)
+      
+      // Remove the query param from URL to clean up
+      const newUrl = window.location.pathname
+      router.replace(newUrl, { scroll: false })
+    }
+  }, [phoneParam, loading, conversations, selectConversation, router])
 
   // Handle linking customer to conversation
   const handleLinkCustomer = async (customerId: string) => {

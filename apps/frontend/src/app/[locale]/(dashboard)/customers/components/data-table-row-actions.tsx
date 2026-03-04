@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { DotsHorizontalIcon } from "@radix-ui/react-icons"
 import { Row } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
@@ -30,7 +31,7 @@ import {
 } from "@tabler/icons-react"
 import { useDeleteCustomer } from "@/hooks/use-customers"
 import { useToast } from "@/hooks/use-toast"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 
 interface Props {
   row: Row<Customer>
@@ -42,6 +43,8 @@ export function DataTableRowActions({ row, onView, onEdit }: Props) {
   const customer = row.original
   const { toast } = useToast()
   const t = useTranslations("customers")
+  const router = useRouter()
+  const locale = useLocale()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   
   const deleteMutation = useDeleteCustomer()
@@ -56,7 +59,9 @@ export function DataTableRowActions({ row, onView, onEdit }: Props) {
   }
 
   const handleSendMessage = () => {
-    // TODO: Open message dialog or redirect to messages page
+    // Navigate to OneInbox with phone number to auto-select customer conversation
+    const phone = encodeURIComponent(customer.phoneNumber)
+    router.push(`/${locale}/oneinbox?phone=${phone}`)
   }
 
   const handleDelete = () => {
