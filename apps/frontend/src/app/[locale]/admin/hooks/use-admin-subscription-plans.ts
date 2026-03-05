@@ -18,6 +18,9 @@ export interface PlanConfig {
   price: number
   features: string[]
   durations?: DurationConfig[]
+  enabled: boolean          // Whether the plan is available for purchase
+  isContactUs: boolean      // Show "Contact Us" instead of price
+  contactUrl: string        // URL for Contact Us button
 }
 
 export interface SubscriptionPlansConfig {

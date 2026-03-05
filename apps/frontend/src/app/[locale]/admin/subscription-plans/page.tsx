@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { RefreshCw, Zap, Sparkles, Crown, Pencil, Check } from "lucide-react"
+import { RefreshCw, Zap, Sparkles, Crown, Pencil, Check, Phone, EyeOff } from "lucide-react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -87,9 +87,11 @@ interface PlanCardProps {
 function PlanCard({ tier, plan, onEdit, translations }: PlanCardProps) {
   const config = tierConfig[tier]
   const Icon = config.icon
+  const isDisabled = plan.enabled === false
+  const isContactUs = plan.isContactUs === true
 
   return (
-    <Card className="flex flex-col">
+    <Card className={`flex flex-col ${isDisabled ? "opacity-60" : ""}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -102,9 +104,18 @@ function PlanCard({ tier, plan, onEdit, translations }: PlanCardProps) {
         </div>
         <CardDescription>{plan.description}</CardDescription>
         <div className="mt-3">
-          <span className="text-2xl font-bold">{formatPrice(plan.price, translations.free)}</span>
-          {plan.price > 0 && (
-            <span className="text-muted-foreground text-sm">{translations.perMonth}</span>
+          {isContactUs ? (
+            <div className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-primary" />
+              <span className="text-xl font-bold text-primary">Contact Us</span>
+            </div>
+          ) : (
+            <>
+              <span className="text-2xl font-bold">{formatPrice(plan.price, translations.free)}</span>
+              {plan.price > 0 && (
+                <span className="text-muted-foreground text-sm">{translations.perMonth}</span>
+              )}
+            </>
           )}
         </div>
       </CardHeader>
@@ -128,10 +139,22 @@ function PlanCard({ tier, plan, onEdit, translations }: PlanCardProps) {
           )}
         </div>
       </CardContent>
-      <div className="p-4 pt-0">
+      <div className="p-4 pt-0 flex flex-wrap gap-2">
         <Badge variant="outline" className={config.badgeClass}>
           {tier.toUpperCase()} Tier
         </Badge>
+        {isDisabled && (
+          <Badge variant="secondary" className="bg-red-100 text-red-800 border-red-200">
+            <EyeOff className="h-3 w-3 mr-1" />
+            Disabled
+          </Badge>
+        )}
+        {isContactUs && (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+            <Phone className="h-3 w-3 mr-1" />
+            Contact Us
+          </Badge>
+        )}
       </div>
     </Card>
   )

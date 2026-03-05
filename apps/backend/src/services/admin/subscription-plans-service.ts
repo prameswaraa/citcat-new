@@ -25,6 +25,9 @@ export interface PlanConfig {
   price: number;  // Base monthly price
   features: string[];
   durations: DurationConfig[];
+  enabled: boolean;  // Whether the plan is available for purchase
+  isContactUs: boolean;  // Show "Contact Us" instead of price
+  contactUrl: string;  // URL for Contact Us button
 }
 
 export interface SubscriptionPlansConfig {
@@ -55,6 +58,9 @@ export interface PlanPricingResponse {
   basePrice: number;
   features: string[];
   durations: DurationPricingOption[];
+  enabled: boolean;
+  isContactUs: boolean;
+  contactUrl: string;
 }
 
 // Default duration configurations
@@ -78,6 +84,9 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
       'Analytics Dashboard',
     ],
     durations: [], // Free tier has no duration options
+    enabled: true, // FREE is always enabled
+    isContactUs: false,
+    contactUrl: '',
   },
   basic: {
     name: 'BASIC',
@@ -90,6 +99,9 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
       '2 Team Members',
     ],
     durations: DEFAULT_DURATIONS,
+    enabled: true,
+    isContactUs: false,
+    contactUrl: '',
   },
   lite: {
     name: 'LITE',
@@ -101,6 +113,9 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
       '5 Knowledge Documents',
     ],
     durations: DEFAULT_DURATIONS,
+    enabled: true,
+    isContactUs: false,
+    contactUrl: '',
   },
   pro: {
     name: 'PRO',
@@ -113,6 +128,9 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
       '10 Team Members',
     ],
     durations: DEFAULT_DURATIONS,
+    enabled: true,
+    isContactUs: false,
+    contactUrl: '',
   },
 };
 
@@ -339,6 +357,9 @@ export class AdminSubscriptionPlansService {
         basePrice: 0,
         features: plans.free.features,
         durations: [],
+        enabled: plans.free.enabled ?? true,
+        isContactUs: plans.free.isContactUs ?? false,
+        contactUrl: plans.free.contactUrl ?? '',
       };
     }
 
@@ -374,6 +395,9 @@ export class AdminSubscriptionPlansService {
       basePrice: plan.price,
       features: plan.features,
       durations: durationOptions,
+      enabled: plan.enabled ?? true,
+      isContactUs: plan.isContactUs ?? false,
+      contactUrl: plan.contactUrl ?? '',
     };
   }
 

@@ -249,60 +249,34 @@ app.get('/pricing', async (c: Context) => {
     // Get pricing with all duration options from subscription plans service
     const { basic, lite, pro } = await adminSubscriptionPlansService.getAllPlansPricing();
 
+    // Helper to format plan data with enabled/contactUs fields
+    const formatPlanData = (plan: typeof basic, tier: 'BASIC' | 'LITE' | 'PRO') => ({
+      tier,
+      name: plan.name,
+      basePrice: plan.basePrice,
+      currency: 'IDR',
+      features: plan.features,
+      durations: plan.durations.filter(d => d.enabled).map(d => ({
+        months: d.months,
+        days: d.days,
+        discountPercent: d.discountPercent,
+        totalPrice: d.totalPrice,
+        effectiveMonthlyPrice: d.effectiveMonthlyPrice,
+        savings: d.savings,
+        label: d.label,
+        recommended: d.recommended,
+      })),
+      enabled: plan.enabled,
+      isContactUs: plan.isContactUs,
+      contactUrl: plan.contactUrl,
+    });
+
     return c.json({
       success: true,
       data: {
-        basic: {
-          tier: 'BASIC',
-          name: basic.name,
-          basePrice: basic.basePrice,
-          currency: 'IDR',
-          features: basic.features,
-          durations: basic.durations.filter(d => d.enabled).map(d => ({
-            months: d.months,
-            days: d.days,
-            discountPercent: d.discountPercent,
-            totalPrice: d.totalPrice,
-            effectiveMonthlyPrice: d.effectiveMonthlyPrice,
-            savings: d.savings,
-            label: d.label,
-            recommended: d.recommended,
-          })),
-        },
-        lite: {
-          tier: 'LITE',
-          name: lite.name,
-          basePrice: lite.basePrice,
-          currency: 'IDR',
-          features: lite.features,
-          durations: lite.durations.filter(d => d.enabled).map(d => ({
-            months: d.months,
-            days: d.days,
-            discountPercent: d.discountPercent,
-            totalPrice: d.totalPrice,
-            effectiveMonthlyPrice: d.effectiveMonthlyPrice,
-            savings: d.savings,
-            label: d.label,
-            recommended: d.recommended,
-          })),
-        },
-        pro: {
-          tier: 'PRO',
-          name: pro.name,
-          basePrice: pro.basePrice,
-          currency: 'IDR',
-          features: pro.features,
-          durations: pro.durations.filter(d => d.enabled).map(d => ({
-            months: d.months,
-            days: d.days,
-            discountPercent: d.discountPercent,
-            totalPrice: d.totalPrice,
-            effectiveMonthlyPrice: d.effectiveMonthlyPrice,
-            savings: d.savings,
-            label: d.label,
-            recommended: d.recommended,
-          })),
-        },
+        basic: formatPlanData(basic, 'BASIC'),
+        lite: formatPlanData(lite, 'LITE'),
+        pro: formatPlanData(pro, 'PRO'),
       },
     });
   } catch (error) {

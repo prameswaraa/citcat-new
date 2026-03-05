@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import type { PlanConfig, PlanTier, DurationConfig } from "../../hooks/use-admin-subscription-plans"
 import { FeaturesListEditor } from "./features-list-editor"
 import { DurationConfigEditor } from "./duration-config-editor"
@@ -62,6 +63,9 @@ export function PlanEditDialog({
   const [durations, setDurations] = useState<DurationConfig[]>(
     plan.durations?.length ? plan.durations : DEFAULT_DURATIONS
   )
+  const [enabled, setEnabled] = useState(plan.enabled ?? true)
+  const [isContactUs, setIsContactUs] = useState(plan.isContactUs ?? false)
+  const [contactUrl, setContactUrl] = useState(plan.contactUrl ?? "")
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSavingDurations, setIsSavingDurations] = useState(false)
 
@@ -72,6 +76,9 @@ export function PlanEditDialog({
     setPrice(plan.price.toString())
     setFeatures([...plan.features])
     setDurations(plan.durations?.length ? [...plan.durations] : DEFAULT_DURATIONS)
+    setEnabled(plan.enabled ?? true)
+    setIsContactUs(plan.isContactUs ?? false)
+    setContactUrl(plan.contactUrl ?? "")
     setErrors({})
   }, [plan])
 
@@ -104,6 +111,9 @@ export function PlanEditDialog({
       price: tier === "free" ? 0 : parseInt(price, 10),
       features,
       durations: tier !== "free" ? durations : [],
+      enabled: tier === "free" ? true : enabled, // FREE tier is always enabled
+      isContactUs: tier === "free" ? false : isContactUs,
+      contactUrl: isContactUs ? contactUrl.trim() : "",
     }
 
     await onSave(config)
@@ -127,6 +137,62 @@ export function PlanEditDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Availability Settings - Only for paid tiers */}
+          {tier !== "free" && (
+            <>
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-medium text-sm">{t("planAvailability") || "Availability Settings"}</h4>
+                
+                {/* Enable/Disable Plan */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="enabled">{t("planEnabled") || "Plan Enabled"}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("planEnabledDesc") || "When disabled, this plan won't be shown to users"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="enabled"
+                    checked={enabled}
+                    onCheckedChange={setEnabled}
+                  />
+                </div>
+
+                {/* Contact Us Mode */}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="isContactUs">{t("planContactUs") || "Contact Us Mode"}</Label>
+                    <p className="text-xs text-muted-foreground">
+                      {t("planContactUsDesc") || "Show 'Contact Us' instead of price"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="isContactUs"
+                    checked={isContactUs}
+                    onCheckedChange={setIsContactUs}
+                  />
+                </div>
+
+                {/* Contact URL - Only shown when Contact Us is enabled */}
+                {isContactUs && (
+                  <div className="space-y-2">
+                    <Label htmlFor="contactUrl">{t("planContactUrl") || "Contact URL"}</Label>
+                    <Input
+                      id="contactUrl"
+                      value={contactUrl}
+                      onChange={(e) => setContactUrl(e.target.value)}
+                      placeholder="https://example.com/contact"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("planContactUrlDesc") || "URL to redirect users when they click Contact Us"}
+                    </p>
+                  </div>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
+
           {/* Name Field */}
           <div className="space-y-2">
             <Label htmlFor="name">{t("planName")} *</Label>

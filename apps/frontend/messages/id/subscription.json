@@ -69,5 +69,7 @@
   "premiumActivated": "Paket berlangganan Anda telah diaktifkan.",
   "paymentPending": "Pembayaran Menunggu",
   "paymentPendingDesc": "Kami belum menerima konfirmasi. Silakan cek lagi nanti di Riwayat Pembayaran.",
-  "billedAs": "Ditagih {price} setiap {period}"
+  "billedAs": "Ditagih {price} setiap {period}",
+  "contactUs": "Hubungi Kami",
+  "noPlansAvailable": "Tidak ada paket yang tersedia saat ini."
 }

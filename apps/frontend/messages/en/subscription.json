@@ -69,5 +69,7 @@
   "premiumActivated": "Your subscription has been activated.",
   "paymentPending": "Payment Pending",
   "paymentPendingDesc": "We haven't received confirmation yet. Please check again later in Payment History.",
-  "billedAs": "Billed {price} every {period}"
+  "billedAs": "Billed {price} every {period}",
+  "contactUs": "Contact Us",
+  "noPlansAvailable": "No plans available at the moment."
 }

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check } from 'lucide-react'
+import { Check, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -36,6 +36,22 @@ export function PricingCards({
 }: PricingCardsProps) {
   const t = useTranslations('subscription')
   const [durationMonths, setDurationMonths] = useState<number>(1) // Default to monthly
+
+  // Filter enabled tiers only - must be called before any conditional returns
+  const enabledTiers = useMemo(() => {
+    if (!pricingWithDurations) return []
+    
+    const allTiers: { key: 'basic' | 'lite' | 'pro'; tier: SubscriptionTier }[] = [
+      { key: 'basic', tier: 'BASIC' },
+      { key: 'lite', tier: 'LITE' },
+      { key: 'pro', tier: 'PRO' },
+    ]
+    
+    return allTiers.filter(({ key }) => {
+      const plan = pricingWithDurations[key]
+      return plan.enabled !== false // Show if enabled or undefined (backward compat)
+    })
+  }, [pricingWithDurations])
 
   if (loading) {
     return (
@@ -74,15 +90,18 @@ export function PricingCards({
     }).format(price)
   }
 
-  // Tiers to display
-  const tiers: { key: 'basic' | 'lite' | 'pro'; tier: SubscriptionTier }[] = [
-    { key: 'basic', tier: 'BASIC' },
-    { key: 'lite', tier: 'LITE' },
-    { key: 'pro', tier: 'PRO' },
-  ]
-
-  // Available duration options (from Lite plan as reference, assuming similar across paid plans)
-  const durationOptions = pricingWithDurations.lite.durations
+  // Available duration options (from first enabled plan)
+  const firstEnabledPlan = enabledTiers.length > 0 ? pricingWithDurations[enabledTiers[0].key] : null
+  const durationOptions = firstEnabledPlan?.durations || []
+  
+  // If no enabled plans, show message
+  if (enabledTiers.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-muted-foreground">{t('noPlansAvailable') || 'No plans available at the moment.'}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -110,22 +129,36 @@ export function PricingCards({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {tiers.map(({ key, tier }) => {
+      <div className={cn(
+        "grid gap-6",
+        enabledTiers.length === 1 && "lg:grid-cols-1 max-w-md mx-auto",
+        enabledTiers.length === 2 && "lg:grid-cols-2 max-w-2xl mx-auto",
+        enabledTiers.length >= 3 && "lg:grid-cols-3"
+      )}>
+        {enabledTiers.map(({ key, tier }) => {
           const plan = pricingWithDurations[key]
-          const durationData = plan.durations.find(d => d.months === durationMonths)
+          const isContactUs = plan.isContactUs === true
+          const durationData = plan.durations.find((d: { months: number }) => d.months === durationMonths)
 
-          if (!durationData) return null
+          // For Contact Us plans, we don't need duration data
+          if (!isContactUs && !durationData) return null
 
           // Logic for disabled: 
           // Disable if current tier is "higher" or equal
-          const tierOrder = { FREE: 0, BASIC: 1, LITE: 2, PRO: 3 }
+          const tierOrder: Record<SubscriptionTier, number> = { FREE: 0, BASIC: 1, LITE: 2, PRO: 3 }
           const isDowngradeOrSame = tierOrder[currentTier] >= tierOrder[tier]
           const isCurrent = currentTier === tier
 
+          // Handle Contact Us click
+          const handleContactUs = () => {
+            if (plan.contactUrl) {
+              window.open(plan.contactUrl, '_blank', 'noopener,noreferrer')
+            }
+          }
+
           return (
-            <Card key={tier} className={cn("flex flex-col relative", tier === 'PRO' && "border-primary shadow-lg")}>
-              {tier === 'PRO' && (
+            <Card key={tier} className={cn("flex flex-col relative", tier === 'PRO' && !isContactUs && "border-primary shadow-lg")}>
+              {tier === 'PRO' && !isContactUs && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <Badge className="bg-primary text-primary-foreground">{t('recommended')}</Badge>
                 </div>
@@ -138,21 +171,30 @@ export function PricingCards({
 
               <CardContent className="flex-1 space-y-6">
                 <div>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold">
-                      {formatPrice(durationData.effectiveMonthlyPrice)}
-                    </span>
-                    <span className="text-muted-foreground">/ {t('month')}</span>
-                  </div>
-                  {durationMonths > 1 && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {t('billedAs', { price: formatPrice(durationData.totalPrice), period: durationData.label })}
-                    </p>
+                  {isContactUs ? (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-6 w-6 text-primary" />
+                      <span className="text-2xl font-bold text-primary">{t('contactUs') || 'Contact Us'}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">
+                          {formatPrice(durationData!.effectiveMonthlyPrice)}
+                        </span>
+                        <span className="text-muted-foreground">/ {t('month')}</span>
+                      </div>
+                      {durationMonths > 1 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {t('billedAs', { price: formatPrice(durationData!.totalPrice), period: durationData!.label })}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  {plan.features.map((feature, i) => (
+                  {plan.features.map((feature: string, i: number) => (
                     <div key={i} className="flex items-start gap-2">
                       <Check className="h-4 w-4 text-green-500 mt-1 shrink-0" />
                       <span className="text-sm">{feature}</span>
@@ -162,14 +204,25 @@ export function PricingCards({
               </CardContent>
 
               <CardFooter>
-                <Button
-                  className="w-full"
-                  variant={isCurrent ? "outline" : "default"}
-                  disabled={isDowngradeOrSame}
-                  onClick={() => onUpgrade(tier, durationMonths)}
-                >
-                  {isCurrent ? t('currentPlan') : t('upgrade')}
-                </Button>
+                {isContactUs ? (
+                  <Button
+                    className="w-full"
+                    variant="default"
+                    onClick={handleContactUs}
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    {t('contactUs') || 'Contact Us'}
+                  </Button>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant={isCurrent ? "outline" : "default"}
+                    disabled={isDowngradeOrSame}
+                    onClick={() => onUpgrade(tier, durationMonths)}
+                  >
+                    {isCurrent ? t('currentPlan') : t('upgrade')}
+                  </Button>
+                )}
               </CardFooter>
             </Card>
           )

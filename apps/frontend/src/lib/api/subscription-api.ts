@@ -61,6 +61,9 @@ export interface TierPricingWithDurations {
   currency: string
   features: string[]
   durations: DurationOption[]
+  enabled: boolean          // Whether the plan is available for purchase
+  isContactUs: boolean      // Show "Contact Us" instead of price
+  contactUrl: string        // URL for Contact Us button
 }
 
 // Legacy PricingData for backward compatibility

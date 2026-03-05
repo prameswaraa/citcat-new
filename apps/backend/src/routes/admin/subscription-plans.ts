@@ -81,6 +81,9 @@ app.put('/:tier', async (c: Context) => {
       price: body.price,
       features: body.features ?? [],
       durations: body.durations ?? [],
+      enabled: body.enabled ?? true,
+      isContactUs: body.isContactUs ?? false,
+      contactUrl: body.contactUrl ?? '',
     };
 
     // Basic validation before service call
