@@ -120,7 +120,12 @@
     "delivered": "Delivered",
     "read": "Read",
     "failedBadge": "Failed",
-    "recoveryAction": "Suggestion"
+    "recoveryAction": "Suggestion",
+    "noResultsForFilter": "No results match this filter",
+    "exportCSV": "Export {filter} ({count})",
+    "filter": {
+      "all": "All"
+    }
   },
   "errors": {
     "categories": {

@@ -120,7 +120,12 @@
     "delivered": "Diterima",
     "read": "Dibaca",
     "failedBadge": "Gagal",
-    "recoveryAction": "Saran"
+    "recoveryAction": "Saran",
+    "noResultsForFilter": "Tidak ada hasil yang cocok dengan filter ini",
+    "exportCSV": "Ekspor {filter} ({count})",
+    "filter": {
+      "all": "Semua"
+    }
   },
   "errors": {
     "categories": {

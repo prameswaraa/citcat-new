@@ -90,6 +90,8 @@ export interface RecipientResult {
   messageId?: string;
   error?: string;
   errorCode?: string;
+  // Message delivery status from webhook (sent/delivered/read/failed)
+  status?: 'sent' | 'delivered' | 'read' | 'failed';
   // Debug info for troubleshooting
   sentPayload?: any;
   whatsappErrorResponse?: any;
@@ -220,13 +222,51 @@ export class BulkTemplateSendService {
   async getBulkSendStatus(jobId: string, userId: string): Promise<BulkSendJob> {
     const job = await prisma.bulkTemplateSend.findFirst({
       where: { id: jobId, userId },
+      include: {
+        messages: {
+          select: {
+            wamId: true,
+            status: true,
+          },
+        },
+      },
     });
 
     if (!job) {
       throw new Error(BULK_SEND_ERROR_CODES.JOB_NOT_FOUND);
     }
 
-    return this.mapToJob(job);
+    // Create a map of wamId to status from messages
+    const messageStatusMap = new Map<string, string>();
+    for (const msg of job.messages || []) {
+      if (msg.wamId) {
+        messageStatusMap.set(msg.wamId, msg.status.toLowerCase());
+      }
+    }
+
+    // Enrich results with status from messages
+    const results = (job.results as unknown) as RecipientResult[] | null;
+    const enrichedResults = results?.map((result) => {
+      if (result.success && result.messageId) {
+        const msgStatus = messageStatusMap.get(result.messageId);
+        if (msgStatus) {
+          return {
+            ...result,
+            status: msgStatus as 'sent' | 'delivered' | 'read' | 'failed',
+          };
+        }
+      }
+      // For failed results, mark as failed
+      if (!result.success) {
+        return {
+          ...result,
+          status: 'failed' as const,
+        };
+      }
+      return result;
+    }) || null;
+
+    return this.mapToJob({ ...job, results: enrichedResults });
   }
 
   /**

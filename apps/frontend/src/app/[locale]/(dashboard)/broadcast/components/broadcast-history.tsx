@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Pagination,
   PaginationContent,
@@ -38,8 +39,12 @@ import {
   IconUserOff,
   IconLockOff,
   IconShieldOff,
-
   IconBulb,
+  IconSend,
+  IconChecks,
+  IconEyeCheck,
+  IconFilter,
+  IconDownload,
 } from "@tabler/icons-react"
 import { formatDistanceToNow, format } from "date-fns"
 import { id, enUS } from "date-fns/locale"
@@ -70,15 +75,30 @@ interface BroadcastJob {
   completedAt: string | null
 }
 
+// Result item from API
+interface ResultItem {
+  phoneNumber: string
+  success: boolean
+  messageId?: string
+  error?: string
+  errorCode?: string
+  status?: "sent" | "delivered" | "read" | "failed"
+}
+
+// CSV data row with phone number and variable values
+interface CsvDataRow {
+  phoneNumber: string
+  [variableName: string]: string
+}
+
+// Merged result for export - combines result with CSV variable data
+export interface MergedResultItem extends ResultItem {
+  variables?: Record<string, string>
+}
+
 interface JobDetail extends BroadcastJob {
-  results?: Array<{
-    phoneNumber: string
-    success: boolean
-    messageId?: string
-    error?: string
-    errorCode?: string
-    status?: "sent" | "delivered" | "read" | "failed"
-  }>
+  results?: ResultItem[]
+  csvData?: CsvDataRow[]
 }
 
 interface PaginationInfo {
@@ -87,6 +107,9 @@ interface PaginationInfo {
   total: number
   totalPages: number
 }
+
+// Filter status type for broadcast results
+export type ResultFilterStatus = "all" | "sent" | "delivered" | "read" | "failed"
 
 
 export function BroadcastHistory() {
@@ -444,11 +467,95 @@ function JobDetailContent({
   tErrors: (key: string, values?: Record<string, any>) => string
   getCategoryIcon: (category: ErrorCategory) => React.ReactNode
 }) {
+  // Filter state for detailed results
+  const [filterStatus, setFilterStatus] = useState<ResultFilterStatus>("all")
+
   // Categorize errors
   const errorSummary = useMemo(() => {
     if (!job.results) return null
     return categorizeErrors(job.results)
   }, [job.results])
+
+  // Filter results based on selected status
+  const filteredResults = useMemo((): ResultItem[] => {
+    if (!job.results) return []
+
+    if (filterStatus === "all") {
+      return job.results
+    }
+
+    if (filterStatus === "failed") {
+      return job.results.filter((result) => !result.success)
+    }
+
+    // For sent/delivered/read: filter where success === true AND status matches
+    return job.results.filter(
+      (result) => result.success && result.status === filterStatus
+    )
+  }, [job.results, filterStatus])
+
+  // Merge filtered results with csvData to get variable values
+  const mergedResults = useMemo((): MergedResultItem[] => {
+    if (!filteredResults.length) return []
+
+    // Create a map of csvData by phoneNumber for quick lookup
+    const csvMap = new Map<string, Record<string, string>>()
+    if (job.csvData) {
+      job.csvData.forEach((row) => {
+        const { phoneNumber, ...variables } = row
+        csvMap.set(phoneNumber, variables)
+      })
+    }
+
+    // Merge results with CSV data
+    return filteredResults.map((result) => ({
+      ...result,
+      variables: csvMap.get(result.phoneNumber),
+    }))
+  }, [filteredResults, job.csvData])
+
+  // Get unique variable column names from csvData (excluding phoneNumber)
+  const variableColumns = useMemo(() => {
+    if (!job.csvData || job.csvData.length === 0) return []
+    const firstRow = job.csvData[0]
+    return Object.keys(firstRow).filter((key) => key !== "phoneNumber")
+  }, [job.csvData])
+
+  // Generate and download CSV file
+  const generateCSV = () => {
+    const headers = ["phoneNumber", ...variableColumns]
+
+    // Escape CSV values that contain commas, quotes, or newlines
+    const escapeCSV = (value: string) => {
+      if (value.includes(",") || value.includes('"') || value.includes("\n")) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }
+
+    const csvContent = [
+      headers.join(","),
+      ...mergedResults.map((row) =>
+        headers
+          .map((h) =>
+            escapeCSV(
+              h === "phoneNumber"
+                ? row.phoneNumber
+                : row.variables?.[h] || ""
+            )
+          )
+          .join(",")
+      ),
+    ].join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `broadcast_${job.templateName}_${filterStatus}_${Date.now()}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
 
   const successRate = getSuccessRate(job.successCount, job.totalRecipients)
 
@@ -602,89 +709,175 @@ function JobDetailContent({
 
       {/* Detailed Results List */}
       {job.results && job.results.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="font-medium">{t("jobDetail.detailedResults")}</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium flex items-center gap-2">
+              <IconFilter className="h-4 w-4 text-muted-foreground" />
+              {t("jobDetail.detailedResults")}
+            </h4>
+          </div>
+
+          {/* Filter Tabs */}
+          <Tabs
+            value={filterStatus}
+            onValueChange={(value) => setFilterStatus(value as ResultFilterStatus)}
+            className="w-full"
+          >
+            <TabsList className="w-full grid grid-cols-5 h-auto p-1">
+              <TabsTrigger
+                value="all"
+                className="text-xs px-2 py-1.5 data-[state=active]:bg-background"
+              >
+                {t("jobDetail.filter.all")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="sent"
+                className="text-xs px-2 py-1.5 gap-1 data-[state=active]:bg-green-100 data-[state=active]:text-green-700 dark:data-[state=active]:bg-green-950 dark:data-[state=active]:text-green-400"
+              >
+                <IconSend className="h-3 w-3" />
+                {t("jobDetail.sent")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="delivered"
+                className="text-xs px-2 py-1.5 gap-1 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700 dark:data-[state=active]:bg-blue-950 dark:data-[state=active]:text-blue-400"
+              >
+                <IconChecks className="h-3 w-3" />
+                {t("jobDetail.delivered")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="read"
+                className="text-xs px-2 py-1.5 gap-1 data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700 dark:data-[state=active]:bg-purple-950 dark:data-[state=active]:text-purple-400"
+              >
+                <IconEyeCheck className="h-3 w-3" />
+                {t("jobDetail.read")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="failed"
+                className="text-xs px-2 py-1.5 gap-1 data-[state=active]:bg-red-100 data-[state=active]:text-red-700 dark:data-[state=active]:bg-red-950 dark:data-[state=active]:text-red-400"
+              >
+                <IconX className="h-3 w-3" />
+                {t("jobDetail.failedBadge")}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Export CSV Button */}
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={generateCSV}
+              disabled={mergedResults.length === 0}
+            >
+              <IconDownload className="h-4 w-4" />
+              {t("jobDetail.exportCSV", {
+                filter:
+                  filterStatus === "all"
+                    ? t("jobDetail.filter.all")
+                    : filterStatus === "sent"
+                    ? t("jobDetail.sent")
+                    : filterStatus === "delivered"
+                    ? t("jobDetail.delivered")
+                    : filterStatus === "read"
+                    ? t("jobDetail.read")
+                    : t("jobDetail.failedBadge"),
+                count: mergedResults.length,
+              })}
+            </Button>
+          </div>
+
           <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border p-2">
-            {job.results.map((result, index) => {
-              // Get structured error info for failed results
-              const errorInfo = !result.success && result.error
-                ? getErrorInfo(result.error, result.errorCode, tErrors)
-                : null
+            {filteredResults.length === 0 ? (
+              // Empty state when filter has no results
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <IconFilter className="mb-2 h-6 w-6 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {t("jobDetail.noResultsForFilter")}
+                </p>
+              </div>
+            ) : (
+              filteredResults.map((result, index) => {
+                // Get structured error info for failed results
+                const errorInfo = !result.success && result.error
+                  ? getErrorInfo(result.error, result.errorCode, tErrors)
+                  : null
 
-              // Determine the display status and badge color
-              const getStatusBadge = () => {
-                if (!result.success) {
-                  return (
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant="destructive" className="bg-red-500">
-                        <IconX className="mr-1 h-3 w-3" />
-                        {t("jobDetail.failedBadge")}
-                      </Badge>
+                // Determine the display status and badge color
+                const getStatusBadge = () => {
+                  if (!result.success) {
+                    return (
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant="destructive" className="bg-red-500">
+                          <IconX className="mr-1 h-3 w-3" />
+                          {t("jobDetail.failedBadge")}
+                        </Badge>
+                      </div>
+                    )
+                  }
+
+                  // Success case - show status-based badge
+                  const status = result.status || "sent"
+                  switch (status) {
+                    case "read":
+                      return (
+                        <Badge variant="default" className="bg-purple-500">
+                          <IconCheck className="mr-1 h-3 w-3" />
+                          {t("jobDetail.read")}
+                        </Badge>
+                      )
+                    case "delivered":
+                      return (
+                        <Badge variant="default" className="bg-blue-500">
+                          <IconCheck className="mr-1 h-3 w-3" />
+                          {t("jobDetail.delivered")}
+                        </Badge>
+                      )
+                    case "sent":
+                    default:
+                      return (
+                        <Badge variant="default" className="bg-green-500">
+                          <IconCheck className="mr-1 h-3 w-3" />
+                          {t("jobDetail.sent")}
+                        </Badge>
+                      )
+                  }
+                }
+
+                return (
+                  <div
+                    key={index}
+                    className={`rounded-md bg-muted/50 p-2 text-sm ${
+                      errorInfo ? 'space-y-2' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono">{result.phoneNumber}</span>
+                      {getStatusBadge()}
                     </div>
-                  )
-                }
-
-                // Success case - show status-based badge
-                const status = result.status || "sent"
-                switch (status) {
-                  case "read":
-                    return (
-                      <Badge variant="default" className="bg-purple-500">
-                        <IconCheck className="mr-1 h-3 w-3" />
-                        {t("jobDetail.read")}
-                      </Badge>
-                    )
-                  case "delivered":
-                    return (
-                      <Badge variant="default" className="bg-blue-500">
-                        <IconCheck className="mr-1 h-3 w-3" />
-                        {t("jobDetail.delivered")}
-                      </Badge>
-                    )
-                  case "sent":
-                  default:
-                    return (
-                      <Badge variant="default" className="bg-green-500">
-                        <IconCheck className="mr-1 h-3 w-3" />
-                        {t("jobDetail.sent")}
-                      </Badge>
-                    )
-                }
-              }
-
-              return (
-                <div
-                  key={index}
-                  className={`rounded-md bg-muted/50 p-2 text-sm ${
-                    errorInfo ? 'space-y-2' : ''
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono">{result.phoneNumber}</span>
-                    {getStatusBadge()}
+                    {/* Structured error display for failed results */}
+                    {errorInfo && (
+                      <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-2 space-y-1">
+                        <div className="flex items-center gap-2">
+                          {errorInfo.code && (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
+                              {errorInfo.code}
+                            </Badge>
+                          )}
+                          <span className="text-xs text-red-700 dark:text-red-400">
+                            {errorInfo.message}
+                          </span>
+                        </div>
+                        <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                          <IconBulb className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <span>{errorInfo.recoveryAction}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {/* Structured error display for failed results */}
-                  {errorInfo && (
-                    <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-2 space-y-1">
-                      <div className="flex items-center gap-2">
-                        {errorInfo.code && (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 font-mono">
-                            {errorInfo.code}
-                          </Badge>
-                        )}
-                        <span className="text-xs text-red-700 dark:text-red-400">
-                          {errorInfo.message}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                        <IconBulb className="h-3 w-3 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <span>{errorInfo.recoveryAction}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </div>
       )}
