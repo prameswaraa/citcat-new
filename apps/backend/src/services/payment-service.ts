@@ -419,9 +419,23 @@ export class PaymentService {
         },
       });
 
-      // Build product details with duration info
+      // Build product details with duration info and branding
       const durationLabel = selectedDuration.label || `${durationMonths} Bulan`;
-      const productDetails = `KirimChat ${targetTier} Subscription - ${durationLabel}`;
+      
+      // Get branding settings for product name (whitelabel support)
+      let brandName = DEFAULT_BRANDING.websiteName;
+      try {
+        const brandingSettings = await adminSettingsService.getDecryptedSettings<BrandingSettings>('branding');
+        if (brandingSettings?.websiteName) {
+          brandName = brandingSettings.websiteName;
+        }
+      } catch (brandingError) {
+        logger.warn('Failed to get branding settings for product details, using default', {
+          error: brandingError instanceof Error ? brandingError.message : 'Unknown error',
+        });
+      }
+      
+      const productDetails = `${brandName} ${targetTier} Subscription - ${durationLabel}`;
 
       // Call provider to create payment
       // Sanitize FRONTEND_URL in case it has embedded quotes from misconfigured env
