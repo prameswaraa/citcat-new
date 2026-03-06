@@ -20,9 +20,11 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react"
+import { useSubscription } from "@/hooks/use-subscription"
 
 export default function WABAPage() {
   const { isLoading } = useBusinessAccount()
+  const { getChannelUsageText, canAddChannel, refetch: refetchSubscription } = useSubscription()
   const [accounts, setAccounts] = useState<WhatsAppAccountWithPhoneNumbers[]>([])
   const [loading, setLoading] = useState(false)
   const [disconnectModalOpen, setDisconnectModalOpen] = useState(false)
@@ -38,6 +40,8 @@ export default function WABAPage() {
     try {
       const data = await wabaApi.getAccounts()
       setAccounts(data)
+      // Refetch subscription to update channel usage
+      refetchSubscription()
     } catch (error: any) {
       console.error("Error loading accounts:", error)
     } finally {
@@ -163,10 +167,18 @@ export default function WABAPage() {
               Manage your WABA connections and phone numbers
             </p>
           </div>
-          <Button onClick={() => setShowAddAccount(true)}>
-            <IconPlus className="h-4 w-4 mr-2" />
-            Add Account
-          </Button>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-sm">
+              {getChannelUsageText("whatsappDevices")}
+            </Badge>
+            <Button 
+              onClick={() => setShowAddAccount(true)}
+              disabled={!canAddChannel("whatsappDevices")}
+            >
+              <IconPlus className="h-4 w-4 mr-2" />
+              Add Account
+            </Button>
+          </div>
         </div>
 
         {/* Add Account Card */}

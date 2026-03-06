@@ -7,9 +7,10 @@ import { IconBrandInstagram, IconAlertTriangle } from "@tabler/icons-react"
 interface Props {
   onConnect: () => void
   requiresReauth?: boolean
+  disabled?: boolean
 }
 
-export function InstagramConnectCard({ onConnect, requiresReauth }: Props) {
+export function InstagramConnectCard({ onConnect, requiresReauth, disabled }: Props) {
   return (
     <Card className={requiresReauth ? "border-amber-200 dark:border-amber-800" : ""}>
       <CardHeader>
@@ -51,7 +52,11 @@ export function InstagramConnectCard({ onConnect, requiresReauth }: Props) {
           </ul>
         </div>
 
-        <Button onClick={onConnect} className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+        <Button 
+          onClick={onConnect} 
+          className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          disabled={disabled && !requiresReauth}
+        >
           <IconBrandInstagram className="mr-2 h-5 w-5" />
           {requiresReauth ? "Reconnect Instagram Account" : "Connect Instagram Account"}
         </Button>

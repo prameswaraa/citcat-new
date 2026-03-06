@@ -18,9 +18,12 @@ import {
   IconBrandInstagram,
   IconWebhook,
 } from "@tabler/icons-react"
+import { Badge } from "@/components/ui/badge"
+import { useSubscription } from "@/hooks/use-subscription"
 
 export default function InstagramPage() {
   const { userId, isLoading: sessionLoading } = useBusinessAccount()
+  const { getChannelUsageText, canAddChannel, refetch: refetchSubscription } = useSubscription()
   const [account, setAccount] = useState<InstagramAccount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -41,6 +44,8 @@ export default function InstagramPage() {
     try {
       const status = await instagramApi.getConnectionStatus()
       setAccount(status.account)
+      // Refetch subscription to update channel usage
+      refetchSubscription()
     } catch (err: any) {
       console.error("Error loading Instagram data:", err)
       setError(err.message)
@@ -142,14 +147,19 @@ export default function InstagramPage() {
       <Header />
       <div className="space-y-6 p-4">
         {/* Header */}
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <IconBrandInstagram className="h-7 w-7" />
-            Instagram Direct Messages
-          </h2>
-          <p className="text-muted-foreground">
-            Connect your Instagram Professional account to manage DMs
-          </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <IconBrandInstagram className="h-7 w-7" />
+              Instagram Direct Messages
+            </h2>
+            <p className="text-muted-foreground">
+              Connect your Instagram Professional account to manage DMs
+            </p>
+          </div>
+          <Badge variant="outline" className="text-sm w-fit">
+            {getChannelUsageText("instagramAccounts")}
+          </Badge>
         </div>
 
         {error && (
@@ -165,6 +175,7 @@ export default function InstagramPage() {
             <InstagramConnectCard 
               onConnect={handleConnect}
               requiresReauth={account?.connectionStatus === "requires_reauth"}
+              disabled={!canAddChannel("instagramAccounts")}
             />
           </div>
         )}

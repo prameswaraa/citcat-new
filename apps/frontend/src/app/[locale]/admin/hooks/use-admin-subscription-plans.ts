@@ -12,6 +12,12 @@ export interface DurationConfig {
   label: string         // "1 Bulan", "3 Bulan", etc.
 }
 
+export interface ChannelLimits {
+  maxWhatsappDevices: number
+  maxInstagramAccounts: number
+  maxMessengerAccounts: number
+}
+
 export interface PlanConfig {
   name: string
   description: string
@@ -21,6 +27,7 @@ export interface PlanConfig {
   enabled: boolean          // Whether the plan is available for purchase
   isContactUs: boolean      // Show "Contact Us" instead of price
   contactUrl: string        // URL for Contact Us button
+  channelLimits?: ChannelLimits  // Channel connection limits
 }
 
 export interface SubscriptionPlansConfig {

@@ -19,6 +19,12 @@ export interface DurationConfig {
   label: string;         // "1 Bulan", "3 Bulan", etc.
 }
 
+export interface ChannelLimits {
+  maxWhatsappDevices: number;
+  maxInstagramAccounts: number;
+  maxMessengerAccounts: number;
+}
+
 export interface PlanConfig {
   name: string;
   description: string;
@@ -28,6 +34,7 @@ export interface PlanConfig {
   enabled: boolean;  // Whether the plan is available for purchase
   isContactUs: boolean;  // Show "Contact Us" instead of price
   contactUrl: string;  // URL for Contact Us button
+  channelLimits?: ChannelLimits;  // Channel connection limits (configurable by admin)
 }
 
 export interface SubscriptionPlansConfig {
@@ -71,6 +78,30 @@ const DEFAULT_DURATIONS: DurationConfig[] = [
   { months: 12, days: 365, discountPercent: 20, enabled: true, label: '1 Tahun' },
 ];
 
+// Default channel limits per tier
+const DEFAULT_CHANNEL_LIMITS: Record<PlanTier, ChannelLimits> = {
+  free: {
+    maxWhatsappDevices: 1,
+    maxInstagramAccounts: 1,
+    maxMessengerAccounts: 1,
+  },
+  basic: {
+    maxWhatsappDevices: 2,
+    maxInstagramAccounts: 2,
+    maxMessengerAccounts: 2,
+  },
+  lite: {
+    maxWhatsappDevices: 3,
+    maxInstagramAccounts: 3,
+    maxMessengerAccounts: 3,
+  },
+  pro: {
+    maxWhatsappDevices: 10,
+    maxInstagramAccounts: 10,
+    maxMessengerAccounts: 10,
+  },
+};
+
 // Default plan configurations
 const DEFAULT_PLANS: SubscriptionPlansConfig = {
   free: {
@@ -87,6 +118,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     enabled: true, // FREE is always enabled
     isContactUs: false,
     contactUrl: '',
+    channelLimits: DEFAULT_CHANNEL_LIMITS.free,
   },
   basic: {
     name: 'BASIC',
@@ -102,6 +134,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     enabled: true,
     isContactUs: false,
     contactUrl: '',
+    channelLimits: DEFAULT_CHANNEL_LIMITS.basic,
   },
   lite: {
     name: 'LITE',
@@ -116,6 +149,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     enabled: true,
     isContactUs: false,
     contactUrl: '',
+    channelLimits: DEFAULT_CHANNEL_LIMITS.lite,
   },
   pro: {
     name: 'PRO',
@@ -131,6 +165,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     enabled: true,
     isContactUs: false,
     contactUrl: '',
+    channelLimits: DEFAULT_CHANNEL_LIMITS.pro,
   },
 };
 
@@ -289,6 +324,21 @@ export class AdminSubscriptionPlansService {
         throw new Error('Setiap fitur maksimal 100 karakter');
       }
     }
+
+    // Validate channel limits if provided
+    if (config.channelLimits) {
+      const { maxWhatsappDevices, maxInstagramAccounts, maxMessengerAccounts } = config.channelLimits;
+      
+      if (typeof maxWhatsappDevices !== 'number' || maxWhatsappDevices < 0) {
+        throw new Error('Max WhatsApp devices harus berupa angka positif atau 0');
+      }
+      if (typeof maxInstagramAccounts !== 'number' || maxInstagramAccounts < 0) {
+        throw new Error('Max Instagram accounts harus berupa angka positif atau 0');
+      }
+      if (typeof maxMessengerAccounts !== 'number' || maxMessengerAccounts < 0) {
+        throw new Error('Max Messenger accounts harus berupa angka positif atau 0');
+      }
+    }
   }
 
   /**
@@ -302,6 +352,9 @@ export class AdminSubscriptionPlansService {
     if (previous.price !== current.price) changed.push('price');
     if (JSON.stringify(previous.features) !== JSON.stringify(current.features)) {
       changed.push('features');
+    }
+    if (JSON.stringify(previous.channelLimits) !== JSON.stringify(current.channelLimits)) {
+      changed.push('channelLimits');
     }
 
     return changed;
@@ -542,6 +595,23 @@ export class AdminSubscriptionPlansService {
         `Gagal memperbarui konfigurasi durasi: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
+  }
+
+  /**
+   * Get channel limits for a specific tier
+   * Returns the configured limits or default limits if not configured
+   */
+  async getChannelLimits(tier: PlanTier): Promise<ChannelLimits> {
+    const plans = await this.getPlans();
+    const plan = plans[tier];
+    return plan.channelLimits || DEFAULT_CHANNEL_LIMITS[tier];
+  }
+
+  /**
+   * Get default channel limits (for reference)
+   */
+  getDefaultChannelLimits(): Record<PlanTier, ChannelLimits> {
+    return DEFAULT_CHANNEL_LIMITS;
   }
 }
 

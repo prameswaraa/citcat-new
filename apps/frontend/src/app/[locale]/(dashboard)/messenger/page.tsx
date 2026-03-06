@@ -8,9 +8,12 @@ import { RoleGuard } from "@/components/auth/role-guard"
 import { MessengerConnectCard, MessengerPageCard } from "./components"
 import { IconBrandFacebook, IconPlus } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { useSubscription } from "@/hooks/use-subscription"
 
 export default function MessengerPage() {
   const { userId, isLoading: sessionLoading } = useBusinessAccount()
+  const { getChannelUsageText, canAddChannel, refetch: refetchSubscription } = useSubscription()
   const [pages, setPages] = useState<FacebookPage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -30,6 +33,8 @@ export default function MessengerPage() {
     try {
       const pagesData = await messengerApi.getPages()
       setPages(pagesData)
+      // Refetch subscription to update channel usage
+      refetchSubscription()
     } catch (err: any) {
       console.error("Error loading Messenger data:", err)
       setError(err.message)
@@ -134,12 +139,20 @@ export default function MessengerPage() {
               Connect your Facebook Pages to manage Messenger conversations
             </p>
           </div>
-          {hasConnectedPages && (
-            <Button onClick={handleConnect}>
-              <IconPlus className="mr-2 h-4 w-4" />
-              Add Another Page
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-sm">
+              {getChannelUsageText("messengerAccounts")}
+            </Badge>
+            {hasConnectedPages && (
+              <Button 
+                onClick={handleConnect}
+                disabled={!canAddChannel("messengerAccounts")}
+              >
+                <IconPlus className="mr-2 h-4 w-4" />
+                Add Another Page
+              </Button>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -154,6 +167,7 @@ export default function MessengerPage() {
             <MessengerConnectCard 
               onConnect={handleConnect}
               requiresReauth={hasReauthPages}
+              disabled={!canAddChannel("messengerAccounts")}
             />
           </div>
         )}

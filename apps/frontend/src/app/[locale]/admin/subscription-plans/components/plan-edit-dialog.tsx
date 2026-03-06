@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import type { PlanConfig, PlanTier, DurationConfig } from "../../hooks/use-admin-subscription-plans"
+import type { PlanConfig, PlanTier, DurationConfig, ChannelLimits } from "../../hooks/use-admin-subscription-plans"
 import { FeaturesListEditor } from "./features-list-editor"
 import { DurationConfigEditor } from "./duration-config-editor"
 
@@ -44,6 +44,14 @@ const DEFAULT_DURATIONS: DurationConfig[] = [
   { months: 12, days: 365, discountPercent: 20, enabled: true, label: "1 Tahun" },
 ]
 
+// Default channel limits per tier
+const DEFAULT_CHANNEL_LIMITS: Record<PlanTier, ChannelLimits> = {
+  free: { maxWhatsappDevices: 1, maxInstagramAccounts: 1, maxMessengerAccounts: 1 },
+  basic: { maxWhatsappDevices: 2, maxInstagramAccounts: 2, maxMessengerAccounts: 2 },
+  lite: { maxWhatsappDevices: 3, maxInstagramAccounts: 3, maxMessengerAccounts: 3 },
+  pro: { maxWhatsappDevices: 10, maxInstagramAccounts: 10, maxMessengerAccounts: 10 },
+}
+
 export function PlanEditDialog({
   open,
   onOpenChange,
@@ -68,6 +76,9 @@ export function PlanEditDialog({
   const [contactUrl, setContactUrl] = useState(plan.contactUrl ?? "")
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSavingDurations, setIsSavingDurations] = useState(false)
+  const [channelLimits, setChannelLimits] = useState<ChannelLimits>(
+    plan.channelLimits || DEFAULT_CHANNEL_LIMITS[tier]
+  )
 
   // Reset form when plan changes
   useEffect(() => {
@@ -79,8 +90,9 @@ export function PlanEditDialog({
     setEnabled(plan.enabled ?? true)
     setIsContactUs(plan.isContactUs ?? false)
     setContactUrl(plan.contactUrl ?? "")
+    setChannelLimits(plan.channelLimits || DEFAULT_CHANNEL_LIMITS[tier])
     setErrors({})
-  }, [plan])
+  }, [plan, tier])
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {}
@@ -114,9 +126,17 @@ export function PlanEditDialog({
       enabled: tier === "free" ? true : enabled, // FREE tier is always enabled
       isContactUs: tier === "free" ? false : isContactUs,
       contactUrl: isContactUs ? contactUrl.trim() : "",
+      channelLimits,
     }
 
     await onSave(config)
+  }
+
+  const handleChannelLimitChange = (field: keyof ChannelLimits, value: string) => {
+    const numValue = parseInt(value, 10)
+    if (!isNaN(numValue) && numValue >= 0) {
+      setChannelLimits(prev => ({ ...prev, [field]: numValue }))
+    }
   }
 
   const tierLabels: Record<PlanTier, string> = {
@@ -275,6 +295,69 @@ export function PlanEditDialog({
               </div>
             </>
           )}
+
+          {/* Channel Limits Configuration */}
+          <Separator className="my-4" />
+          <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+            <h4 className="font-medium text-sm">{t("channelLimits") || "Channel Limits"}</h4>
+            <p className="text-xs text-muted-foreground">
+              {t("channelLimitsDesc") || "Set the maximum number of connected channels for this plan"}
+            </p>
+            
+            {/* WhatsApp Devices */}
+            <div className="space-y-2">
+              <Label htmlFor="maxWhatsappDevices">
+                {t("maxWhatsappDevices") || "Max WhatsApp Devices"}
+              </Label>
+              <Input
+                id="maxWhatsappDevices"
+                type="number"
+                min={0}
+                value={channelLimits.maxWhatsappDevices}
+                onChange={(e) => handleChannelLimitChange("maxWhatsappDevices", e.target.value)}
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxWhatsappDevicesDesc") || "Number of WhatsApp numbers that can be connected"}
+              </p>
+            </div>
+
+            {/* Instagram Accounts */}
+            <div className="space-y-2">
+              <Label htmlFor="maxInstagramAccounts">
+                {t("maxInstagramAccounts") || "Max Instagram Accounts"}
+              </Label>
+              <Input
+                id="maxInstagramAccounts"
+                type="number"
+                min={0}
+                value={channelLimits.maxInstagramAccounts}
+                onChange={(e) => handleChannelLimitChange("maxInstagramAccounts", e.target.value)}
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxInstagramAccountsDesc") || "Number of Instagram accounts that can be connected"}
+              </p>
+            </div>
+
+            {/* Messenger Accounts */}
+            <div className="space-y-2">
+              <Label htmlFor="maxMessengerAccounts">
+                {t("maxMessengerAccounts") || "Max Messenger Accounts"}
+              </Label>
+              <Input
+                id="maxMessengerAccounts"
+                type="number"
+                min={0}
+                value={channelLimits.maxMessengerAccounts}
+                onChange={(e) => handleChannelLimitChange("maxMessengerAccounts", e.target.value)}
+                placeholder="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxMessengerAccountsDesc") || "Number of Messenger pages that can be connected"}
+              </p>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>

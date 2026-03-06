@@ -7,9 +7,10 @@ import { IconBrandFacebook, IconAlertTriangle } from "@tabler/icons-react"
 interface Props {
   onConnect: () => void
   requiresReauth?: boolean
+  disabled?: boolean
 }
 
-export function MessengerConnectCard({ onConnect, requiresReauth }: Props) {
+export function MessengerConnectCard({ onConnect, requiresReauth, disabled }: Props) {
   return (
     <Card className={requiresReauth ? "border-amber-200 dark:border-amber-800" : ""}>
       <CardHeader>
@@ -51,7 +52,11 @@ export function MessengerConnectCard({ onConnect, requiresReauth }: Props) {
           </ul>
         </div>
 
-        <Button onClick={onConnect} className="w-full bg-[#1877F2] hover:bg-[#166FE5]">
+        <Button 
+          onClick={onConnect} 
+          className="w-full bg-[#1877F2] hover:bg-[#166FE5]"
+          disabled={disabled && !requiresReauth}
+        >
           <IconBrandFacebook className="mr-2 h-5 w-5" />
           {requiresReauth ? "Reconnect Facebook Page" : "Connect Facebook Page"}
         </Button>

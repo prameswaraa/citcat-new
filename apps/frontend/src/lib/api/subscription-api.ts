@@ -23,6 +23,18 @@ export interface SubscriptionUsage {
   webhookEndpoints: number
 }
 
+export interface ChannelLimits {
+  maxWhatsappDevices: number
+  maxInstagramAccounts: number
+  maxMessengerAccounts: number
+}
+
+export interface ChannelUsage {
+  whatsappDevices: number
+  instagramAccounts: number
+  messengerAccounts: number
+}
+
 export interface SubscriptionData {
   tier: SubscriptionTier
   status: SubscriptionStatus
@@ -30,6 +42,8 @@ export interface SubscriptionData {
   features: SubscriptionFeatures
   limits: SubscriptionLimits
   usage: SubscriptionUsage
+  channelLimits: ChannelLimits
+  channelUsage: ChannelUsage
 }
 
 // Duration option from pricing API
