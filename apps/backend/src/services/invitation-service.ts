@@ -5,6 +5,7 @@ import { emailService } from './email/EmailService.js';
 import { teamService } from './team-service.js';
 import { invitationEmailTemplate } from './email/templates/index.js';
 import { PLAN_LIMITS } from '../config/plans.js';
+import { adminSubscriptionPlansService, type PlanTier } from './admin/subscription-plans-service.js';
 
 /**
  * Invitation status enum (mirrors Prisma enum)
@@ -42,12 +43,19 @@ export interface AcceptInvitationUserData {
 }
 
 /**
- * Get agent limit from centralized PLAN_LIMITS config
+ * Get agent limit from admin-configurable settings (with fallback to static config)
  * This ensures consistency across the application
  */
-function getAgentLimitFromPlan(tier: string): number {
-  const planLimit = PLAN_LIMITS[tier as keyof typeof PLAN_LIMITS];
-  return planLimit?.maxTeamMembers ?? 0;
+async function getAgentLimitFromPlan(tier: string): Promise<number> {
+  try {
+    const planTier = tier.toLowerCase() as PlanTier;
+    const numericLimits = await adminSubscriptionPlansService.getNumericLimits(planTier);
+    return numericLimits.maxTeamMembers;
+  } catch {
+    // Fallback to static config
+    const planLimit = PLAN_LIMITS[tier as keyof typeof PLAN_LIMITS];
+    return planLimit?.maxTeamMembers ?? 0;
+  }
 }
 
 /**
@@ -80,9 +88,9 @@ export class InvitationService {
 
 /**
    * Get agent limit for a subscription tier
-   * Uses centralized PLAN_LIMITS from config/plans.ts
+   * Uses admin-configurable settings from SystemSetting (with fallback to static config)
    */
-  getAgentLimit(tier: string): number {
+  async getAgentLimit(tier: string): Promise<number> {
     return getAgentLimitFromPlan(tier);
   }
 
@@ -105,7 +113,7 @@ export class InvitationService {
     });
 
     const tier = user?.subscriptionTier ?? 'FREE';
-    const limit = this.getAgentLimit(tier);
+    const limit = await this.getAgentLimit(tier);
     const currentCount = await teamService.getActiveAgentCount(businessOwnerId);
 
     return {

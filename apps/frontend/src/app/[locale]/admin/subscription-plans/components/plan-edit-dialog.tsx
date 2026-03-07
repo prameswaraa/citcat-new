@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import type { PlanConfig, PlanTier, DurationConfig, ChannelLimits } from "../../hooks/use-admin-subscription-plans"
+import type { PlanConfig, PlanTier, DurationConfig, ChannelLimits, NumericLimits } from "../../hooks/use-admin-subscription-plans"
 import { FeaturesListEditor } from "./features-list-editor"
 import { DurationConfigEditor } from "./duration-config-editor"
 
@@ -52,6 +52,14 @@ const DEFAULT_CHANNEL_LIMITS: Record<PlanTier, ChannelLimits> = {
   pro: { maxWhatsappDevices: 10, maxInstagramAccounts: 10, maxMessengerAccounts: 10 },
 }
 
+// Default numeric limits per tier
+const DEFAULT_NUMERIC_LIMITS: Record<PlanTier, NumericLimits> = {
+  free: { maxAgents: 0, maxKnowledgeDocs: 0, maxTeamMembers: 0, maxApiKeys: 0, maxWebhookEndpoints: 0, messageRetentionDays: 7 },
+  basic: { maxAgents: 0, maxKnowledgeDocs: 0, maxTeamMembers: 2, maxApiKeys: 2, maxWebhookEndpoints: 3, messageRetentionDays: 30 },
+  lite: { maxAgents: 1, maxKnowledgeDocs: 5, maxTeamMembers: 5, maxApiKeys: 5, maxWebhookEndpoints: 3, messageRetentionDays: 30 },
+  pro: { maxAgents: 10, maxKnowledgeDocs: 50, maxTeamMembers: 10, maxApiKeys: 10, maxWebhookEndpoints: 20, messageRetentionDays: 30 },
+}
+
 export function PlanEditDialog({
   open,
   onOpenChange,
@@ -79,6 +87,9 @@ export function PlanEditDialog({
   const [channelLimits, setChannelLimits] = useState<ChannelLimits>(
     plan.channelLimits || DEFAULT_CHANNEL_LIMITS[tier]
   )
+  const [numericLimits, setNumericLimits] = useState<NumericLimits>(
+    plan.numericLimits || DEFAULT_NUMERIC_LIMITS[tier]
+  )
 
   // Reset form when plan changes
   useEffect(() => {
@@ -91,6 +102,7 @@ export function PlanEditDialog({
     setIsContactUs(plan.isContactUs ?? false)
     setContactUrl(plan.contactUrl ?? "")
     setChannelLimits(plan.channelLimits || DEFAULT_CHANNEL_LIMITS[tier])
+    setNumericLimits(plan.numericLimits || DEFAULT_NUMERIC_LIMITS[tier])
     setErrors({})
   }, [plan, tier])
 
@@ -127,6 +139,7 @@ export function PlanEditDialog({
       isContactUs: tier === "free" ? false : isContactUs,
       contactUrl: isContactUs ? contactUrl.trim() : "",
       channelLimits,
+      numericLimits,
     }
 
     await onSave(config)
@@ -136,6 +149,15 @@ export function PlanEditDialog({
     const numValue = parseInt(value, 10)
     if (!isNaN(numValue) && numValue >= 0) {
       setChannelLimits(prev => ({ ...prev, [field]: numValue }))
+    }
+  }
+
+  const handleNumericLimitChange = (field: keyof NumericLimits, value: string) => {
+    const numValue = parseInt(value, 10)
+    // Allow -1 for messageRetentionDays (unlimited)
+    const minValue = field === "messageRetentionDays" ? -1 : 0
+    if (!isNaN(numValue) && numValue >= minValue) {
+      setNumericLimits(prev => ({ ...prev, [field]: numValue }))
     }
   }
 
@@ -295,6 +317,123 @@ export function PlanEditDialog({
               </div>
             </>
           )}
+
+          {/* Numeric Limits Configuration */}
+          <Separator className="my-4" />
+          <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+            <h4 className="font-medium text-sm">{t("numericLimits") || "Plan Limits"}</h4>
+            <p className="text-xs text-muted-foreground">
+              {t("numericLimitsDesc") || "Set the feature limits for this plan"}
+            </p>
+            
+            {/* Max AI Agents */}
+            <div className="space-y-2">
+              <Label htmlFor="maxAgents">
+                {t("maxAgents") || "Max AI Agents"}
+              </Label>
+              <Input
+                id="maxAgents"
+                type="number"
+                min={0}
+                value={numericLimits.maxAgents}
+                onChange={(e) => handleNumericLimitChange("maxAgents", e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxAgentsDesc") || "Maximum number of AI agents that can be created"}
+              </p>
+            </div>
+
+            {/* Max Knowledge Documents */}
+            <div className="space-y-2">
+              <Label htmlFor="maxKnowledgeDocs">
+                {t("maxKnowledgeDocs") || "Max Knowledge Documents"}
+              </Label>
+              <Input
+                id="maxKnowledgeDocs"
+                type="number"
+                min={0}
+                value={numericLimits.maxKnowledgeDocs}
+                onChange={(e) => handleNumericLimitChange("maxKnowledgeDocs", e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxKnowledgeDocsDesc") || "Maximum number of knowledge documents for AI agents"}
+              </p>
+            </div>
+
+            {/* Max Team Members */}
+            <div className="space-y-2">
+              <Label htmlFor="maxTeamMembers">
+                {t("maxTeamMembers") || "Max Team Members"}
+              </Label>
+              <Input
+                id="maxTeamMembers"
+                type="number"
+                min={0}
+                value={numericLimits.maxTeamMembers}
+                onChange={(e) => handleNumericLimitChange("maxTeamMembers", e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxTeamMembersDesc") || "Maximum number of team members that can be invited"}
+              </p>
+            </div>
+
+            {/* Max API Keys */}
+            <div className="space-y-2">
+              <Label htmlFor="maxApiKeys">
+                {t("maxApiKeys") || "Max API Keys"}
+              </Label>
+              <Input
+                id="maxApiKeys"
+                type="number"
+                min={0}
+                value={numericLimits.maxApiKeys}
+                onChange={(e) => handleNumericLimitChange("maxApiKeys", e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxApiKeysDesc") || "Maximum number of API keys that can be created"}
+              </p>
+            </div>
+
+            {/* Max Webhook Endpoints */}
+            <div className="space-y-2">
+              <Label htmlFor="maxWebhookEndpoints">
+                {t("maxWebhookEndpoints") || "Max Webhook Endpoints"}
+              </Label>
+              <Input
+                id="maxWebhookEndpoints"
+                type="number"
+                min={0}
+                value={numericLimits.maxWebhookEndpoints}
+                onChange={(e) => handleNumericLimitChange("maxWebhookEndpoints", e.target.value)}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("maxWebhookEndpointsDesc") || "Maximum number of webhook endpoints that can be configured"}
+              </p>
+            </div>
+
+            {/* Message Retention Days */}
+            <div className="space-y-2">
+              <Label htmlFor="messageRetentionDays">
+                {t("messageRetentionDays") || "Message Retention Days"}
+              </Label>
+              <Input
+                id="messageRetentionDays"
+                type="number"
+                min={-1}
+                value={numericLimits.messageRetentionDays}
+                onChange={(e) => handleNumericLimitChange("messageRetentionDays", e.target.value)}
+                placeholder="30"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t("messageRetentionDaysDesc") || "Number of days to retain messages (-1 for unlimited)"}
+              </p>
+            </div>
+          </div>
 
           {/* Channel Limits Configuration */}
           <Separator className="my-4" />

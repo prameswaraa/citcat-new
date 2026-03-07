@@ -85,6 +85,7 @@ app.put('/:tier', async (c: Context) => {
       isContactUs: body.isContactUs ?? false,
       contactUrl: body.contactUrl ?? '',
       channelLimits: body.channelLimits,
+      numericLimits: body.numericLimits,
     };
 
     // Basic validation before service call

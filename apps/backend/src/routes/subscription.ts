@@ -55,9 +55,12 @@ app.get('/', async (c: Context) => {
     const effectiveTier = getEffectiveTier(subscription.status, subscription.tier)
     const limits = PLAN_LIMITS[effectiveTier]
     
-    // Get channel limits from admin-configurable settings (or fall back to hardcoded defaults)
+    // Get channel limits and numeric limits from admin-configurable settings (or fall back to hardcoded defaults)
     const planTier = effectiveTier.toLowerCase() as PlanTier
-    const channelLimits = await adminSubscriptionPlansService.getChannelLimits(planTier)
+    const [channelLimits, numericLimits] = await Promise.all([
+      adminSubscriptionPlansService.getChannelLimits(planTier),
+      adminSubscriptionPlansService.getNumericLimits(planTier)
+    ])
 
     // Query current usage counts in parallel (including channel usage)
     const [
@@ -119,10 +122,10 @@ app.get('/', async (c: Context) => {
         },
         
         limits: {
-          maxKnowledgeDocs: limits.maxKnowledgeDocs,
-          maxAgents: limits.maxAgents,
-          maxApiKeys: limits.maxApiKeys,
-          maxWebhookEndpoints: limits.maxWebhookEndpoints,
+          maxKnowledgeDocs: numericLimits.maxKnowledgeDocs,
+          maxAgents: numericLimits.maxAgents,
+          maxApiKeys: numericLimits.maxApiKeys,
+          maxWebhookEndpoints: numericLimits.maxWebhookEndpoints,
         },
         
         usage: {

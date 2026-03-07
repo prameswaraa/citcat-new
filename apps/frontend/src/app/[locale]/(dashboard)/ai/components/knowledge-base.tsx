@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge"
 import type { KnowledgeDocument } from "@/lib/api/ai-api"
 import { useToast } from "@/hooks/use-toast"
 import { useUploadDocument, useDeleteDocument } from "@/hooks/use-ai"
+import { useSubscription } from "@/hooks/use-subscription"
 
 interface KnowledgeBaseProps {
   documents: KnowledgeDocument[]
@@ -52,6 +53,11 @@ export function KnowledgeBase({ documents }: KnowledgeBaseProps) {
 
   const uploadDocument = useUploadDocument()
   const deleteDocument = useDeleteDocument()
+  
+  // Get subscription limits
+  const { canCreate, getUsageText } = useSubscription()
+  const canUploadDoc = canCreate("knowledgeDocs")
+  const docUsageText = getUsageText("knowledgeDocs")
 
   const handleDeleteClick = (doc: KnowledgeDocument) => {
     setDocumentToDelete(doc)
@@ -112,12 +118,19 @@ export function KnowledgeBase({ documents }: KnowledgeBaseProps) {
       },
     })
   }
+  const isUploadDisabled = uploadDocument.isPending || !canUploadDoc
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <div>
-            <CardTitle>Knowledge Base Documents</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Knowledge Base Documents
+              <Badge variant="outline" className="font-normal">
+                {docUsageText}
+              </Badge>
+            </CardTitle>
             <CardDescription>
               Upload PDF documents to train your AI.
             </CardDescription>
@@ -129,10 +142,10 @@ export function KnowledgeBase({ documents }: KnowledgeBaseProps) {
               className="hidden"
               id="file-upload"
               onChange={handleUpload}
-              disabled={uploadDocument.isPending}
+              disabled={isUploadDisabled}
             />
-            <Button asChild disabled={uploadDocument.isPending}>
-              <Label htmlFor="file-upload" className="cursor-pointer">
+            <Button asChild disabled={isUploadDisabled}>
+              <Label htmlFor="file-upload" className={isUploadDisabled ? "cursor-not-allowed" : "cursor-pointer"}>
                 {uploadDocument.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

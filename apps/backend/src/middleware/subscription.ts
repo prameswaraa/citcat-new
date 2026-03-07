@@ -2,6 +2,7 @@ import { Context } from 'hono'
 import { prisma } from '../utils/database.js'
 import { PLAN_LIMITS } from '../config/plans.js'
 import { SubscriptionTier, SubscriptionStatus, Prisma } from '@prisma/client'
+import { adminSubscriptionPlansService, type PlanTier } from '../services/admin/subscription-plans-service.js'
 
 // Transaction client type for Prisma interactive transactions
 type TransactionClient = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
@@ -60,6 +61,41 @@ function getEffectiveTier(subscription: SubscriptionData): SubscriptionTier {
 }
 
 /**
+ * Convert SubscriptionTier enum to PlanTier string for admin service
+ */
+function tierToPlanTier(tier: SubscriptionTier): PlanTier {
+  return tier.toLowerCase() as PlanTier
+}
+
+/**
+ * Get numeric limit for a resource, with admin config taking priority over static config
+ */
+async function getNumericLimit(tier: SubscriptionTier, resource: NumericLimit): Promise<number> {
+  try {
+    // Try to get from admin-configurable limits first
+    const numericLimits = await adminSubscriptionPlansService.getNumericLimits(tierToPlanTier(tier))
+    
+    // Map resource to numericLimits field
+    switch (resource) {
+      case 'maxAgents':
+        return numericLimits.maxAgents
+      case 'maxKnowledgeDocs':
+        return numericLimits.maxKnowledgeDocs
+      case 'maxApiKeys':
+        return numericLimits.maxApiKeys
+      case 'maxWebhookEndpoints':
+        return numericLimits.maxWebhookEndpoints
+      default:
+        // Fallback to static config
+        return PLAN_LIMITS[tier][resource]
+    }
+  } catch {
+    // Fallback to static config if admin service fails
+    return PLAN_LIMITS[tier][resource]
+  }
+}
+
+/**
  * Find the minimum tier required for a feature
  */
 function getRequiredTierForFeature(feature: BooleanFeature): SubscriptionTier {
@@ -89,7 +125,9 @@ export async function checkUsageLimit(
 ): Promise<{ allowed: boolean; limit: number; current: number }> {
   const subscription = await getSubscription(userId)
   const effectiveTier = getEffectiveTier(subscription)
-  const limit = PLAN_LIMITS[effectiveTier][resource]
+  
+  // Get limit from admin config (with fallback to static config)
+  const limit = await getNumericLimit(effectiveTier, resource)
   
   let current = 0
   
@@ -138,7 +176,9 @@ export async function checkAndCreateWithLimit<T>(
 ): Promise<{ success: true; data: T } | { success: false; error: string; limit: number; current: number }> {
   const subscription = await getSubscription(userId)
   const effectiveTier = getEffectiveTier(subscription)
-  const limit = PLAN_LIMITS[effectiveTier][resource]
+  
+  // Get limit from admin config (with fallback to static config)
+  const limit = await getNumericLimit(effectiveTier, resource)
 
   try {
     // Use interactive transaction with serializable isolation

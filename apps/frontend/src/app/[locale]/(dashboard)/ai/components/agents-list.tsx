@@ -29,6 +29,7 @@ import type { WhatsAppPhoneNumberOption } from "@/hooks/use-whatsapp-phone-numbe
 import { IconBrandWhatsapp } from "@tabler/icons-react"
 import { useToast } from "@/hooks/use-toast"
 import { useCreateAgent, useUpdateAgent, useDeleteAgent } from "@/hooks/use-ai"
+import { useSubscription } from "@/hooks/use-subscription"
 
 interface AgentsListProps {
   agents: AIAgent[]
@@ -46,6 +47,11 @@ export function AgentsList({ agents, documents, phoneNumbers }: AgentsListProps)
   const createAgent = useCreateAgent()
   const updateAgent = useUpdateAgent()
   const deleteAgent = useDeleteAgent()
+  
+  // Get subscription limits
+  const { canCreate, getUsageText } = useSubscription()
+  const canCreateAgent = canCreate("agents")
+  const agentUsageText = getUsageText("agents")
 
   const handleCreate = () => {
     setSelectedAgent(undefined)
@@ -108,12 +114,17 @@ export function AgentsList({ agents, documents, phoneNumbers }: AgentsListProps)
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>AI Agents</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            AI Agents
+            <Badge variant="outline" className="font-normal">
+              {agentUsageText}
+            </Badge>
+          </CardTitle>
           <CardDescription>
             Create and manage different AI personalities for various purposes.
           </CardDescription>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} disabled={!canCreateAgent}>
           <Plus className="mr-2 h-4 w-4" />
           Create Agent
         </Button>
@@ -130,7 +141,7 @@ export function AgentsList({ agents, documents, phoneNumbers }: AgentsListProps)
                 Create your first AI agent to start automating responses with specific personalities and knowledge.
               </p>
             </div>
-            <Button onClick={handleCreate}>Create Agent</Button>
+            <Button onClick={handleCreate} disabled={!canCreateAgent}>Create Agent</Button>
           </div>
         ) : (
           <Table>

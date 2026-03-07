@@ -25,6 +25,15 @@ export interface ChannelLimits {
   maxMessengerAccounts: number;
 }
 
+export interface NumericLimits {
+  maxAgents: number;
+  maxKnowledgeDocs: number;
+  maxTeamMembers: number;
+  maxApiKeys: number;
+  maxWebhookEndpoints: number;
+  messageRetentionDays: number;
+}
+
 export interface PlanConfig {
   name: string;
   description: string;
@@ -35,6 +44,7 @@ export interface PlanConfig {
   isContactUs: boolean;  // Show "Contact Us" instead of price
   contactUrl: string;  // URL for Contact Us button
   channelLimits?: ChannelLimits;  // Channel connection limits (configurable by admin)
+  numericLimits?: NumericLimits;  // Numeric limits (AI agents, knowledge docs, etc.)
 }
 
 export interface SubscriptionPlansConfig {
@@ -102,6 +112,42 @@ const DEFAULT_CHANNEL_LIMITS: Record<PlanTier, ChannelLimits> = {
   },
 };
 
+// Default numeric limits per tier (matches config/plans.ts)
+const DEFAULT_NUMERIC_LIMITS: Record<PlanTier, NumericLimits> = {
+  free: {
+    maxAgents: 0,
+    maxKnowledgeDocs: 0,
+    maxTeamMembers: 0,
+    maxApiKeys: 0,
+    maxWebhookEndpoints: 0,
+    messageRetentionDays: 7,
+  },
+  basic: {
+    maxAgents: 0,
+    maxKnowledgeDocs: 0,
+    maxTeamMembers: 2,
+    maxApiKeys: 2,
+    maxWebhookEndpoints: 3,
+    messageRetentionDays: 30,
+  },
+  lite: {
+    maxAgents: 1,
+    maxKnowledgeDocs: 5,
+    maxTeamMembers: 5,
+    maxApiKeys: 5,
+    maxWebhookEndpoints: 3,
+    messageRetentionDays: 30,
+  },
+  pro: {
+    maxAgents: 10,
+    maxKnowledgeDocs: 50,
+    maxTeamMembers: 10,
+    maxApiKeys: 10,
+    maxWebhookEndpoints: 20,
+    messageRetentionDays: 30,
+  },
+};
+
 // Default plan configurations
 const DEFAULT_PLANS: SubscriptionPlansConfig = {
   free: {
@@ -119,6 +165,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     isContactUs: false,
     contactUrl: '',
     channelLimits: DEFAULT_CHANNEL_LIMITS.free,
+    numericLimits: DEFAULT_NUMERIC_LIMITS.free,
   },
   basic: {
     name: 'BASIC',
@@ -135,6 +182,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     isContactUs: false,
     contactUrl: '',
     channelLimits: DEFAULT_CHANNEL_LIMITS.basic,
+    numericLimits: DEFAULT_NUMERIC_LIMITS.basic,
   },
   lite: {
     name: 'LITE',
@@ -150,6 +198,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     isContactUs: false,
     contactUrl: '',
     channelLimits: DEFAULT_CHANNEL_LIMITS.lite,
+    numericLimits: DEFAULT_NUMERIC_LIMITS.lite,
   },
   pro: {
     name: 'PRO',
@@ -166,6 +215,7 @@ const DEFAULT_PLANS: SubscriptionPlansConfig = {
     isContactUs: false,
     contactUrl: '',
     channelLimits: DEFAULT_CHANNEL_LIMITS.pro,
+    numericLimits: DEFAULT_NUMERIC_LIMITS.pro,
   },
 };
 
@@ -339,6 +389,30 @@ export class AdminSubscriptionPlansService {
         throw new Error('Max Messenger accounts harus berupa angka positif atau 0');
       }
     }
+
+    // Validate numeric limits if provided
+    if (config.numericLimits) {
+      const { maxAgents, maxKnowledgeDocs, maxTeamMembers, maxApiKeys, maxWebhookEndpoints, messageRetentionDays } = config.numericLimits;
+      
+      if (typeof maxAgents !== 'number' || maxAgents < 0) {
+        throw new Error('Max AI Agents harus berupa angka positif atau 0');
+      }
+      if (typeof maxKnowledgeDocs !== 'number' || maxKnowledgeDocs < 0) {
+        throw new Error('Max Knowledge Docs harus berupa angka positif atau 0');
+      }
+      if (typeof maxTeamMembers !== 'number' || maxTeamMembers < 0) {
+        throw new Error('Max Team Members harus berupa angka positif atau 0');
+      }
+      if (typeof maxApiKeys !== 'number' || maxApiKeys < 0) {
+        throw new Error('Max API Keys harus berupa angka positif atau 0');
+      }
+      if (typeof maxWebhookEndpoints !== 'number' || maxWebhookEndpoints < 0) {
+        throw new Error('Max Webhook Endpoints harus berupa angka positif atau 0');
+      }
+      if (typeof messageRetentionDays !== 'number' || messageRetentionDays < -1) {
+        throw new Error('Message Retention Days harus berupa angka positif, 0, atau -1 (unlimited)');
+      }
+    }
   }
 
   /**
@@ -355,6 +429,9 @@ export class AdminSubscriptionPlansService {
     }
     if (JSON.stringify(previous.channelLimits) !== JSON.stringify(current.channelLimits)) {
       changed.push('channelLimits');
+    }
+    if (JSON.stringify(previous.numericLimits) !== JSON.stringify(current.numericLimits)) {
+      changed.push('numericLimits');
     }
 
     return changed;
@@ -612,6 +689,23 @@ export class AdminSubscriptionPlansService {
    */
   getDefaultChannelLimits(): Record<PlanTier, ChannelLimits> {
     return DEFAULT_CHANNEL_LIMITS;
+  }
+
+  /**
+   * Get numeric limits for a specific tier
+   * Returns the configured limits or default limits if not configured
+   */
+  async getNumericLimits(tier: PlanTier): Promise<NumericLimits> {
+    const plans = await this.getPlans();
+    const plan = plans[tier];
+    return plan.numericLimits || DEFAULT_NUMERIC_LIMITS[tier];
+  }
+
+  /**
+   * Get default numeric limits (for reference)
+   */
+  getDefaultNumericLimits(): Record<PlanTier, NumericLimits> {
+    return DEFAULT_NUMERIC_LIMITS;
   }
 }
 

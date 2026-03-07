@@ -18,6 +18,15 @@ export interface ChannelLimits {
   maxMessengerAccounts: number
 }
 
+export interface NumericLimits {
+  maxAgents: number
+  maxKnowledgeDocs: number
+  maxTeamMembers: number
+  maxApiKeys: number
+  maxWebhookEndpoints: number
+  messageRetentionDays: number
+}
+
 export interface PlanConfig {
   name: string
   description: string
@@ -28,6 +37,7 @@ export interface PlanConfig {
   isContactUs: boolean      // Show "Contact Us" instead of price
   contactUrl: string        // URL for Contact Us button
   channelLimits?: ChannelLimits  // Channel connection limits
+  numericLimits?: NumericLimits  // Numeric limits (AI agents, knowledge docs, etc.)
 }
 
 export interface SubscriptionPlansConfig {
