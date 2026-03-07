@@ -25,6 +25,7 @@ import { WABAConnectionButton } from "@/components/waba/waba-connection-button"
 import { wabaApi, type ManualConnectResponse } from "@/lib/api/waba-api"
 import { useTranslations } from "next-intl"
 import { useToast } from "@/hooks/use-toast"
+import { useBranding } from "@/hooks/use-branding"
 
 interface Props {
   hasWABA: boolean
@@ -34,6 +35,7 @@ interface Props {
 export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
   const t = useTranslations("waba")
   const { toast } = useToast()
+  const { websiteName } = useBranding()
   
   // Manual login state
   const [accessToken, setAccessToken] = useState("")
@@ -248,7 +250,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                     </Badge>
                   </div>
                   <p className="text-emerald-700 dark:text-emerald-300 text-xs">
-                    {t("officialApi.description")}
+                    {t("officialApi.description", { websiteName: websiteName || "Platform" })}
                   </p>
                   <div className="flex flex-col gap-1.5 mt-3">
                     <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
