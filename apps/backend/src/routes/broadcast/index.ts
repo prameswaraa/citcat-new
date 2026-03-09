@@ -396,12 +396,19 @@ app.get('/jobs', async (c: Context) => {
     }
 
     const { page, limit } = parsePagination(c.req.query())
-    const status = c.req.query('status')
+    // Support multiple status values: ?status=PENDING&status=PROCESSING
+    const statuses = c.req.queries('status')
 
     // Build where clause
     const where: any = { userId }
-    if (status) {
-      where.status = status
+    if (statuses && statuses.length > 0) {
+      // Filter out empty strings and use IN clause for multiple statuses
+      const validStatuses = statuses.filter((s: string) => s && s.trim())
+      if (validStatuses.length === 1) {
+        where.status = validStatuses[0]
+      } else if (validStatuses.length > 1) {
+        where.status = { in: validStatuses }
+      }
     }
 
     const [jobs, total] = await Promise.all([
