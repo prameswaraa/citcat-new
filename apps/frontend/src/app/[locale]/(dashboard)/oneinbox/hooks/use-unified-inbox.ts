@@ -198,11 +198,59 @@ export function useUnifiedInbox() {
       }
     }
 
-    // Parallel fetch WhatsApp, Instagram, and Messenger
-    const [waResult, igResult, msgResult] = await Promise.allSettled([
+    // Helper function to fetch fresh CRM data for enrichment
+    const fetchCrmData = async () => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      try {
+        const response = await fetch(`${apiUrl}/api/v1/customers`, { credentials: "include" })
+        if (!response.ok) return { customerMap: new Map(), customerByIgsidMap: new Map(), customerByPsidMap: new Map() }
+        
+        const result = await response.json()
+        const customers = result.data || []
+        
+        const customerMap = new Map<string, CRMCustomer>()
+        const customerByIgsidMap = new Map<string, CRMCustomer>()
+        const customerByPsidMap = new Map<string, CRMCustomer>()
+        
+        customers.forEach((customer: any) => {
+          const crmCustomer: CRMCustomer = {
+            id: customer.id,
+            phoneNumber: customer.phoneNumber,
+            tags: customer.tags || [],
+            pipelineStageId: customer.pipelineStageId || null,
+            pipelineStage: customer.pipelineStage
+              ? {
+                id: customer.pipelineStage.id,
+                name: customer.pipelineStage.name,
+                color: customer.pipelineStage.color,
+              }
+              : null,
+          }
+          
+          if (customer.phoneNumber) {
+            customerMap.set(customer.phoneNumber, crmCustomer)
+          }
+          if (customer.instagramIgsid) {
+            customerByIgsidMap.set(customer.instagramIgsid, crmCustomer)
+          }
+          if (customer.messengerPsid) {
+            customerByPsidMap.set(customer.messengerPsid, crmCustomer)
+          }
+        })
+        
+        return { customerMap, customerByIgsidMap, customerByPsidMap }
+      } catch (error) {
+        console.error("Failed to fetch CRM data for enrichment:", error)
+        return { customerMap: new Map(), customerByIgsidMap: new Map(), customerByPsidMap: new Map() }
+      }
+    }
+
+    // Parallel fetch WhatsApp, Instagram, Messenger, AND fresh CRM data
+    const [waResult, igResult, msgResult, crmResult] = await Promise.allSettled([
       messagesApi.getMessages(),
       processInstagramData(),
-      processMessengerData()
+      processMessengerData(),
+      fetchCrmData()
     ])
 
     // Process WhatsApp result
@@ -245,16 +293,28 @@ export function useUnifiedInbox() {
       return bTime - aTime
     })
 
-    // Enrich conversations with CRM data (use refs for stable access)
+    // Get fresh CRM data from the parallel fetch result
+    const freshCrmData = crmResult.status === "fulfilled" 
+      ? crmResult.value 
+      : { customerMap: new Map(), customerByIgsidMap: new Map(), customerByPsidMap: new Map() }
+
+    // Update refs with fresh CRM data so selectConversation also uses fresh data
+    if (crmResult.status === "fulfilled") {
+      crmCustomersRef.current = freshCrmData.customerMap
+      crmCustomersByIgsidRef.current = freshCrmData.customerByIgsidMap
+      crmCustomersByPsidRef.current = freshCrmData.customerByPsidMap
+    }
+
+    // Enrich conversations with fresh CRM data (use fresh data from parallel fetch)
     const enrichedConversations = merged.map((conversation) => {
       let crmCustomer = undefined
 
       if (conversation.channel === "whatsapp") {
-        crmCustomer = crmCustomersRef.current.get(conversation.participantIdentifier)
+        crmCustomer = freshCrmData.customerMap.get(conversation.participantIdentifier)
       } else if (conversation.channel === "instagram") {
-        crmCustomer = crmCustomersByIgsidRef.current.get(conversation.participantIdentifier)
+        crmCustomer = freshCrmData.customerByIgsidMap.get(conversation.participantIdentifier)
       } else if (conversation.channel === "messenger") {
-        crmCustomer = crmCustomersByPsidRef.current.get(conversation.participantIdentifier)
+        crmCustomer = freshCrmData.customerByPsidMap.get(conversation.participantIdentifier)
       }
 
       if (crmCustomer) {
@@ -405,20 +465,21 @@ export function useUnifiedInbox() {
         return
       }
 
-      // Load customer detail
+      // Load customer detail - use refs for fresh CRM data
       if (conversation.crmCustomerId) {
         crmData.loadCustomerDetail(conversation.crmCustomerId)
       } else {
         let foundCustomerId: string | null = null
         
+        // Use refs which are updated with fresh data in loadConversations
         if (conversation.channel === "whatsapp") {
-          const crmCustomer = crmData.crmCustomers.get(conversation.participantIdentifier)
+          const crmCustomer = crmCustomersRef.current.get(conversation.participantIdentifier)
           if (crmCustomer) foundCustomerId = crmCustomer.id
         } else if (conversation.channel === "instagram") {
-          const crmCustomer = crmData.crmCustomersByIgsid.get(conversation.participantIdentifier)
+          const crmCustomer = crmCustomersByIgsidRef.current.get(conversation.participantIdentifier)
           if (crmCustomer) foundCustomerId = crmCustomer.id
         } else if (conversation.channel === "messenger") {
-          const crmCustomer = crmData.crmCustomersByPsid.get(conversation.participantIdentifier)
+          const crmCustomer = crmCustomersByPsidRef.current.get(conversation.participantIdentifier)
           if (crmCustomer) foundCustomerId = crmCustomer.id
         }
         
@@ -486,7 +547,7 @@ export function useUnifiedInbox() {
         setWaWindowStatus(null)
       }
     },
-    [crmData.crmCustomers, crmData.crmCustomersByIgsid, crmData.crmCustomersByPsid, crmData.loadCustomerDetail, crmData.setSelectedCustomerDetail, instagramMessaging.setIgMessages, messengerMessaging.setMsgMessages]
+    [crmData.loadCustomerDetail, crmData.setSelectedCustomerDetail, instagramMessaging.setIgMessages, messengerMessaging.setMsgMessages]
   )
 
   // Handle visibility change for smart polling

@@ -147,24 +147,8 @@ export function UnifiedConversationList({
     <div className={`w-full md:w-[360px] border-r flex flex-col ${className}`}>
       {/* Header */}
       <div className="p-4 border-b">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <IconInbox className="h-5 w-5 text-primary" />
-            OneInbox
-          </h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={loading}
-            className="h-8 w-8 p-0"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </Button>
-        </div>
-        
-        {/* Filter Dropdowns - Side by side */}
-        <div className="flex gap-2">
+        {/* Filter Dropdowns - Side by side with Reload */}
+        <div className="flex gap-2 items-center">
           {/* Channel Filter */}
           <div className="flex-1">
             <ChannelFilter value={channelFilter} onChange={onChannelFilterChange} />
@@ -177,6 +161,17 @@ export function UnifiedConversationList({
               onChange={onAssignmentFilterChange}
             />
           </div>
+          
+          {/* Reload Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="h-9 w-9 p-0 shrink-0"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </Button>
         </div>
       </div>
 
