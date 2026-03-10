@@ -11,6 +11,7 @@ import {
   Loader2,
   Bot,
   MessageSquare,
+  Brain,
 } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { useSession } from "@/lib/auth-client"
@@ -29,6 +30,7 @@ import { AgentsList } from "./components/agents-list"
 import { FilterSettings } from "./components/filter-settings"
 import { HelpSection } from "./components/help-section"
 import { ChatTest } from "./components/chat-test"
+import { MemoryManagement } from "./components/memory-management"
 
 export default function AIPage() {
   const { data: session, isPending } = useSession()
@@ -115,6 +117,10 @@ export default function AIPage() {
                 <MessageSquare className="h-4 w-4" />
                 Test Chatbot
               </TabsTrigger>
+              <TabsTrigger value="memory" className="flex items-center gap-2">
+                <Brain className="h-4 w-4" />
+                Memory
+              </TabsTrigger>
               <TabsTrigger value="filter" className="flex items-center gap-2">
                 <Ban className="h-4 w-4" />
                 Filters
@@ -162,6 +168,14 @@ export default function AIPage() {
               <LockedContent />
             ) : (
               <ChatTest agents={agents} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="memory" className="space-y-6">
+            {isRestrictedUser ? (
+              <LockedContent />
+            ) : (
+              <MemoryManagement phoneNumbers={phoneNumbers} />
             )}
           </TabsContent>
 

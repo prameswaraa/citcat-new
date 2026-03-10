@@ -260,4 +260,80 @@ export const aiApi = {
     const json = await response.json();
     return json.data || { models: [] };
   },
+
+  async getMemoryCount(whatsappAccountId: string): Promise<{ count: number }> {
+    const response = await fetch(`${API_URL}/api/v1/ai/memory/count?whatsappAccountId=${whatsappAccountId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to fetch memory count');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
+
+  async deleteMemory(whatsappAccountId: string): Promise<{ deletedCount: number }> {
+    const response = await fetch(`${API_URL}/api/v1/ai/memory?whatsappAccountId=${whatsappAccountId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to delete memory');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
+
+  async getCustomersWithMemory(whatsappAccountId: string): Promise<{
+    customerId: string;
+    customerName: string | null;
+    customerPhone: string | null;
+    memoryCount: number;
+    lastMemoryAt: string;
+  }[]> {
+    const response = await fetch(`${API_URL}/api/v1/ai/memory/customers?whatsappAccountId=${whatsappAccountId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to fetch customers');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
+
+  async deleteCustomerMemory(whatsappAccountId: string, customerId: string): Promise<{ deletedCount: number }> {
+    const response = await fetch(`${API_URL}/api/v1/ai/memory/customer?whatsappAccountId=${whatsappAccountId}&customerId=${customerId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to delete customer memory');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
 };

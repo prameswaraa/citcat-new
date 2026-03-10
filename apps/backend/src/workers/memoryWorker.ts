@@ -6,6 +6,8 @@ import { QUEUE_NAMES, memoryQueue } from '../utils/queue.js'
 import { createMemoryVectorStore, MemoryVectorStore } from '../services/ai/memory/index.js'
 import { OpenAIProvider } from '../services/ai/providers/OpenAIProvider.js'
 import { logger } from '../utils/logger.js'
+import { adminSettingsService } from '../services/admin/settings-service.js'
+import type { OpenAISettings } from '../types/admin-settings.js'
 
 console.log('memoryWorker imports loaded')
 
@@ -58,22 +60,65 @@ const redisConnection = new Redis({
 // =============================================================================
 
 let memoryVectorStore: MemoryVectorStore | null = null
+let lastApiKeyHash: string | null = null
+
+/**
+ * Simple hash for API key comparison
+ */
+function hashKey(key: string): string {
+    let hash = 0
+    for (let i = 0; i < key.length; i++) {
+        const char = key.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash
+    }
+    return hash.toString()
+}
 
 /**
  * Get or create the MemoryVectorStore instance.
- * Lazily initialized to ensure environment variables are loaded.
+ * Fetches API key from database (admin settings), falls back to env.
  */
-function getMemoryVectorStore(): MemoryVectorStore {
+async function getMemoryVectorStore(): Promise<MemoryVectorStore> {
+    try {
+        // Try to get API key from database first
+        const response = await adminSettingsService.getSettings<OpenAISettings>('openai', false)
+        const dbApiKey = response.data.apiKey
+        const baseUrl = response.data.baseUrl
+        const embeddingModel = response.data.embeddingModel
+
+        if (dbApiKey && !dbApiKey.includes('****')) {
+            const newHash = hashKey(dbApiKey)
+            
+            // Recreate if API key changed or not initialized
+            if (!memoryVectorStore || newHash !== lastApiKeyHash) {
+                const openaiProvider = new OpenAIProvider(dbApiKey, baseUrl || undefined, embeddingModel || undefined)
+                memoryVectorStore = createMemoryVectorStore(openaiProvider)
+                lastApiKeyHash = newHash
+                logger.info('MemoryVectorStore initialized with database API key')
+            }
+            
+            return memoryVectorStore
+        }
+    } catch (error) {
+        logger.warn('Failed to get OpenAI settings from database, falling back to env', {
+            error: error instanceof Error ? error.message : 'Unknown error'
+        })
+    }
+
+    // Fallback to environment variable
     if (!memoryVectorStore) {
         const apiKey = process.env.OPENAI_API_KEY
         if (!apiKey) {
-            throw new Error('OPENAI_API_KEY environment variable is required for memory worker')
+            throw new Error('OPENAI_API_KEY not found in database or environment variables')
         }
 
         const openaiProvider = new OpenAIProvider(apiKey)
         memoryVectorStore = createMemoryVectorStore(openaiProvider)
-        logger.info('MemoryVectorStore initialized')
+        lastApiKeyHash = hashKey(apiKey)
+        logger.info('MemoryVectorStore initialized with env API key')
     }
+    
     return memoryVectorStore
 }
 
@@ -85,7 +130,7 @@ function getMemoryVectorStore(): MemoryVectorStore {
  * Process embed-memory job: Generate and store embedding for a memory record.
  */
 async function processEmbedMemory(memoryId: string): Promise<void> {
-    const store = getMemoryVectorStore()
+    const store = await getMemoryVectorStore()
 
     try {
         await store.storeEmbedding(memoryId)
@@ -111,7 +156,7 @@ async function processEmbedMemory(memoryId: string): Promise<void> {
  * Process cleanup-old job: Delete memories older than specified days.
  */
 async function processCleanupOld(olderThanDays: number = DEFAULT_CLEANUP_DAYS): Promise<void> {
-    const store = getMemoryVectorStore()
+    const store = await getMemoryVectorStore()
     const deletedCount = await store.deleteOldMemories(olderThanDays)
     logger.info(`Cleaned up ${deletedCount} memories older than ${olderThanDays} days`)
 }
@@ -120,7 +165,7 @@ async function processCleanupOld(olderThanDays: number = DEFAULT_CLEANUP_DAYS): 
  * Process retry-failed job: Reset failed memories and re-queue them.
  */
 async function processRetryFailed(limit: number = DEFAULT_RETRY_LIMIT): Promise<void> {
-    const store = getMemoryVectorStore()
+    const store = await getMemoryVectorStore()
     const failedMemories = await store.getFailedMemories(limit)
 
     if (failedMemories.length === 0) {

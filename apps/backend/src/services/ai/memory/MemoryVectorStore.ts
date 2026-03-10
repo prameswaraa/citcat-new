@@ -250,6 +250,126 @@ export class MemoryVectorStore {
   }
 
   /**
+   * Delete all memories for a specific WhatsApp account.
+   * Used when user wants to clear AI memory for a specific phone number.
+   * 
+   * @param userId The user's ID (for authorization)
+   * @param whatsappAccountId The WhatsApp account ID to clear memories for
+   * @returns Number of deleted memories
+   */
+  async deleteByWhatsAppAccountId(userId: string, whatsappAccountId: string): Promise<number> {
+    const result = await this.client.conversationMemory.deleteMany({
+      where: {
+        userId,
+        whatsappAccountId,
+      },
+    });
+
+    logger.info(`🗑️ Deleted ${result.count} memories for WhatsApp account ${whatsappAccountId}`);
+    return result.count;
+  }
+
+  /**
+   * Get count of memories for a specific WhatsApp account.
+   * 
+   * @param userId The user's ID
+   * @param whatsappAccountId The WhatsApp account ID
+   * @returns Count of memories
+   */
+  async getCountByWhatsAppAccountId(userId: string, whatsappAccountId: string): Promise<number> {
+    return this.client.conversationMemory.count({
+      where: {
+        userId,
+        whatsappAccountId,
+      },
+    });
+  }
+
+  /**
+   * Delete all memories for a specific customer within a WhatsApp account.
+   * Used when user wants to clear AI memory for a specific customer.
+   * 
+   * @param userId The user's ID (for authorization)
+   * @param whatsappAccountId The WhatsApp account ID
+   * @param customerId The customer ID to clear memories for
+   * @returns Number of deleted memories
+   */
+  async deleteByCustomerId(userId: string, whatsappAccountId: string, customerId: string): Promise<number> {
+    const result = await this.client.conversationMemory.deleteMany({
+      where: {
+        userId,
+        whatsappAccountId,
+        customerId,
+      },
+    });
+
+    logger.info(`🗑️ Deleted ${result.count} memories for customer ${customerId}`);
+    return result.count;
+  }
+
+  /**
+   * Get list of customers with memory count for a WhatsApp account.
+   * Used for displaying which customers have AI memories.
+   * 
+   * @param userId The user's ID
+   * @param whatsappAccountId The WhatsApp account ID
+   * @returns List of customers with their memory counts
+   */
+  async getCustomersWithMemory(userId: string, whatsappAccountId: string): Promise<{
+    customerId: string;
+    customerName: string | null;
+    customerPhone: string | null;
+    memoryCount: number;
+    lastMemoryAt: Date;
+  }[]> {
+    const results = await this.client.conversationMemory.groupBy({
+      by: ['customerId'],
+      where: {
+        userId,
+        whatsappAccountId,
+        status: 'COMPLETED',
+      },
+      _count: {
+        id: true,
+      },
+      _max: {
+        createdAt: true,
+      },
+      orderBy: {
+        _max: {
+          createdAt: 'desc',
+        },
+      },
+    });
+
+    // Get customer details
+    const customerIds = results.map(r => r.customerId);
+    const customers = await this.client.customer.findMany({
+      where: {
+        id: { in: customerIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        phoneNumber: true,
+      },
+    });
+
+    const customerMap = new Map(customers.map(c => [c.id, c]));
+
+    return results.map(r => {
+      const customer = customerMap.get(r.customerId);
+      return {
+        customerId: r.customerId,
+        customerName: customer?.name || null,
+        customerPhone: customer?.phoneNumber || null,
+        memoryCount: r._count.id,
+        lastMemoryAt: r._max.createdAt!,
+      };
+    });
+  }
+
+  /**
    * Delete memories older than the specified number of days.
    * Default: 90 days retention period.
    * 

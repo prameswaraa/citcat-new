@@ -5,6 +5,8 @@ import { prisma } from '../../utils/database.js'
 import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js'
 import { adminSettingsService } from '../../services/admin/settings-service.js'
 import { checkFeatureAccess } from '../../middleware/subscription.js'
+import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
+import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
 import agents from './agents.js'
 import knowledge from './knowledge.js'
 
@@ -190,6 +192,135 @@ app.delete('/config', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Contex
   } catch (error) {
     console.error('Failed to delete per-account AI config:', error)
     return c.json({ error: { code: 'InternalServerError', message: 'Failed to delete config' } }, 500)
+  }
+})
+
+// GET /api/v1/ai/memory/count - Get memory count for a WhatsApp account
+app.get('/memory/count', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const whatsappAccountId = c.req.query('whatsappAccountId')
+    if (!whatsappAccountId) {
+      return c.json({ error: { code: 'BadRequest', message: 'whatsappAccountId is required' } }, 400)
+    }
+
+    // Verify account belongs to user
+    const account = await prisma.whatsAppAccount.findFirst({
+      where: { id: whatsappAccountId, userId: c.user.id },
+    })
+    if (!account) {
+      return c.json({ error: { code: 'NotFound', message: 'WhatsApp account not found' } }, 404)
+    }
+
+    const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '')
+    const memoryStore = createMemoryVectorStore(openaiProvider)
+    const count = await memoryStore.getCountByWhatsAppAccountId(c.user.id, whatsappAccountId)
+
+    return c.json({ success: true, data: { count } })
+  } catch (error) {
+    console.error('Failed to get memory count:', error)
+    return c.json({ error: { code: 'InternalServerError', message: 'Failed to get memory count' } }, 500)
+  }
+})
+
+// DELETE /api/v1/ai/memory - Delete all memories for a WhatsApp account
+app.delete('/memory', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const whatsappAccountId = c.req.query('whatsappAccountId')
+    if (!whatsappAccountId) {
+      return c.json({ error: { code: 'BadRequest', message: 'whatsappAccountId is required' } }, 400)
+    }
+
+    // Verify account belongs to user
+    const account = await prisma.whatsAppAccount.findFirst({
+      where: { id: whatsappAccountId, userId: c.user.id },
+    })
+    if (!account) {
+      return c.json({ error: { code: 'NotFound', message: 'WhatsApp account not found' } }, 404)
+    }
+
+    const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '')
+    const memoryStore = createMemoryVectorStore(openaiProvider)
+    const deletedCount = await memoryStore.deleteByWhatsAppAccountId(c.user.id, whatsappAccountId)
+
+    return c.json({ success: true, data: { deletedCount } })
+  } catch (error) {
+    console.error('Failed to delete memories:', error)
+    return c.json({ error: { code: 'InternalServerError', message: 'Failed to delete memories' } }, 500)
+  }
+})
+
+// GET /api/v1/ai/memory/customers - Get list of customers with memory for a WhatsApp account
+app.get('/memory/customers', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const whatsappAccountId = c.req.query('whatsappAccountId')
+    if (!whatsappAccountId) {
+      return c.json({ error: { code: 'BadRequest', message: 'whatsappAccountId is required' } }, 400)
+    }
+
+    // Verify account belongs to user
+    const account = await prisma.whatsAppAccount.findFirst({
+      where: { id: whatsappAccountId, userId: c.user.id },
+    })
+    if (!account) {
+      return c.json({ error: { code: 'NotFound', message: 'WhatsApp account not found' } }, 404)
+    }
+
+    const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '')
+    const memoryStore = createMemoryVectorStore(openaiProvider)
+    const customers = await memoryStore.getCustomersWithMemory(c.user.id, whatsappAccountId)
+
+    return c.json({ success: true, data: customers })
+  } catch (error) {
+    console.error('Failed to get customers with memory:', error)
+    return c.json({ error: { code: 'InternalServerError', message: 'Failed to get customers' } }, 500)
+  }
+})
+
+// DELETE /api/v1/ai/memory/customer - Delete memories for a specific customer
+app.delete('/memory/customer', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const whatsappAccountId = c.req.query('whatsappAccountId')
+    const customerId = c.req.query('customerId')
+    
+    if (!whatsappAccountId) {
+      return c.json({ error: { code: 'BadRequest', message: 'whatsappAccountId is required' } }, 400)
+    }
+    if (!customerId) {
+      return c.json({ error: { code: 'BadRequest', message: 'customerId is required' } }, 400)
+    }
+
+    // Verify account belongs to user
+    const account = await prisma.whatsAppAccount.findFirst({
+      where: { id: whatsappAccountId, userId: c.user.id },
+    })
+    if (!account) {
+      return c.json({ error: { code: 'NotFound', message: 'WhatsApp account not found' } }, 404)
+    }
+
+    const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '')
+    const memoryStore = createMemoryVectorStore(openaiProvider)
+    const deletedCount = await memoryStore.deleteByCustomerId(c.user.id, whatsappAccountId, customerId)
+
+    return c.json({ success: true, data: { deletedCount } })
+  } catch (error) {
+    console.error('Failed to delete customer memories:', error)
+    return c.json({ error: { code: 'InternalServerError', message: 'Failed to delete memories' } }, 500)
   }
 })
 
