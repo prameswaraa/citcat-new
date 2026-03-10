@@ -296,14 +296,30 @@ export const aiApi = {
     return json.data;
   },
 
-  async getCustomersWithMemory(whatsappAccountId: string): Promise<{
-    customerId: string;
-    customerName: string | null;
-    customerPhone: string | null;
-    memoryCount: number;
-    lastMemoryAt: string;
-  }[]> {
-    const response = await fetch(`${API_URL}/api/v1/ai/memory/customers?whatsappAccountId=${whatsappAccountId}`, {
+  async getCustomersWithMemory(
+    whatsappAccountId: string,
+    options: { page?: number; limit?: number; search?: string } = {}
+  ): Promise<{
+    customers: {
+      customerId: string;
+      customerName: string | null;
+      customerPhone: string | null;
+      memoryCount: number;
+      lastMemoryAt: string;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const params = new URLSearchParams({ whatsappAccountId });
+    if (options.page) params.set('page', options.page.toString());
+    if (options.limit) params.set('limit', options.limit.toString());
+    if (options.search) params.set('search', options.search);
+
+    const response = await fetch(`${API_URL}/api/v1/ai/memory/customers?${params}`, {
       headers: {
         'Content-Type': 'application/json',
       },

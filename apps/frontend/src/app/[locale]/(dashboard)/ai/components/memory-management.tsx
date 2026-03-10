@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Card,
   CardContent,
@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -36,7 +37,17 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Brain, Trash2, AlertTriangle, Loader2, User, RefreshCw } from "lucide-react"
+import { 
+  Brain, 
+  Trash2, 
+  AlertTriangle, 
+  Loader2, 
+  User, 
+  RefreshCw, 
+  Search,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react"
 import { IconBrandWhatsapp } from "@tabler/icons-react"
 import type { WhatsAppPhoneNumberOption } from "@/hooks/use-whatsapp-phone-numbers"
 import { ClearMemoryDialog } from "./clear-memory-dialog"
@@ -44,6 +55,7 @@ import { aiApi } from "@/lib/api/ai-api"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { id } from "date-fns/locale"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface CustomerWithMemory {
   customerId: string
@@ -51,6 +63,13 @@ interface CustomerWithMemory {
   customerPhone: string | null
   memoryCount: number
   lastMemoryAt: string
+}
+
+interface Pagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
 }
 
 interface MemoryManagementProps {
@@ -62,7 +81,15 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
   const [selectedAccountId, setSelectedAccountId] = useState<string>("")
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
   const [customers, setCustomers] = useState<CustomerWithMemory[]>([])
+  const [pagination, setPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 0,
+  })
   const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearch = useDebounce(searchQuery, 300)
   
   // Customer delete dialog
   const [deleteCustomerDialog, setDeleteCustomerDialog] = useState<{
@@ -75,21 +102,17 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
     (pn) => pn.whatsappAccountId === selectedAccountId
   )
 
-  // Load customers when account selected
-  useEffect(() => {
-    if (selectedAccountId) {
-      loadCustomers()
-    } else {
-      setCustomers([])
-    }
-  }, [selectedAccountId])
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async (page: number = 1) => {
     if (!selectedAccountId) return
     setLoadingCustomers(true)
     try {
-      const data = await aiApi.getCustomersWithMemory(selectedAccountId)
-      setCustomers(data)
+      const data = await aiApi.getCustomersWithMemory(selectedAccountId, {
+        page,
+        limit: 20,
+        search: debouncedSearch,
+      })
+      setCustomers(data.customers)
+      setPagination(data.pagination)
     } catch (err: any) {
       console.error("Failed to load customers:", err)
       toast({
@@ -100,7 +123,17 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
     } finally {
       setLoadingCustomers(false)
     }
-  }
+  }, [selectedAccountId, debouncedSearch, toast])
+
+  // Load customers when account selected or search changes
+  useEffect(() => {
+    if (selectedAccountId) {
+      loadCustomers(1) // Reset to page 1 on new search/account
+    } else {
+      setCustomers([])
+      setPagination({ page: 1, limit: 20, total: 0, totalPages: 0 })
+    }
+  }, [selectedAccountId, debouncedSearch])
 
   const handleClearAllMemory = () => {
     if (!selectedAccountId) return
@@ -125,7 +158,7 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
         description: `Deleted ${result.deletedCount} memories for ${deleteCustomerDialog.customer.customerName || deleteCustomerDialog.customer.customerPhone}`,
       })
       setDeleteCustomerDialog({ open: false, customer: null })
-      loadCustomers() // Refresh list
+      loadCustomers(pagination.page) // Refresh current page
     } catch (err: any) {
       toast({
         variant: "destructive",
@@ -137,7 +170,9 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
     }
   }
 
-  const totalMemories = customers.reduce((sum, c) => sum + c.memoryCount, 0)
+  const handlePageChange = (newPage: number) => {
+    loadCustomers(newPage)
+  }
 
   return (
     <Card>
@@ -179,7 +214,10 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
               <Label>Select WhatsApp Account</Label>
               <Select
                 value={selectedAccountId}
-                onValueChange={setSelectedAccountId}
+                onValueChange={(value) => {
+                  setSelectedAccountId(value)
+                  setSearchQuery("") // Reset search on account change
+                }}
               >
                 <SelectTrigger className="w-full md:w-[350px]">
                   <SelectValue placeholder="Select a WhatsApp account..." />
@@ -205,12 +243,13 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
             {/* Customer Memory List */}
             {selectedAccountId && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                {/* Header with Search and Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h4 className="text-sm font-medium">Customers with AI Memory</h4>
-                    {customers.length > 0 && (
+                    {pagination.total > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        {customers.length} customers, {totalMemories} total memories
+                        {pagination.total} customers found
                       </p>
                     )}
                   </div>
@@ -218,22 +257,32 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={loadCustomers}
+                      onClick={() => loadCustomers(pagination.page)}
                       disabled={loadingCustomers}
                     >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${loadingCustomers ? 'animate-spin' : ''}`} />
-                      Refresh
+                      <RefreshCw className={`h-4 w-4 ${loadingCustomers ? 'animate-spin' : ''}`} />
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
                       onClick={handleClearAllMemory}
-                      disabled={customers.length === 0}
+                      disabled={pagination.total === 0}
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       Clear All
                     </Button>
                   </div>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or phone number..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
                 </div>
 
                 {loadingCustomers ? (
@@ -244,67 +293,103 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
                   <div className="flex flex-col items-center justify-center py-8 text-center border rounded-lg">
                     <Brain className="h-10 w-10 text-muted-foreground mb-2" />
                     <p className="text-sm text-muted-foreground">
-                      No AI memories found for this account.
+                      {searchQuery 
+                        ? "No customers found matching your search."
+                        : "No AI memories found for this account."
+                      }
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Memories are created when AI responds to customers.
-                    </p>
+                    {!searchQuery && (
+                      <p className="text-xs text-muted-foreground">
+                        Memories are created when AI responds to customers.
+                      </p>
+                    )}
                   </div>
                 ) : (
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Customer</TableHead>
-                          <TableHead className="text-center">Memories</TableHead>
-                          <TableHead>Last Activity</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {customers.map((customer) => (
-                          <TableRow key={customer.customerId}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                                  <User className="h-4 w-4 text-muted-foreground" />
-                                </div>
-                                <div>
-                                  <p className="font-medium text-sm">
-                                    {customer.customerName || "Unknown"}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {customer.customerPhone || customer.customerId.slice(0, 8)}
-                                  </p>
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant="secondary">
-                                {customer.memoryCount}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {formatDistanceToNow(new Date(customer.lastMemoryAt), { 
-                                addSuffix: true,
-                                locale: id 
-                              })}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => handleDeleteCustomerMemory(customer)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
+                  <>
+                    <div className="border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Customer</TableHead>
+                            <TableHead className="text-center">Memories</TableHead>
+                            <TableHead>Last Activity</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                        </TableHeader>
+                        <TableBody>
+                          {customers.map((customer) => (
+                            <TableRow key={customer.customerId}>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                    <User className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="font-medium text-sm">
+                                      {customer.customerName || "Unknown"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {customer.customerPhone || customer.customerId.slice(0, 8)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="secondary">
+                                  {customer.memoryCount}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {formatDistanceToNow(new Date(customer.lastMemoryAt), { 
+                                  addSuffix: true,
+                                  locale: id 
+                                })}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => handleDeleteCustomerMemory(customer)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination */}
+                    {pagination.totalPages > 1 && (
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Page {pagination.page} of {pagination.totalPages}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(pagination.page - 1)}
+                            disabled={pagination.page <= 1 || loadingCustomers}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(pagination.page + 1)}
+                            disabled={pagination.page >= pagination.totalPages || loadingCustomers}
+                          >
+                            Next
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -319,7 +404,7 @@ export function MemoryManagement({ phoneNumbers }: MemoryManagementProps) {
           onOpenChange={setClearDialogOpen}
           whatsappAccountId={selectedAccountId}
           phoneNumber={selectedPhone.displayPhoneNumber}
-          onSuccess={loadCustomers}
+          onSuccess={() => loadCustomers(1)}
         />
       )}
 

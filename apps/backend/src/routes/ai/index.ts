@@ -257,7 +257,7 @@ app.delete('/memory', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Contex
   }
 })
 
-// GET /api/v1/ai/memory/customers - Get list of customers with memory for a WhatsApp account
+// GET /api/v1/ai/memory/customers - Get list of customers with memory for a WhatsApp account (paginated)
 app.get('/memory/customers', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
   try {
     if (!c.user) {
@@ -269,6 +269,11 @@ app.get('/memory/customers', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c:
       return c.json({ error: { code: 'BadRequest', message: 'whatsappAccountId is required' } }, 400)
     }
 
+    // Pagination params
+    const page = parseInt(c.req.query('page') || '1', 10)
+    const limit = parseInt(c.req.query('limit') || '20', 10)
+    const search = c.req.query('search') || ''
+
     // Verify account belongs to user
     const account = await prisma.whatsAppAccount.findFirst({
       where: { id: whatsappAccountId, userId: c.user.id },
@@ -279,9 +284,13 @@ app.get('/memory/customers', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c:
 
     const openaiProvider = new OpenAIProvider(process.env.OPENAI_API_KEY || '')
     const memoryStore = createMemoryVectorStore(openaiProvider)
-    const customers = await memoryStore.getCustomersWithMemory(c.user.id, whatsappAccountId)
+    const result = await memoryStore.getCustomersWithMemory(c.user.id, whatsappAccountId, {
+      page,
+      limit,
+      search,
+    })
 
-    return c.json({ success: true, data: customers })
+    return c.json({ success: true, data: result })
   } catch (error) {
     console.error('Failed to get customers with memory:', error)
     return c.json({ error: { code: 'InternalServerError', message: 'Failed to get customers' } }, 500)

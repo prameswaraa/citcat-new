@@ -308,21 +308,43 @@ export class MemoryVectorStore {
   }
 
   /**
-   * Get list of customers with memory count for a WhatsApp account.
+   * Get list of customers with memory count for a WhatsApp account (paginated).
    * Used for displaying which customers have AI memories.
    * 
    * @param userId The user's ID
    * @param whatsappAccountId The WhatsApp account ID
-   * @returns List of customers with their memory counts
+   * @param options Pagination and search options
+   * @returns Paginated list of customers with their memory counts
    */
-  async getCustomersWithMemory(userId: string, whatsappAccountId: string): Promise<{
-    customerId: string;
-    customerName: string | null;
-    customerPhone: string | null;
-    memoryCount: number;
-    lastMemoryAt: Date;
-  }[]> {
-    const results = await this.client.conversationMemory.groupBy({
+  async getCustomersWithMemory(
+    userId: string, 
+    whatsappAccountId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      search?: string;
+    } = {}
+  ): Promise<{
+    customers: {
+      customerId: string;
+      customerName: string | null;
+      customerPhone: string | null;
+      memoryCount: number;
+      lastMemoryAt: Date;
+    }[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    };
+  }> {
+    const page = Math.max(1, options.page || 1);
+    const limit = Math.min(100, Math.max(1, options.limit || 20));
+    const search = options.search?.trim() || '';
+
+    // First, get all customer IDs with memory (we need this for total count and search)
+    const allResults = await this.client.conversationMemory.groupBy({
       by: ['customerId'],
       where: {
         userId,
@@ -342,11 +364,11 @@ export class MemoryVectorStore {
       },
     });
 
-    // Get customer details
-    const customerIds = results.map(r => r.customerId);
-    const customers = await this.client.customer.findMany({
+    // Get all customer details for search filtering
+    const allCustomerIds = allResults.map(r => r.customerId);
+    const allCustomers = await this.client.customer.findMany({
       where: {
-        id: { in: customerIds },
+        id: { in: allCustomerIds },
       },
       select: {
         id: true,
@@ -355,9 +377,10 @@ export class MemoryVectorStore {
       },
     });
 
-    const customerMap = new Map(customers.map(c => [c.id, c]));
+    const customerMap = new Map(allCustomers.map(c => [c.id, c]));
 
-    return results.map(r => {
+    // Map and filter results
+    let mappedResults = allResults.map(r => {
       const customer = customerMap.get(r.customerId);
       return {
         customerId: r.customerId,
@@ -367,6 +390,32 @@ export class MemoryVectorStore {
         lastMemoryAt: r._max.createdAt!,
       };
     });
+
+    // Apply search filter if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      mappedResults = mappedResults.filter(c => 
+        c.customerName?.toLowerCase().includes(searchLower) ||
+        c.customerPhone?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    const total = mappedResults.length;
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+
+    // Paginate
+    const paginatedResults = mappedResults.slice(offset, offset + limit);
+
+    return {
+      customers: paginatedResults,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
   }
 
   /**

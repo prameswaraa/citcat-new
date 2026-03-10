@@ -414,6 +414,7 @@ export default function AdminUserDetailPage({ params }: PageProps) {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="FREE">Free</SelectItem>
+                              <SelectItem value="BASIC">Basic</SelectItem>
                               <SelectItem value="LITE">Lite</SelectItem>
                               <SelectItem value="PRO">Pro</SelectItem>
                             </SelectContent>
