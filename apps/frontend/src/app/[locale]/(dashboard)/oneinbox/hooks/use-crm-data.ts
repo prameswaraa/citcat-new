@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from "react"
 import { useToast } from "@/hooks/use-toast"
+import { normalizePhoneNumber } from "@/lib/utils"
 import type {
   CRMCustomer,
   CRMCustomerDetail,
@@ -88,9 +89,9 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
               : null,
           }
 
-          // Map by phone number for WhatsApp
+          // Map by phone number for WhatsApp (normalize for consistent matching)
           if (customer.phoneNumber) {
-            customerMap.set(customer.phoneNumber, crmCustomer)
+            customerMap.set(normalizePhoneNumber(customer.phoneNumber), crmCustomer)
           }
 
           // Map by Instagram IGSID for Instagram

@@ -19,7 +19,7 @@ import { MessengerChatArea } from "./components/messenger-chat-area"
 import type { Customer } from "../messages/hooks/use-chat"
 import type { IGConversation } from "@/lib/api/instagram"
 import type { AssignableUser } from "./types/unified-inbox"
-import { cn } from "@/lib/utils"
+import { cn, normalizePhoneNumber } from "@/lib/utils"
 
 // Custom hook to detect screen size
 function useMediaQuery(query: string) {
@@ -138,9 +138,9 @@ export default function OneInboxPage() {
     if (!phoneParam || loading || conversations.length === 0) return
     if (phoneParamHandledRef.current === phoneParam) return // Already handled this phone param
     
-    // Find conversation matching the phone number
+    // Find conversation matching the phone number (normalize for consistent matching)
     const conversation = conversations.find(
-      (c) => c.channel === "whatsapp" && c.participantIdentifier === phoneParam
+      (c) => c.channel === "whatsapp" && normalizePhoneNumber(c.participantIdentifier) === normalizePhoneNumber(phoneParam)
     )
     
     if (conversation) {

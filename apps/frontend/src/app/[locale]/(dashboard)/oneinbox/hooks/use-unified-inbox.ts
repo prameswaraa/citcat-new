@@ -31,6 +31,7 @@ import {
   transformInstagramToUnified,
   transformMessengerToUnified,
 } from "../types/unified-inbox"
+import { normalizePhoneNumber } from "@/lib/utils"
 
 // Import composed hooks
 import { useCRMData } from "./use-crm-data"
@@ -228,7 +229,8 @@ export function useUnifiedInbox() {
           }
           
           if (customer.phoneNumber) {
-            customerMap.set(customer.phoneNumber, crmCustomer)
+            // Normalize phone number for consistent matching (+62xxx and 62xxx should match)
+            customerMap.set(normalizePhoneNumber(customer.phoneNumber), crmCustomer)
           }
           if (customer.instagramIgsid) {
             customerByIgsidMap.set(customer.instagramIgsid, crmCustomer)
@@ -310,7 +312,8 @@ export function useUnifiedInbox() {
       let crmCustomer = undefined
 
       if (conversation.channel === "whatsapp") {
-        crmCustomer = freshCrmData.customerMap.get(conversation.participantIdentifier)
+        // Normalize phone number for consistent matching (+62xxx and 62xxx should match)
+        crmCustomer = freshCrmData.customerMap.get(normalizePhoneNumber(conversation.participantIdentifier))
       } else if (conversation.channel === "instagram") {
         crmCustomer = freshCrmData.customerByIgsidMap.get(conversation.participantIdentifier)
       } else if (conversation.channel === "messenger") {
@@ -473,7 +476,8 @@ export function useUnifiedInbox() {
         
         // Use refs which are updated with fresh data in loadConversations
         if (conversation.channel === "whatsapp") {
-          const crmCustomer = crmCustomersRef.current.get(conversation.participantIdentifier)
+          // Normalize phone number for consistent matching (+62xxx and 62xxx should match)
+          const crmCustomer = crmCustomersRef.current.get(normalizePhoneNumber(conversation.participantIdentifier))
           if (crmCustomer) foundCustomerId = crmCustomer.id
         } else if (conversation.channel === "instagram") {
           const crmCustomer = crmCustomersByIgsidRef.current.get(conversation.participantIdentifier)
