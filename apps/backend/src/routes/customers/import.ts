@@ -5,6 +5,7 @@ import { prisma } from '../../utils/database.js'
 import { auditLog } from '../../utils/auditLog.js'
 import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 import { handleValidationError, logDetailedError } from '../../middleware/errorHandler.js'
+import { normalizePhoneNumber } from '../../utils/validation.js'
 
 const app = new Hono()
 
@@ -36,11 +37,14 @@ app.post('/import', async (c: Context) => {
 
     for (const customerData of customers) {
       try {
+        // Normalize phone number to ensure +62xxx and 62xxx are treated as same
+        const normalizedPhone = normalizePhoneNumber(customerData.phoneNumber)
+        
         // Check if customer already exists (without phone number link = manual import)
         const existing = await prisma.customer.findFirst({
           where: {
             userId: effectiveUserId,
-            phoneNumber: customerData.phoneNumber,
+            phoneNumber: normalizedPhone,
             whatsappPhoneNumberId: null,
           }
         })
@@ -58,7 +62,7 @@ app.post('/import', async (c: Context) => {
         const customer = await prisma.customer.create({
           data: {
             userId: effectiveUserId,
-            phoneNumber: customerData.phoneNumber,
+            phoneNumber: normalizedPhone,
             name: customerData.name,
             consentStatus: customerData.consentStatus,
             consentSource: customerData.consentSource || 'CSV Import',

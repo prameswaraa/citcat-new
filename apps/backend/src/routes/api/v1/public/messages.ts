@@ -15,6 +15,7 @@ import { handleValidationError, handleError } from '../../../../middleware/error
 import { resolveCredentialsForSending } from '../../../../utils/whatsapp-account-helper.js';
 import { WhatsAppErrorService } from '../../../../services/whatsapp-error-service.js';
 import { templateRendererService } from '../../../../services/template-renderer-service.js';
+import { normalizePhoneNumber } from '../../../../utils/validation.js';
 import { 
   getLocaleFromHeader, 
   getWhatsAppErrorMessage,
@@ -346,10 +347,11 @@ app.post('/send', channelAwareSendRateLimiter, async (c: Context) => {
         },
       });
     } else if (data.phone_number) {
+      // Normalize phone number for lookup to ensure +62xxx and 62xxx match
       customer = await prisma.customer.findFirst({
         where: {
           userId: userId,
-          phoneNumber: data.phone_number
+          phoneNumber: normalizePhoneNumber(data.phone_number)
         },
         include: {
           igConversations: {
@@ -367,8 +369,8 @@ app.post('/send', channelAwareSendRateLimiter, async (c: Context) => {
       
       // Auto-create customer for WhatsApp template messages if not found
       if (!customer && data.channel === 'whatsapp' && data.message_type === 'template' && data.auto_create_customer !== false) {
-        // Normalize phone number (ensure it starts with country code, no + prefix)
-        let normalizedPhone = data.phone_number.replace(/^\+/, '').replace(/\s/g, '');
+        // Normalize phone number to ensure +62xxx and 62xxx are treated as same
+        const normalizedPhone = normalizePhoneNumber(data.phone_number);
         
         // Create new customer with consent for template messages
         customer = await prisma.customer.create({

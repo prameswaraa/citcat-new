@@ -28,6 +28,7 @@ import { memoryQueue } from '../../utils/queue.js'
 import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
 import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
 import { eventEmitter } from '../../websocket/index.js'
+import { normalizePhoneNumber } from '../../utils/validation.js'
 
 const app = new Hono()
 
@@ -240,11 +241,14 @@ app.post('/send', async (c: Context) => {
         where: { phoneNumberId: credentials.phoneNumberId }
       })
 
+      // Normalize phone number to ensure +62xxx and 62xxx are treated as same customer
+      const normalizedPhone = normalizePhoneNumber(data.phoneNumber)
+      
       // Find customer for this specific (userId, phoneNumber, whatsappPhoneNumberId) combination
       customer = await prisma.customer.findFirst({
         where: {
           userId: targetUserId,
-          phoneNumber: data.phoneNumber,
+          phoneNumber: normalizedPhone,
           whatsappPhoneNumberId: phoneNumberRecord?.id || null,
         }
       })
@@ -253,7 +257,7 @@ app.post('/send', async (c: Context) => {
         customer = await prisma.customer.create({
           data: {
             userId: targetUserId,
-            phoneNumber: data.phoneNumber,
+            phoneNumber: normalizedPhone,
             consentStatus: false,
             whatsappPhoneNumberId: phoneNumberRecord?.id || null,
           }

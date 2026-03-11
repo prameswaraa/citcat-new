@@ -5,6 +5,7 @@ import { prisma } from '../../utils/database.js'
 import { auditLog } from '../../utils/auditLog.js'
 import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 import { handleValidationError, logDetailedError } from '../../middleware/errorHandler.js'
+import { normalizePhoneNumber } from '../../utils/validation.js'
 
 const app = new Hono()
 
@@ -32,6 +33,9 @@ app.post('/', async (c: Context) => {
   try {
     const body = await c.req.json()
     const data = createCustomerSchema.parse(body)
+    
+    // Normalize phone number to ensure +62xxx and 62xxx are treated as same customer
+    const normalizedPhone = normalizePhoneNumber(data.phoneNumber)
 
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -59,7 +63,7 @@ app.post('/', async (c: Context) => {
     const existing = await prisma.customer.findFirst({
       where: {
         userId: effectiveUserId,
-        phoneNumber: data.phoneNumber,
+        phoneNumber: normalizedPhone,
         whatsappPhoneNumberId: data.whatsappPhoneNumberId,
       }
     })
@@ -82,7 +86,7 @@ app.post('/', async (c: Context) => {
     const customer = await prisma.customer.create({
       data: {
         userId: effectiveUserId,
-        phoneNumber: data.phoneNumber,
+        phoneNumber: normalizedPhone,
         name: data.name,
         consentStatus: data.consentStatus,
         consentSource: data.consentSource,

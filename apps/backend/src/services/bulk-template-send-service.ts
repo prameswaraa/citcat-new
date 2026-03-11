@@ -16,6 +16,7 @@ import { WhatsAppErrorService } from './whatsapp-error-service.js';
 import { AuditLogService } from './audit-log-service.js';
 import { logger } from '../utils/logger.js';
 import { resolveCredentialsForSending, getWhatsAppAccountByPhoneNumberId, resolveCredentialsByPhoneNumber } from '../utils/whatsapp-account-helper.js';
+import { normalizePhoneNumber } from '../utils/validation.js';
 import type { BulkSendStatus, TemplateVariable, TemplateVariableMapping } from '@prisma/client';
 
 /**
@@ -716,8 +717,9 @@ export class BulkTemplateSendService {
   ): Promise<RecipientResult> {
     let sentPayload: any = null; // Store for error logging
     try {
-      // Clean phone number
-      const phoneNumber = row.phoneNumber.replace(/[\s-]/g, '');
+      // Normalize phone number - remove +, spaces, dashes for consistent storage
+      // This ensures +6281234567890 and 6281234567890 are treated as the same customer
+      const phoneNumber = normalizePhoneNumber(row.phoneNumber);
 
       // Log incoming row data for debugging
       logger.info('sendToRecipient called', {

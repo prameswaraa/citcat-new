@@ -4,6 +4,19 @@ import { z } from 'zod'
 export const phoneNumberSchema = z.string()
   .regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format. Must be in E.164 format')
 
+/**
+ * Normalize phone number for consistent storage and comparison
+ * Removes + prefix, spaces, dashes, and other non-digit characters
+ * Examples:
+ * - +6281234567890 -> 6281234567890
+ * - 6281234567890 -> 6281234567890
+ * - +62 812 3456 7890 -> 6281234567890
+ */
+export function normalizePhoneNumber(phone: string | null | undefined): string {
+  if (!phone) return ''
+  return phone.replace(/[^\d]/g, '')
+}
+
 // Email validation
 export const emailSchema = z.string()
   .email('Invalid email address')
