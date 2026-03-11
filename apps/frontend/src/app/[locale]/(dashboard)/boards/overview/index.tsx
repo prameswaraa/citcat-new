@@ -25,13 +25,15 @@ const API_URL =
   "http://localhost:3005"
 
 // Inner component that uses context
-function OverviewContent() {
-  const {
-    phoneNumbers,
-    selectedPhoneNumberId,
-    setSelectedPhoneNumberId,
-  } = useWhatsAppPhoneNumbers()
-
+function OverviewContent({ 
+  phoneNumbers,
+  selectedPhoneNumberId,
+  setSelectedPhoneNumberId,
+}: {
+  phoneNumbers: ReturnType<typeof useWhatsAppPhoneNumbers>["phoneNumbers"]
+  selectedPhoneNumberId: string | null
+  setSelectedPhoneNumberId: (id: string | null) => void
+}) {
   const { stats, isLoading, isRefetching, refetch, lastUpdated, error } =
     useDashboardStats(
       selectedPhoneNumberId ? { whatsappPhoneNumberId: selectedPhoneNumberId } : undefined
@@ -181,12 +183,18 @@ function OverviewContent() {
 // Requirements: 6.1, 6.2, 6.3, 6.4
 export default function Overview() {
   const {
+    phoneNumbers,
     selectedPhoneNumberId,
+    setSelectedPhoneNumberId,
   } = useWhatsAppPhoneNumbers()
 
   return (
     <DashboardFilterProvider whatsappPhoneNumberId={selectedPhoneNumberId ?? undefined}>
-      <OverviewContent />
+      <OverviewContent 
+        phoneNumbers={phoneNumbers}
+        selectedPhoneNumberId={selectedPhoneNumberId}
+        setSelectedPhoneNumberId={setSelectedPhoneNumberId}
+      />
     </DashboardFilterProvider>
   )
 }
