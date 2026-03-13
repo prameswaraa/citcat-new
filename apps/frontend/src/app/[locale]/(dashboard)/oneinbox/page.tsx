@@ -115,6 +115,10 @@ export default function OneInboxPage() {
     linkCustomerToConversation,
     // WebSocket state
     webSocketState,
+    // Pagination for infinite scroll
+    waHasMore,
+    isLoadingMore,
+    loadMoreConversations,
   } = useUnifiedInbox()
 
   // State for mobile panel sheet
@@ -252,6 +256,9 @@ export default function OneInboxPage() {
           aiEnabled={aiEnabled}
           defaultAIAgentName={defaultAIAgentName}
           className={selectedConversation ? "hidden md:flex" : "flex"}
+          hasMore={waHasMore}
+          isLoadingMore={isLoadingMore}
+          onLoadMore={loadMoreConversations}
         />
 
         {/* Chat Area - Conditionally render based on channel */}

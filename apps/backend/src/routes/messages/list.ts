@@ -7,6 +7,7 @@ const app = new Hono()
 
 // GET /api/v1/messages - List messages
 // Only returns messages from connected WhatsApp accounts
+// Supports cursor-based pagination for infinite scroll
 app.get('/', async (c: Context) => {
   try {
     if (!c.user) {
@@ -22,6 +23,11 @@ app.get('/', async (c: Context) => {
     // Requirements: 5.3, 6.2
     const effectiveUserId = getEffectiveUserId(c)
     const customerId = c.req.query('customerId')
+    
+    // Pagination parameters
+    const cursor = c.req.query('cursor') // ISO timestamp of last conversation's most recent message
+    const limitParam = c.req.query('limit')
+    const limit = limitParam ? Math.min(parseInt(limitParam, 10), 200) : 200
 
     // Get phone numbers from connected WhatsApp accounts only
     const connectedPhoneNumbers = await prisma.phoneNumber.findMany({
@@ -59,23 +65,41 @@ app.get('/', async (c: Context) => {
     // 
     // FIX: Previously we were limiting to 100 messages, which caused conversations to be missing
     // when one customer had many messages. Now we:
-    // 1. First get all unique customer IDs with recent messages (limited to 200 conversations)
+    // 1. First get all unique customer IDs with recent messages (with pagination support)
     // 2. Then fetch messages only for those customers
     // This ensures all conversations are visible, not just those with recent messages in the top 100
     
     // Step 1: Get unique customer IDs ordered by most recent message
+    // For cursor-based pagination, we need to get customers whose last message is older than cursor
+    const recentCustomersWhere = { ...where }
+    if (cursor) {
+      // Only get conversations with messages older than the cursor timestamp
+      recentCustomersWhere.timestamp = { lt: new Date(cursor) }
+    }
+    
     const recentCustomers = await prisma.message.findMany({
-      where,
+      where: recentCustomersWhere,
       select: {
         customerId: true,
         timestamp: true,
       },
       orderBy: { timestamp: 'desc' },
       distinct: ['customerId'],
-      take: 200, // Limit to 200 unique conversations
+      take: limit + 1, // Fetch one extra to check if there are more
     })
     
-    const customerIds = recentCustomers.map(c => c.customerId)
+    // Check if there are more results
+    const hasMore = recentCustomers.length > limit
+    
+    // Only use first `limit` customers
+    const customersToFetch = hasMore ? recentCustomers.slice(0, limit) : recentCustomers
+    
+    // Get the cursor for the next page (timestamp of the last conversation)
+    const nextCursor = hasMore && customersToFetch.length > 0 
+      ? customersToFetch[customersToFetch.length - 1].timestamp.toISOString()
+      : null
+    
+    const customerIds = customersToFetch.map(c => c.customerId)
     
     // Step 2: Fetch messages for these customers (with a higher limit to ensure all recent messages)
     const [messages, unreadCountsRaw, assignmentsRaw] = await Promise.all([
@@ -193,7 +217,12 @@ app.get('/', async (c: Context) => {
       success: true, 
       data: messages,
       unreadCounts,
-      assignments
+      assignments,
+      pagination: {
+        hasMore,
+        nextCursor,
+        limit
+      }
     })
   } catch (error) {
     console.error('List messages error:', error)

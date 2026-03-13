@@ -49,6 +49,11 @@ export function useUnifiedInbox() {
   const [loading, setLoading] = useState(false)
   const [waWindowStatus, setWaWindowStatus] = useState<WindowStatus | null>(null)
 
+  // WhatsApp pagination state for infinite scroll
+  const [waPaginationCursor, setWaPaginationCursor] = useState<string | null>(null)
+  const [waHasMore, setWaHasMore] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
   // Track tab visibility for smart polling
   const [isTabVisible, setIsTabVisible] = useState(true)
 
@@ -128,11 +133,16 @@ export function useUnifiedInbox() {
     let igConversations: UnifiedConversation[] = []
     let msgConversations: UnifiedConversation[] = []
 
-    // Helper function to process WhatsApp data
+    // Helper function to process WhatsApp data (initial load only)
     const processWhatsAppData = (response: any) => {
       const data = response.data || []
       const unreadCounts = response.unreadCounts || {}
       const assignments = response.assignments || {}
+      const pagination = response.pagination || { hasMore: false, nextCursor: null }
+
+      // Update pagination state for infinite scroll
+      setWaHasMore(pagination.hasMore)
+      setWaPaginationCursor(pagination.nextCursor)
 
       whatsappMessaging.setWaMessages(data)
 
@@ -360,6 +370,71 @@ export function useUnifiedInbox() {
 
     setLoading(false)
   }, [userId, toast, whatsappMessaging.setWaMessages, whatsappMessaging.setWaCustomers, whatsappMessaging.setWhatsappConnected, instagramMessaging.setInstagramConnected, messengerMessaging.setMessengerConnected])
+
+  // Load more WhatsApp conversations for infinite scroll
+  const loadMoreConversations = useCallback(async () => {
+    if (!waHasMore || isLoadingMore || !waPaginationCursor) return
+
+    setIsLoadingMore(true)
+    try {
+      const response = await messagesApi.getMessages(undefined, undefined, { cursor: waPaginationCursor })
+      const data = response.data || []
+      const unreadCounts = response.unreadCounts || {}
+      const assignments = response.assignments || {}
+      const pagination = response.pagination || { hasMore: false, nextCursor: null }
+
+      // Update pagination state
+      setWaHasMore(pagination.hasMore)
+      setWaPaginationCursor(pagination.nextCursor)
+
+      // Append new messages
+      whatsappMessaging.setWaMessages((prev: any[]) => [...prev, ...data])
+
+      // Extract unique customers
+      const uniqueCustomers = data.reduce((acc: Customer[], msg: any) => {
+        if (!msg.customer) return acc
+        const exists = acc.find((c: Customer) => c.id === msg.customer.id)
+        if (!exists) {
+          acc.push({
+            id: msg.customer.id,
+            phoneNumber: msg.customer.phoneNumber,
+            name: msg.customer.name,
+            whatsappPhoneNumberId: msg.customer.whatsappPhoneNumberId,
+            whatsappPhoneNumber: msg.customer.whatsappPhoneNumber,
+          } as Customer)
+        }
+        return acc
+      }, [])
+
+      // Append new customers
+      whatsappMessaging.setWaCustomers((prev: Customer[]) => {
+        const existing = new Set(prev.map((c: Customer) => c.id))
+        const newCustomers = uniqueCustomers.filter((c: Customer) => !existing.has(c.id))
+        return [...prev, ...newCustomers]
+      })
+
+      // Transform and append new conversations
+      const newWaConversations = uniqueCustomers.map((customer: Customer) =>
+        transformWhatsAppToUnified(customer, data, unreadCounts, assignments)
+      )
+
+      // Append to existing conversations and sort
+      setConversations(prev => {
+        const existingIds = new Set(prev.map(c => c.id))
+        const newConversations = newWaConversations.filter(c => !existingIds.has(c.id))
+        const merged = [...prev, ...newConversations]
+        return merged.sort((a, b) => {
+          const aTime = a.lastMessageAt?.getTime() || 0
+          const bTime = b.lastMessageAt?.getTime() || 0
+          return bTime - aTime
+        })
+      })
+    } catch (error) {
+      console.error("Failed to load more conversations:", error)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [waHasMore, isLoadingMore, waPaginationCursor, whatsappMessaging.setWaMessages, whatsappMessaging.setWaCustomers])
 
   // Update the ref when loadConversations changes
   useEffect(() => {
@@ -724,5 +799,9 @@ export function useUnifiedInbox() {
     isLoadingAccount,
     loadConversations,
     webSocketState,
+    // Pagination for infinite scroll
+    waHasMore,
+    isLoadingMore,
+    loadMoreConversations,
   }
 }

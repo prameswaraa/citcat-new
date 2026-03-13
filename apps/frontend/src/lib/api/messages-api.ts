@@ -63,6 +63,15 @@ interface SendMessageRequest {
 }
 
 /**
+ * Pagination info for cursor-based pagination
+ */
+export interface PaginationInfo {
+    hasMore: boolean
+    nextCursor: string | null
+    limit: number
+}
+
+/**
  * Response type for GET /messages endpoint
  * Includes unreadCounts per customer for WhatsApp unread tracking
  * Requirements: 5.1
@@ -82,6 +91,8 @@ export interface MessagesListResponse {
         aiAgentName: string | null
         assignedAt: string
     }>
+    /** Pagination info for infinite scroll */
+    pagination?: PaginationInfo
 }
 
 /**
@@ -169,10 +180,16 @@ function createAPIError(errorData: {
 }
 
 export const messagesApi = {
-    async getMessages(userId?: string, customerId?: string): Promise<MessagesListResponse> {
+    async getMessages(
+        userId?: string, 
+        customerId?: string,
+        options?: { cursor?: string; limit?: number }
+    ): Promise<MessagesListResponse> {
         const params = new URLSearchParams()
         if (userId) params.append('userId', userId)
         if (customerId) params.append('customerId', customerId)
+        if (options?.cursor) params.append('cursor', options.cursor)
+        if (options?.limit) params.append('limit', options.limit.toString())
 
         // Send cookies directly, Better Auth will handle session
         const response = await fetch(`${API_URL}/api/v1/messages?${params}`, {
@@ -190,12 +207,13 @@ export const messagesApi = {
 
         const result = await response.json()
         
-        // Ensure unreadCounts and assignments are always present (backward compatibility)
+        // Ensure unreadCounts, assignments, and pagination are always present (backward compatibility)
         return {
             success: result.success,
             data: result.data || [],
             unreadCounts: result.unreadCounts || {},
-            assignments: result.assignments || {}
+            assignments: result.assignments || {},
+            pagination: result.pagination || { hasMore: false, nextCursor: null, limit: 200 }
         }
     },
 

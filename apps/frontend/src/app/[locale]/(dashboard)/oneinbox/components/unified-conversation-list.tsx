@@ -1,12 +1,13 @@
 "use client"
 
+import { useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { RefreshCw, Search } from "lucide-react"
+import { RefreshCw, Search, Loader2 } from "lucide-react"
 import { IconBrandWhatsapp, IconBrandInstagram, IconBrandFacebook, IconInbox, IconFilterOff } from "@tabler/icons-react"
 import { formatDistanceToNow } from "date-fns"
 import type { UnifiedConversation, ChannelType, ReadStatusFilter, AssignmentFilterType, AssignableUser, PipelineStage } from "../types/unified-inbox"
@@ -72,6 +73,10 @@ interface UnifiedConversationListProps {
   aiEnabled: boolean
   defaultAIAgentName?: string | null
   className?: string
+  // Infinite scroll props
+  hasMore?: boolean
+  isLoadingMore?: boolean
+  onLoadMore?: () => void
 }
 
 export function UnifiedConversationList({
@@ -106,7 +111,38 @@ export function UnifiedConversationList({
   aiEnabled,
   defaultAIAgentName,
   className,
+  hasMore = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: UnifiedConversationListProps) {
+  // Ref for infinite scroll trigger element
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null)
+
+  // Infinite scroll using Intersection Observer - more reliable than scroll listener
+  useEffect(() => {
+    if (!hasMore || isLoadingMore || !onLoadMore) return
+
+    const triggerElement = loadMoreTriggerRef.current
+    if (!triggerElement) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // When trigger element becomes visible, load more
+        if (entries[0].isIntersecting) {
+          onLoadMore()
+        }
+      },
+      { 
+        // Trigger when element is within 200px of viewport
+        rootMargin: '200px',
+        threshold: 0
+      }
+    )
+
+    observer.observe(triggerElement)
+    return () => observer.disconnect()
+  }, [hasMore, isLoadingMore, onLoadMore])
+
   const getInitials = (name?: string | null, identifier?: string) => {
     if (name) return name.substring(0, 2).toUpperCase()
     if (identifier) return identifier.replace(/[@+]/g, "").substring(0, 2).toUpperCase()
@@ -359,6 +395,31 @@ export function UnifiedConversationList({
               </button>
             )
           })
+        )}
+        
+        {/* Infinite scroll loading indicator */}
+        {isLoadingMore && (
+          <div className="flex items-center justify-center py-4 border-t">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mr-2" />
+            <span className="text-sm text-muted-foreground">Loading more...</span>
+          </div>
+        )}
+        
+        {/* Load more trigger element */}
+        {hasMore && !isLoadingMore && conversations.length > 0 && (
+          <div 
+            ref={loadMoreTriggerRef}
+            className="flex items-center justify-center py-4 border-t"
+          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLoadMore}
+              className="text-muted-foreground"
+            >
+              Load more conversations
+            </Button>
+          </div>
         )}
       </ScrollArea>
     </div>
