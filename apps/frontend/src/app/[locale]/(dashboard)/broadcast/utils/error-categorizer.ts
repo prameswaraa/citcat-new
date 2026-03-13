@@ -150,48 +150,148 @@ export interface ErrorSummary {
 
 /**
  * WhatsApp error codes mapped to categories
+ * Source: docs/plans/error.md (Meta Cloud API documentation)
  */
 const ERROR_CODE_CATEGORIES: Record<string, ErrorCategory> = {
-  // Payment/Billing issues
+  // ==========================================
+  // AUTHORIZATION ERRORS
+  // ==========================================
+  '0': 'AUTHORIZATION', // AuthException - token expired/invalid
+  '3': 'AUTHORIZATION', // API Method - capability/permission issue
+  '10': 'AUTHORIZATION', // Permission Denied
+  '190': 'AUTHORIZATION', // Access token has expired
+  '200': 'AUTHORIZATION', // API Permission (200-299 range)
+  '131005': 'AUTHORIZATION', // Access denied
+
+  // ==========================================
+  // INTEGRITY/POLICY ERRORS
+  // ==========================================
+  '368': 'INTEGRITY', // Temporarily blocked for policies violations
+  '130497': 'INTEGRITY', // Business account restricted from messaging users in this country
+  '131031': 'INTEGRITY', // Account has been locked
+
+  // ==========================================
+  // RATE LIMITING / THROTTLING
+  // ==========================================
+  '4': 'RATE_LIMIT', // API Too Many Calls
+  '80007': 'RATE_LIMIT', // Rate limit issues
+  '130429': 'RATE_LIMIT', // Rate limit hit (throughput)
+  '131048': 'RATE_LIMIT', // Spam rate limit hit
+  '131056': 'RATE_LIMIT', // (Business, Consumer) pair rate limit hit
+  '133016': 'RATE_LIMIT', // Account register/deregister rate limit exceeded
+
+  // ==========================================
+  // PAYMENT / BILLING
+  // ==========================================
   '131042': 'PAYMENT', // Business eligibility payment issue
+  '134011': 'PAYMENT', // WhatsApp Payments terms of service not accepted
 
-  // Rate limiting
-  '4': 'RATE_LIMIT',
-  '80007': 'RATE_LIMIT',
-  '130429': 'RATE_LIMIT',
-  '131048': 'RATE_LIMIT', // Spam rate limit
-  '131056': 'RATE_LIMIT', // Pair rate limit
+  // ==========================================
+  // TEMPLATE ERRORS (Send)
+  // ==========================================
+  '132000': 'TEMPLATE', // Template Param Count Mismatch
+  '132001': 'TEMPLATE', // Template does not exist
+  '132005': 'TEMPLATE', // Template Hydrated Text Too Long
+  '132007': 'TEMPLATE', // Template Format Character Policy Violated
+  '132012': 'TEMPLATE', // Template Parameter Format Mismatch
+  '132015': 'TEMPLATE', // Template Paused (low quality)
+  '132016': 'TEMPLATE', // Template Disabled (permanently)
+  '132068': 'TEMPLATE', // Flow is blocked
+  '132069': 'TEMPLATE', // Flow is throttled
+  '131051': 'TEMPLATE', // Unsupported message type
+  '131055': 'TEMPLATE', // Method not allowed - only marketing templates supported
+  '134100': 'TEMPLATE', // Only marketing messages supported (MM API)
+  '134101': 'TEMPLATE', // Template still syncing
+  '134102': 'TEMPLATE', // Template unavailable for use
 
-  // Template issues
-  '132000': 'TEMPLATE', // Param count mismatch
-  '132001': 'TEMPLATE', // Template doesn't exist
-  '132005': 'TEMPLATE', // Hydrated text too long
-  '132007': 'TEMPLATE', // Format character policy
-  '132012': 'TEMPLATE', // Parameter format mismatch
-  '132015': 'TEMPLATE', // Template paused
-  '132016': 'TEMPLATE', // Template disabled
-  '132068': 'TEMPLATE', // Flow blocked
-  '132069': 'TEMPLATE', // Flow throttled
+  // ==========================================
+  // TEMPLATE CREATION ERRORS
+  // ==========================================
+  '2388019': 'TEMPLATE', // Message Template Limit Exceeded
+  '2388040': 'TEMPLATE', // Character limit exceeded
+  '2388047': 'TEMPLATE', // Message header format is incorrect
+  '2388072': 'TEMPLATE', // Message body format is incorrect
+  '2388073': 'TEMPLATE', // Message footer format is incorrect
+  '2388293': 'TEMPLATE', // Parameters words ratio exceeds limit
+  '2388299': 'TEMPLATE', // Leading or trailing parameters not allowed
 
-  // Recipient issues
+  // ==========================================
+  // RECIPIENT ERRORS
+  // ==========================================
   '131021': 'RECIPIENT', // Recipient cannot be sender
-  '131026': 'RECIPIENT', // Message undeliverable
-  '131047': 'RECIPIENT', // Re-engagement message
-  '131049': 'RECIPIENT', // Meta chose not to deliver
-  '131050': 'RECIPIENT', // User stopped marketing messages
-  '133010': 'RECIPIENT', // Phone not registered
+  '131026': 'RECIPIENT', // Message Undeliverable (not on WA, old version, etc)
+  '131047': 'RECIPIENT', // Re-engagement message (24hr window expired)
+  '131049': 'RECIPIENT', // Meta chose not to deliver (spam/quality)
+  '131050': 'RECIPIENT', // User has stopped receipt of marketing messages
+  '130472': 'RECIPIENT', // User's number is part of an experiment
+  '133010': 'RECIPIENT', // Phone number Not Registered on WhatsApp
 
-  // Authorization
-  '0': 'AUTHORIZATION',
-  '3': 'AUTHORIZATION',
-  '10': 'AUTHORIZATION',
-  '190': 'AUTHORIZATION', // Token expired
-  '131005': 'AUTHORIZATION',
+  // ==========================================
+  // PARAMETER / VALIDATION ERRORS
+  // ==========================================
+  '33': 'OTHER', // Parameter value is not valid (phone deleted)
+  '100': 'OTHER', // Invalid parameter
+  '131008': 'OTHER', // Required parameter is missing
+  '131009': 'OTHER', // Parameter value is not valid
+  '135000': 'OTHER', // Generic user error
 
-  // Integrity/Policy
-  '368': 'INTEGRITY', // Temporarily blocked
-  '130497': 'INTEGRITY', // Country restriction
-  '131031': 'INTEGRITY', // Account locked
+  // ==========================================
+  // MEDIA ERRORS
+  // ==========================================
+  '131052': 'OTHER', // Media download error
+  '131053': 'OTHER', // Media upload error
+
+  // ==========================================
+  // SERVICE / SERVER ERRORS
+  // ==========================================
+  '1': 'OTHER', // API Unknown
+  '2': 'OTHER', // API Service - temporarily unavailable
+  '131000': 'OTHER', // Something went wrong (generic)
+  '131016': 'OTHER', // Service unavailable
+  '131057': 'OTHER', // Account in maintenance mode
+  '133004': 'OTHER', // Server Temporarily Unavailable
+  '2494100': 'OTHER', // Account is in maintenance mode (migration)
+
+  // ==========================================
+  // REGISTRATION / PHONE ERRORS
+  // ==========================================
+  '131037': 'OTHER', // Display name needs approval before sending
+  '131045': 'OTHER', // Incorrect certificate
+  '133000': 'OTHER', // Incomplete Deregistration
+  '133005': 'OTHER', // Two step verification PIN Mismatch
+  '133006': 'OTHER', // Phone number re-verification needed
+  '133008': 'OTHER', // Too Many two step verification PIN Guesses
+  '133009': 'OTHER', // Two step verification PIN Guessed Too Fast
+  '133015': 'OTHER', // Wait before registering phone number
+
+  // ==========================================
+  // MIGRATION ERRORS
+  // ==========================================
+  '2388001': 'OTHER', // Confirm ownership / disable two-step auth
+  '2388012': 'OTHER', // Phone number already exists in account
+  '2388091': 'OTHER', // Phone not eligible for migration
+  '2388093': 'OTHER', // Phone not eligible for migration
+  '2388103': 'OTHER', // Various migration errors
+  
+  // ==========================================
+  // SYNCHRONIZATION ERRORS
+  // ==========================================
+  '2593107': 'OTHER', // Synchronization Request limit exceeded
+  '2593108': 'OTHER', // Synchronization Request outside time window
+
+  // ==========================================
+  // INSIGHT ERRORS
+  // ==========================================
+  '200005': 'OTHER', // Template insights unavailable
+  '200006': 'OTHER', // Cannot disable template insights
+  '200007': 'OTHER', // Template Insights not enabled
+
+  // ==========================================
+  // WABA ERRORS
+  // ==========================================
+  '2593079': 'OTHER', // WABA marked for migration to another solution ID
+  '2593085': 'OTHER', // Invalid WhatsApp Business Account for OBO Mobility
+  '1752041': 'OTHER', // Duplicate Request (onboarding)
 }
 
 /**
@@ -324,10 +424,30 @@ function categorizeError(error: string, errorCode?: string): ErrorCategory {
   if (errorLower.includes('template') || errorLower.includes('param')) {
     return 'TEMPLATE'
   }
-  if (errorLower.includes('recipient') || errorLower.includes('undeliverable') || errorLower.includes('blocked')) {
+  // RECIPIENT checks BEFORE AUTHORIZATION to avoid "permission" false positive
+  // "User has not given permission", "not opted in", "blocked" are recipient issues, not auth
+  if (
+    errorLower.includes('recipient') || 
+    errorLower.includes('undeliverable') || 
+    errorLower.includes('blocked') ||
+    errorLower.includes('opted') ||
+    errorLower.includes('marketing') ||
+    errorLower.includes('not registered') ||
+    errorLower.includes('invalid phone') ||
+    errorLower.includes('user permission') ||
+    errorLower.includes('not deliver')
+  ) {
     return 'RECIPIENT'
   }
-  if (errorLower.includes('token') || errorLower.includes('auth') || errorLower.includes('permission')) {
+  // AUTHORIZATION - be more specific to avoid false positives
+  if (
+    errorLower.includes('access token') || 
+    errorLower.includes('token expired') ||
+    errorLower.includes('invalid token') ||
+    errorLower.includes('authentication') ||
+    errorLower.includes('unauthorized') ||
+    (errorLower.includes('permission') && errorLower.includes('denied') && !errorLower.includes('user'))
+  ) {
     return 'AUTHORIZATION'
   }
   if (errorLower.includes('policy') || errorLower.includes('violation') || errorLower.includes('restricted')) {

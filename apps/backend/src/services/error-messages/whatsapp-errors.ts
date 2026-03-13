@@ -37,46 +37,152 @@ interface LocaleErrorData {
 /**
  * Static error metadata that doesn't change with locale
  * Maps error code to { error_code, retryable, http_status }
+ * Source: docs/plans/error.md (Meta Cloud API documentation)
  */
 const ERROR_METADATA: Record<string, { error_code: string; retryable: boolean; http_status: 400 | 401 | 403 | 404 | 429 | 500 | 503 }> = {
-  '131026': { error_code: 'RecipientNotOnWhatsApp', retryable: false, http_status: 400 },
-  '131047': { error_code: 'WindowExpired', retryable: false, http_status: 400 },
+  // ==========================================
+  // AUTHORIZATION ERRORS
+  // ==========================================
+  '0': { error_code: 'AuthException', retryable: false, http_status: 401 },
+  '3': { error_code: 'ApiMethodError', retryable: false, http_status: 500 },
+  '10': { error_code: 'PermissionDenied', retryable: false, http_status: 403 },
+  '190': { error_code: 'TokenExpired', retryable: false, http_status: 401 },
+  '200': { error_code: 'ApiPermission', retryable: false, http_status: 403 },
+  '131005': { error_code: 'AccessDenied', retryable: false, http_status: 403 },
+
+  // ==========================================
+  // INTEGRITY / POLICY ERRORS
+  // ==========================================
+  '368': { error_code: 'AccountRestricted', retryable: false, http_status: 403 },
+  '130497': { error_code: 'CountryRestriction', retryable: false, http_status: 403 },
+  '131031': { error_code: 'AccountLocked', retryable: false, http_status: 403 },
+
+  // ==========================================
+  // RATE LIMITING / THROTTLING
+  // ==========================================
+  '4': { error_code: 'TooManyCalls', retryable: true, http_status: 429 },
+  '80007': { error_code: 'RateLimitHit', retryable: true, http_status: 429 },
   '130429': { error_code: 'RateLimitHit', retryable: true, http_status: 429 },
   '131048': { error_code: 'SpamRateLimitHit', retryable: false, http_status: 429 },
   '131056': { error_code: 'PairRateLimitHit', retryable: true, http_status: 429 },
-  '131050': { error_code: 'UserOptedOut', retryable: false, http_status: 400 },
-  '132001': { error_code: 'TemplateNotFound', retryable: false, http_status: 404 },
+  '133016': { error_code: 'RegisterDeregisterRateLimit', retryable: true, http_status: 429 },
+
+  // ==========================================
+  // PAYMENT / BILLING
+  // ==========================================
+  '131042': { error_code: 'PaymentIssue', retryable: false, http_status: 400 },
+  '134011': { error_code: 'PaymentToSNotAccepted', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // TEMPLATE SEND ERRORS
+  // ==========================================
   '132000': { error_code: 'TemplateParamMismatch', retryable: false, http_status: 400 },
-  '132015': { error_code: 'TemplatePaused', retryable: false, http_status: 400 },
-  '132016': { error_code: 'TemplateDisabled', retryable: false, http_status: 400 },
+  '132001': { error_code: 'TemplateNotFound', retryable: false, http_status: 404 },
   '132005': { error_code: 'TemplateTextTooLong', retryable: false, http_status: 400 },
   '132007': { error_code: 'TemplateFormatViolation', retryable: false, http_status: 400 },
   '132012': { error_code: 'TemplateParamFormatMismatch', retryable: false, http_status: 400 },
-  '131031': { error_code: 'AccountLocked', retryable: false, http_status: 403 },
-  '368': { error_code: 'AccountRestricted', retryable: false, http_status: 403 },
-  '190': { error_code: 'TokenExpired', retryable: false, http_status: 401 },
-  '2': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
-  '131016': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
-  '133004': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
-  '131052': { error_code: 'MediaDownloadError', retryable: true, http_status: 400 },
-  '131053': { error_code: 'MediaUploadError', retryable: true, http_status: 400 },
-  '131042': { error_code: 'PaymentIssue', retryable: false, http_status: 400 },
-  '131005': { error_code: 'AccessDenied', retryable: false, http_status: 403 },
-  '10': { error_code: 'PermissionDenied', retryable: false, http_status: 403 },
-  '4': { error_code: 'TooManyCalls', retryable: true, http_status: 429 },
-  '80007': { error_code: 'RateLimitHit', retryable: true, http_status: 429 },
+  '132015': { error_code: 'TemplatePaused', retryable: false, http_status: 400 },
+  '132016': { error_code: 'TemplateDisabled', retryable: false, http_status: 400 },
+  '132068': { error_code: 'FlowBlocked', retryable: false, http_status: 400 },
+  '132069': { error_code: 'FlowThrottled', retryable: true, http_status: 429 },
+  '131051': { error_code: 'UnsupportedMessageType', retryable: false, http_status: 400 },
+  '131055': { error_code: 'OnlyMarketingTemplates', retryable: false, http_status: 400 },
+  '134100': { error_code: 'OnlyMarketingMessages', retryable: false, http_status: 400 },
+  '134101': { error_code: 'TemplateSyncing', retryable: true, http_status: 400 },
+  '134102': { error_code: 'TemplateUnavailable', retryable: false, http_status: 500 },
+
+  // ==========================================
+  // TEMPLATE CREATION ERRORS
+  // ==========================================
+  '2388019': { error_code: 'TemplateLimitExceeded', retryable: false, http_status: 400 },
+  '2388040': { error_code: 'TemplateCharLimitExceeded', retryable: false, http_status: 400 },
+  '2388047': { error_code: 'TemplateHeaderFormatIncorrect', retryable: false, http_status: 400 },
+  '2388072': { error_code: 'TemplateBodyFormatIncorrect', retryable: false, http_status: 400 },
+  '2388073': { error_code: 'TemplateFooterFormatIncorrect', retryable: false, http_status: 400 },
+  '2388293': { error_code: 'TemplateParamRatioExceeded', retryable: false, http_status: 400 },
+  '2388299': { error_code: 'TemplateLeadingTrailingParams', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // RECIPIENT ERRORS
+  // ==========================================
+  '131021': { error_code: 'RecipientCannotBeSender', retryable: false, http_status: 400 },
+  '131026': { error_code: 'MessageUndeliverable', retryable: false, http_status: 400 },
+  '131047': { error_code: 'WindowExpired', retryable: false, http_status: 400 },
   '131049': { error_code: 'MessageNotDelivered', retryable: false, http_status: 400 },
-  '131000': { error_code: 'GenericError', retryable: true, http_status: 500 },
+  '131050': { error_code: 'UserOptedOut', retryable: false, http_status: 400 },
+  '130472': { error_code: 'UserInExperiment', retryable: false, http_status: 400 },
+  '133010': { error_code: 'PhoneNotRegistered', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // PARAMETER / VALIDATION ERRORS
+  // ==========================================
+  '33': { error_code: 'PhoneDeleted', retryable: false, http_status: 400 },
   '100': { error_code: 'InvalidParameter', retryable: false, http_status: 400 },
   '131008': { error_code: 'MissingParameter', retryable: false, http_status: 400 },
   '131009': { error_code: 'InvalidParameterValue', retryable: false, http_status: 400 },
-  '131051': { error_code: 'UnsupportedMessageType', retryable: false, http_status: 400 },
-  '131021': { error_code: 'RecipientCannotBeSender', retryable: false, http_status: 400 },
+  '135000': { error_code: 'GenericUserError', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // MEDIA ERRORS
+  // ==========================================
+  '131052': { error_code: 'MediaDownloadError', retryable: true, http_status: 400 },
+  '131053': { error_code: 'MediaUploadError', retryable: true, http_status: 400 },
+
+  // ==========================================
+  // SERVICE / SERVER ERRORS
+  // ==========================================
+  '1': { error_code: 'ApiUnknown', retryable: true, http_status: 400 },
+  '2': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
+  '131000': { error_code: 'GenericError', retryable: true, http_status: 500 },
+  '131016': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
   '131057': { error_code: 'AccountMaintenance', retryable: true, http_status: 503 },
-  '130497': { error_code: 'CountryRestriction', retryable: false, http_status: 403 },
-  '132068': { error_code: 'FlowBlocked', retryable: false, http_status: 400 },
-  '132069': { error_code: 'FlowThrottled', retryable: true, http_status: 429 },
-  // Subcode-specific errors (format: errorCode_subcode)
+  '133004': { error_code: 'ServiceUnavailable', retryable: true, http_status: 503 },
+  '2494100': { error_code: 'AccountMaintenance', retryable: true, http_status: 503 },
+
+  // ==========================================
+  // REGISTRATION / PHONE ERRORS
+  // ==========================================
+  '131037': { error_code: 'DisplayNameNotApproved', retryable: false, http_status: 400 },
+  '131045': { error_code: 'IncorrectCertificate', retryable: false, http_status: 500 },
+  '133000': { error_code: 'IncompleteDeregistration', retryable: false, http_status: 500 },
+  '133005': { error_code: 'TwoStepPinMismatch', retryable: false, http_status: 400 },
+  '133006': { error_code: 'PhoneReverificationNeeded', retryable: false, http_status: 400 },
+  '133008': { error_code: 'TooManyPinGuesses', retryable: false, http_status: 400 },
+  '133009': { error_code: 'PinGuessedTooFast', retryable: false, http_status: 400 },
+  '133015': { error_code: 'WaitBeforeRegistering', retryable: true, http_status: 400 },
+
+  // ==========================================
+  // MIGRATION ERRORS
+  // ==========================================
+  '2388001': { error_code: 'MigrationOwnershipConfirm', retryable: false, http_status: 400 },
+  '2388012': { error_code: 'PhoneAlreadyExists', retryable: false, http_status: 400 },
+  '2388091': { error_code: 'PhoneNotEligibleMigration', retryable: false, http_status: 400 },
+  '2388093': { error_code: 'PhoneNotEligibleMigration', retryable: false, http_status: 400 },
+  '2388103': { error_code: 'MigrationError', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // SYNCHRONIZATION ERRORS
+  // ==========================================
+  '2593107': { error_code: 'SyncRequestLimitExceeded', retryable: false, http_status: 400 },
+  '2593108': { error_code: 'SyncRequestOutsideWindow', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // INSIGHT ERRORS
+  // ==========================================
+  '200005': { error_code: 'TemplateInsightsUnavailable', retryable: false, http_status: 400 },
+  '200006': { error_code: 'CannotDisableInsights', retryable: false, http_status: 400 },
+  '200007': { error_code: 'InsightsNotEnabled', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // WABA ERRORS
+  // ==========================================
+  '2593079': { error_code: 'WabaMarkedForMigration', retryable: false, http_status: 400 },
+  '2593085': { error_code: 'InvalidWabaForObo', retryable: false, http_status: 400 },
+  '1752041': { error_code: 'DuplicateOnboardingRequest', retryable: false, http_status: 400 },
+
+  // ==========================================
+  // SUBCODE-SPECIFIC ERRORS
+  // ==========================================
   '100_33': { error_code: 'PhoneNumberDisconnected', retryable: false, http_status: 400 },
 };
 

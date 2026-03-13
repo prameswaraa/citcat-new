@@ -194,6 +194,11 @@
     "recovery_action": "Update your access token in settings.",
     "category": "authentication"
   },
+  "200": {
+    "message": "Permission not granted or has been removed.",
+    "recovery_action": "Use the access token debugger to verify your app has the required permissions.",
+    "category": "authorization"
+  },
   "1": {
     "message": "Unknown API error.",
     "recovery_action": "Try again later.",
@@ -273,5 +278,130 @@
     "message": "Template exceeds maximum character limit.",
     "recovery_action": "Reduce the template text length.",
     "category": "template"
+  },
+  "2388047": {
+    "message": "Message header format is incorrect.",
+    "recovery_action": "Check the header formatting in your template.",
+    "category": "template"
+  },
+  "2388072": {
+    "message": "Message body format is incorrect.",
+    "recovery_action": "Check the body formatting in your template.",
+    "category": "template"
+  },
+  "2388073": {
+    "message": "Message footer format is incorrect.",
+    "recovery_action": "Check the footer formatting in your template.",
+    "category": "template"
+  },
+  "2388293": {
+    "message": "Template has too many variables for its length.",
+    "recovery_action": "Reduce the number of variables or increase the template length.",
+    "category": "template"
+  },
+  "2388299": {
+    "message": "Variables cannot be at the start or end of the template.",
+    "recovery_action": "Add text before and after the variables.",
+    "category": "template"
+  },
+  "130472": {
+    "message": "This user's number is part of an experiment and cannot receive messages.",
+    "recovery_action": "This is a Meta experiment - wait 24 hours before retrying.",
+    "category": "recipient"
+  },
+  "134011": {
+    "message": "WhatsApp Payments terms of service have not been accepted.",
+    "recovery_action": "Accept the WhatsApp Payments terms of service in Meta Business Suite.",
+    "category": "billing"
+  },
+  "131055": {
+    "message": "Only marketing template messages are supported on this API.",
+    "recovery_action": "Use a marketing template instead of utility or authentication templates.",
+    "category": "template"
+  },
+  "134100": {
+    "message": "Only marketing messages are supported.",
+    "recovery_action": "Use a marketing template for this API.",
+    "category": "template"
+  },
+  "134101": {
+    "message": "Template is still syncing. Please wait a few minutes.",
+    "recovery_action": "Wait up to 10 minutes for the template to sync, then try again.",
+    "category": "template"
+  },
+  "134102": {
+    "message": "Template is unavailable for use.",
+    "recovery_action": "Check your eligibility status or contact Meta support.",
+    "category": "template"
+  },
+  "2388001": {
+    "message": "Please confirm ownership of this phone number or disable two-step verification.",
+    "recovery_action": "Verify phone ownership or disable two-step auth in WhatsApp Manager.",
+    "category": "migration"
+  },
+  "2388012": {
+    "message": "This phone number already exists in your account.",
+    "recovery_action": "Use a different phone number that is not already registered.",
+    "category": "migration"
+  },
+  "2388091": {
+    "message": "Phone number is not eligible for migration.",
+    "recovery_action": "Register and verify the phone number normally.",
+    "category": "migration"
+  },
+  "2388093": {
+    "message": "Phone number is not eligible for migration.",
+    "recovery_action": "Register and verify the phone number normally.",
+    "category": "migration"
+  },
+  "2388103": {
+    "message": "Error during phone number migration.",
+    "recovery_action": "Check the migration requirements and contact support if needed.",
+    "category": "migration"
+  },
+  "2494100": {
+    "message": "Account is in maintenance mode.",
+    "recovery_action": "Wait a few minutes and try again.",
+    "category": "service"
+  },
+  "2593107": {
+    "message": "Synchronization request limit exceeded.",
+    "recovery_action": "You can only sync once per phone number. Offboard and onboard again if needed.",
+    "category": "sync"
+  },
+  "2593108": {
+    "message": "Synchronization request made outside the allowed time window.",
+    "recovery_action": "Sync must be done within 24 hours of onboarding.",
+    "category": "sync"
+  },
+  "200005": {
+    "message": "Template insights are not available for this account.",
+    "recovery_action": "Template insights cannot be enabled for this account at this time.",
+    "category": "insights"
+  },
+  "200006": {
+    "message": "Cannot disable template insights once enabled.",
+    "recovery_action": "Template insights cannot be disabled after being enabled.",
+    "category": "insights"
+  },
+  "200007": {
+    "message": "Template insights are not enabled for this account.",
+    "recovery_action": "Enable template insights in your account settings.",
+    "category": "insights"
+  },
+  "2593079": {
+    "message": "This WhatsApp Business Account is marked for migration.",
+    "recovery_action": "The OBO ownership model is deprecated. Contact support.",
+    "category": "waba"
+  },
+  "2593085": {
+    "message": "Invalid WhatsApp Business Account for OBO mobility.",
+    "recovery_action": "The OBO ownership model is deprecated. Contact support.",
+    "category": "waba"
+  },
+  "1752041": {
+    "message": "Duplicate onboarding request.",
+    "recovery_action": "A client can only be invited to onboard once. No further action needed.",
+    "category": "onboarding"
   }
 }
