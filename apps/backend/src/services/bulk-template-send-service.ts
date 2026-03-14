@@ -598,10 +598,16 @@ export class BulkTemplateSendService {
     // Get variable mappings
     const mappings = await templateVariableService.getMappings(userId, job.templateName);
 
-    // Update status to processing
+    // Update status to processing and save sender info for recovery
     await prisma.bulkTemplateSend.update({
       where: { id: jobId },
-      data: { status: 'PROCESSING' },
+      data: { 
+        status: 'PROCESSING',
+        senderPhoneNumberId: senderPhoneNumberId || credentials.phoneNumberId,
+        messageDelayMs,
+        lastHeartbeat: new Date(),
+        lastProcessedIndex: 0,
+      },
     });
 
     logger.info('Starting bulk send processing', {
@@ -609,16 +615,195 @@ export class BulkTemplateSendService {
       totalRecipients: job.totalRecipients,
     });
 
-    // Process in batches
-    const csvData = job.csvData as CsvRow[];
-    const results: RecipientResult[] = [];
-    let successCount = 0;
-    let failedCount = 0;
+    // Process using the shared internal method
+    await this.processFromIndex(
+      jobId,
+      userId,
+      0, // Start from beginning
+      messageDelayMs,
+      credentials,
+      dbTemplate,
+      mappings
+    );
+  }
 
-    // Create WhatsApp client using resolved credentials
+  /**
+   * Resume a bulk send job that was interrupted (e.g., server restart)
+   * 
+   * Handles both:
+   * - New jobs with lastProcessedIndex tracking
+   * - Legacy jobs (before this feature) by counting existing results
+   * 
+   * @param jobId - Job ID to resume
+   * 
+   * Requirements: 11.5, 11.6, 11.7
+   */
+  async resumeBulkSend(jobId: string): Promise<void> {
+    // Get job without userId filter (for recovery)
+    const job = await prisma.bulkTemplateSend.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new Error(BULK_SEND_ERROR_CODES.JOB_NOT_FOUND);
+    }
+
+    if (job.status !== 'PROCESSING') {
+      logger.info('Job is not in PROCESSING status, skipping resume', { 
+        jobId, 
+        status: job.status 
+      });
+      return;
+    }
+
+    const csvData = job.csvData as CsvRow[];
+    
+    // Determine start index:
+    // 1. Use lastProcessedIndex if available (new tracking)
+    // 2. Otherwise, count existing results (legacy jobs before this feature)
+    let startIndex = job.lastProcessedIndex || 0;
+    
+    // For legacy jobs without lastProcessedIndex, calculate from results
+    if (!job.lastProcessedIndex && job.results) {
+      const existingResults = job.results as unknown as RecipientResult[];
+      if (Array.isArray(existingResults)) {
+        startIndex = existingResults.length;
+        logger.info('Legacy job detected, calculated startIndex from results', {
+          jobId,
+          resultsCount: existingResults.length,
+          startIndex,
+        });
+      }
+    }
+
+    // Check if already completed
+    if (startIndex >= csvData.length) {
+      logger.info('Job already processed all recipients, marking as completed', { jobId });
+      await prisma.bulkTemplateSend.update({
+        where: { id: jobId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
+    logger.info('Resuming bulk send processing', {
+      jobId,
+      userId: job.userId,
+      startIndex,
+      totalRecipients: job.totalRecipients,
+      alreadyProcessed: startIndex,
+      remaining: csvData.length - startIndex,
+    });
+
+    // Resolve credentials using saved sender info or fallback
+    let credentials = null;
+    if (job.senderPhoneNumberId) {
+      const phoneNumberRecord = await getWhatsAppAccountByPhoneNumberId(job.senderPhoneNumberId);
+      if (phoneNumberRecord && phoneNumberRecord.userId === job.userId) {
+        credentials = await resolveCredentialsByPhoneNumber(phoneNumberRecord);
+      }
+    }
+    if (!credentials) {
+      credentials = await resolveCredentialsForSending(job.userId);
+    }
+
+    if (!credentials) {
+      logger.error('Cannot resume broadcast: no credentials found', { jobId });
+      await prisma.bulkTemplateSend.update({
+        where: { id: jobId },
+        data: {
+          status: 'FAILED',
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
+    // Get template
+    const templateWhere: any = {
+      userId: job.userId,
+      templateName: job.templateName,
+      status: 'APPROVED',
+    };
+    if (credentials.whatsappAccountId) {
+      templateWhere.whatsappAccountId = credentials.whatsappAccountId;
+    }
+    const dbTemplate = await prisma.messageTemplate.findFirst({
+      where: templateWhere,
+    });
+
+    if (!dbTemplate) {
+      logger.error('Cannot resume broadcast: template not found', { jobId, templateName: job.templateName });
+      await prisma.bulkTemplateSend.update({
+        where: { id: jobId },
+        data: {
+          status: 'FAILED',
+          completedAt: new Date(),
+        },
+      });
+      return;
+    }
+
+    // Get variable mappings
+    const mappings = await templateVariableService.getMappings(job.userId, job.templateName);
+
+    // Update heartbeat to indicate we're resuming
+    await prisma.bulkTemplateSend.update({
+      where: { id: jobId },
+      data: { lastHeartbeat: new Date() },
+    });
+
+    // Process from the last saved index
+    await this.processFromIndex(
+      jobId,
+      job.userId,
+      startIndex,
+      job.messageDelayMs || 1000,
+      credentials,
+      dbTemplate,
+      mappings
+    );
+  }
+
+  /**
+   * Internal method to process broadcast from a specific index
+   * Used by both processBulkSend and resumeBulkSend
+   */
+  private async processFromIndex(
+    jobId: string,
+    userId: string,
+    startIndex: number,
+    messageDelayMs: number,
+    credentials: { accessToken: string; phoneNumberId: string; whatsappAccountId?: string },
+    dbTemplate: any,
+    mappings: (TemplateVariableMapping & { variable: TemplateVariable })[]
+  ): Promise<void> {
+    const job = await prisma.bulkTemplateSend.findUnique({
+      where: { id: jobId },
+    });
+
+    if (!job) {
+      throw new Error(BULK_SEND_ERROR_CODES.JOB_NOT_FOUND);
+    }
+
+    const csvData = job.csvData as CsvRow[];
+    
+    // Load existing results if resuming
+    const existingResults = (job.results as unknown as RecipientResult[]) || [];
+    const results: RecipientResult[] = [...existingResults];
+    
+    // Count existing successes/failures
+    let successCount = job.successCount || 0;
+    let failedCount = job.failedCount || 0;
+
+    // Create WhatsApp client
     const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
 
-    for (let i = 0; i < csvData.length; i += BATCH_SIZE) {
+    // Process from startIndex
+    for (let i = startIndex; i < csvData.length; i++) {
       // Check if job was cancelled
       const currentJob = await prisma.bulkTemplateSend.findUnique({
         where: { id: jobId },
@@ -630,46 +815,44 @@ export class BulkTemplateSendService {
         break;
       }
 
-      const batch = csvData.slice(i, i + BATCH_SIZE);
+      const row = csvData[i];
+      const result = await this.sendToRecipient(
+        credentials.phoneNumberId,
+        row,
+        job.templateName,
+        dbTemplate.language,
+        dbTemplate,
+        mappings,
+        whatsapp,
+        userId,
+        jobId
+      );
 
-      // Process batch with delay between each message
-      for (let j = 0; j < batch.length; j++) {
-        const row = batch[j];
-        const result = await this.sendToRecipient(
-          credentials.phoneNumberId,
-          row,
-          job.templateName,
-          dbTemplate.language,
-          dbTemplate,
-          mappings,
-          whatsapp,
-          userId,
-          jobId
-        );
+      results.push(result);
 
-        results.push(result);
-
-        if (result.success) {
-          successCount++;
-        } else {
-          failedCount++;
-        }
-
-        // Delay between messages (user-configurable)
-        if (messageDelayMs > 0 && (j < batch.length - 1 || i + BATCH_SIZE < csvData.length)) {
-          await this.delay(messageDelayMs);
-        }
+      if (result.success) {
+        successCount++;
+      } else {
+        failedCount++;
       }
 
-      // Update progress
+      // Update progress and heartbeat after each message
+      // This ensures we can resume from the exact position if server restarts
       await prisma.bulkTemplateSend.update({
         where: { id: jobId },
         data: {
           successCount,
           failedCount,
           results: results as any,
+          lastProcessedIndex: i + 1, // Next index to process
+          lastHeartbeat: new Date(),
         },
       });
+
+      // Delay between messages (user-configurable)
+      if (messageDelayMs > 0 && i < csvData.length - 1) {
+        await this.delay(messageDelayMs);
+      }
     }
 
     // Final update
@@ -687,6 +870,7 @@ export class BulkTemplateSendService {
           successCount,
           failedCount,
           results: results as any,
+          lastProcessedIndex: csvData.length,
           completedAt: new Date(),
         },
       });
@@ -697,7 +881,34 @@ export class BulkTemplateSendService {
       successCount,
       failedCount,
       totalRecipients: csvData.length,
+      startedFrom: startIndex,
     });
+  }
+
+  /**
+   * Find stuck broadcast jobs that need recovery
+   * A job is considered stuck if:
+   * - Status is PROCESSING
+   * - Last heartbeat is older than specified timeout (default 5 minutes)
+   * 
+   * @param timeoutMinutes - Minutes since last heartbeat to consider job stuck
+   * @returns Array of stuck job IDs
+   */
+  async findStuckJobs(timeoutMinutes: number = 5): Promise<string[]> {
+    const cutoffTime = new Date(Date.now() - timeoutMinutes * 60 * 1000);
+    
+    const stuckJobs = await prisma.bulkTemplateSend.findMany({
+      where: {
+        status: 'PROCESSING',
+        OR: [
+          { lastHeartbeat: { lt: cutoffTime } },
+          { lastHeartbeat: null }, // Jobs without heartbeat (legacy)
+        ],
+      },
+      select: { id: true },
+    });
+
+    return stuckJobs.map(job => job.id);
   }
 
   /**

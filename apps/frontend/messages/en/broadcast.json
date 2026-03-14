@@ -92,7 +92,8 @@
     "partialSuccess": "Partial Success",
     "mostlyFailed": "Mostly Failed",
     "failed": "Failed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "stuck": "Stuck"
   },
   "jobCard": {
     "recipients": "Recipients",
@@ -104,7 +105,21 @@
     "progress": "Progress",
     "cancelJob": "Cancel Job",
     "viewDetails": "View Details",
-    "successRate": "success"
+    "successRate": "success",
+    "resume": "Resume",
+    "stuckWarning": "Broadcast is stuck. Click Resume to continue sending.",
+    "resumeTitle": "Resume Broadcast",
+    "resumeConfirm": "Resume Broadcast",
+    "resumeSuccess": "Broadcast resumed",
+    "resumeSuccessDesc": "The broadcast will continue shortly",
+    "resumeFailed": "Failed to resume",
+    "totalRecipients": "Total",
+    "pending": "Pending",
+    "sentRecipients": "Sent",
+    "pendingRecipients": "Pending",
+    "noSentYet": "No messages sent yet",
+    "allSent": "All messages sent",
+    "failedLoadDetail": "Failed to load broadcast details"
   },
   "jobDetail": {
     "deliveryRate": "Delivery Rate",

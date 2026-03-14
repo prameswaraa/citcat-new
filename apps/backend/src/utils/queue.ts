@@ -19,6 +19,7 @@ export const QUEUE_NAMES = {
     MESSAGE: 'message-processing',
     WEBHOOK_OUTBOUND: 'webhook-outbound',
     MEMORY: 'memory-processing',
+    BROADCAST: 'broadcast-processing',
 } as const
 
 // Webhook Queue - for processing incoming webhooks
@@ -97,6 +98,25 @@ export const memoryQueue = new Queue(QUEUE_NAMES.MEMORY, {
     },
 })
 
+// Broadcast Queue - for processing bulk template sends with recovery support
+export const broadcastQueue = new Queue(QUEUE_NAMES.BROADCAST, {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 5000, // 5s, 10s, 20s - longer delays for broadcast retries
+        },
+        removeOnComplete: {
+            count: 100,
+            age: 86400, // Keep for 24 hours (broadcasts are important)
+        },
+        removeOnFail: {
+            count: 500,
+        },
+    },
+})
+
 // Queue Events for monitoring
 export const webhookQueueEvents = new QueueEvents(QUEUE_NAMES.WEBHOOK, {
     connection: redisConnection,
@@ -114,6 +134,10 @@ export const memoryQueueEvents = new QueueEvents(QUEUE_NAMES.MEMORY, {
     connection: redisConnection,
 })
 
+export const broadcastQueueEvents = new QueueEvents(QUEUE_NAMES.BROADCAST, {
+    connection: redisConnection,
+})
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('📦 Closing queues...')
@@ -121,10 +145,12 @@ process.on('SIGTERM', async () => {
     await messageQueue.close()
     await webhookOutboundQueue.close()
     await memoryQueue.close()
+    await broadcastQueue.close()
     await webhookQueueEvents.close()
     await messageQueueEvents.close()
     await webhookOutboundQueueEvents.close()
     await memoryQueueEvents.close()
+    await broadcastQueueEvents.close()
     await redisConnection.quit()
     console.log('✅ Queues closed')
 })
@@ -146,6 +172,10 @@ memoryQueueEvents.on('failed', ({ jobId, failedReason }) => {
     console.error(`❌ Memory job ${jobId} failed:`, failedReason)
 })
 
+broadcastQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    console.error(`❌ Broadcast job ${jobId} failed:`, failedReason)
+})
+
 // Success logging
 webhookQueueEvents.on('completed', ({ jobId }) => {
     console.log(`✅ Webhook job ${jobId} completed`)
@@ -161,4 +191,8 @@ webhookOutboundQueueEvents.on('completed', ({ jobId }) => {
 
 memoryQueueEvents.on('completed', ({ jobId }) => {
     console.log(`✅ Memory job ${jobId} completed`)
+})
+
+broadcastQueueEvents.on('completed', ({ jobId }) => {
+    console.log(`✅ Broadcast job ${jobId} completed`)
 })

@@ -1766,6 +1766,12 @@ model BulkTemplateSend {
   results         Json? // Store results per recipient
   completedAt     DateTime?
 
+  // Recovery fields for resuming interrupted broadcasts
+  lastProcessedIndex Int       @default(0) // Index of last processed recipient (for resume)
+  lastHeartbeat      DateTime? // Last activity timestamp (for detecting stuck jobs)
+  senderPhoneNumberId String?  // Phone number ID used for sending (for resume)
+  messageDelayMs     Int       @default(1000) // Delay between messages in ms
+
   // Relation to track individual messages for delivery status
   messages Message[]
 
@@ -1775,6 +1781,7 @@ model BulkTemplateSend {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([status, lastHeartbeat]) // For finding stuck jobs
 }
 
 // Conversation Assignment Model for OneInbox

@@ -16,7 +16,8 @@ import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { z } from 'zod'
 import { prisma } from '../../utils/database.js'
-import { bulkTemplateSendService, BULK_SEND_ERROR_CODES, type CsvRow } from '../../services/bulk-template-send-service.js'
+import { bulkTemplateSendService, BULK_SEND_ERROR_CODES, type CsvRow, type RecipientResult } from '../../services/bulk-template-send-service.js'
+import { broadcastQueue } from '../../utils/queue.js'
 import { getEffectiveUserId, getActingAgentId } from '../../middleware/resolveContext.js'
 import { resolveContext } from '../../middleware/resolveContext.js'
 import { auditLog } from '../../utils/auditLog.js'
@@ -603,6 +604,250 @@ app.post('/jobs/:id/cancel', async (c: Context) => {
       error: {
         code: 'InternalServerError',
         message: 'Failed to cancel broadcast job'
+      }
+    }, 500)
+  }
+})
+
+/**
+ * GET /api/v1/broadcast/jobs/stuck
+ * Get user's stuck broadcast jobs that need recovery
+ * 
+ * A job is considered stuck if:
+ * - Status is PROCESSING
+ * - Last heartbeat > 5 minutes ago OR no heartbeat (legacy job)
+ * 
+ * Returns: List of stuck broadcast jobs with recovery info
+ */
+app.get('/stuck', async (c: Context) => {
+  try {
+    const userId = getEffectiveUserId(c)
+    
+    if (!userId) {
+      return c.json({
+        error: {
+          code: 'Unauthorized',
+          message: 'Authentication required'
+        }
+      }, 401)
+    }
+
+    const cutoffTime = new Date(Date.now() - 5 * 60 * 1000) // 5 minutes ago
+
+    const stuckJobs = await prisma.bulkTemplateSend.findMany({
+      where: {
+        userId,
+        status: 'PROCESSING',
+        OR: [
+          { lastHeartbeat: { lt: cutoffTime } },
+          { lastHeartbeat: null }, // Legacy jobs without heartbeat
+        ],
+      },
+      select: {
+        id: true,
+        templateName: true,
+        status: true,
+        totalRecipients: true,
+        successCount: true,
+        failedCount: true,
+        lastProcessedIndex: true,
+        lastHeartbeat: true,
+        results: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    // Calculate progress info for each stuck job
+    const jobsWithProgress = stuckJobs.map(job => {
+      // For legacy jobs, calculate processed count from results
+      let processedCount = job.lastProcessedIndex || 0
+      if (!job.lastProcessedIndex && job.results) {
+        const results = job.results as unknown as RecipientResult[]
+        if (Array.isArray(results)) {
+          processedCount = results.length
+        }
+      }
+
+      const remainingCount = job.totalRecipients - processedCount
+      const progressPercent = job.totalRecipients > 0 
+        ? Math.round((processedCount / job.totalRecipients) * 100) 
+        : 0
+
+      return {
+        id: job.id,
+        templateName: job.templateName,
+        status: job.status,
+        totalRecipients: job.totalRecipients,
+        processedCount,
+        remainingCount,
+        progressPercent,
+        successCount: job.successCount,
+        failedCount: job.failedCount,
+        lastHeartbeat: job.lastHeartbeat,
+        isLegacyJob: !job.lastProcessedIndex && !job.lastHeartbeat,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      }
+    })
+
+    return c.json({
+      success: true,
+      data: jobsWithProgress,
+      total: jobsWithProgress.length,
+    })
+  } catch (error: any) {
+    logger.error('Get stuck broadcasts error', { error: error.message })
+    
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: 'Failed to get stuck broadcasts'
+      }
+    }, 500)
+  }
+})
+
+/**
+ * POST /api/v1/broadcast/jobs/:id/resume
+ * Manually resume a stuck broadcast job
+ * 
+ * Params:
+ * - id: string (required) - Broadcast job ID
+ * 
+ * Returns: Success status with job info
+ */
+app.post('/jobs/:id/resume', async (c: Context) => {
+  try {
+    const userId = getEffectiveUserId(c)
+    const actingAgentId = getActingAgentId(c)
+    
+    if (!userId) {
+      return c.json({
+        error: {
+          code: 'Unauthorized',
+          message: 'Authentication required'
+        }
+      }, 401)
+    }
+
+    const jobId = c.req.param('id')
+
+    if (!jobId) {
+      return c.json({
+        error: {
+          code: 'ValidationError',
+          message: 'Job ID is required'
+        }
+      }, 400)
+    }
+
+    // Verify job belongs to user and is in PROCESSING status
+    const job = await prisma.bulkTemplateSend.findFirst({
+      where: { id: jobId, userId },
+      select: {
+        id: true,
+        status: true,
+        totalRecipients: true,
+        lastProcessedIndex: true,
+        results: true,
+      }
+    })
+
+    if (!job) {
+      return c.json({
+        error: {
+          code: 'NotFound',
+          message: 'Broadcast job not found'
+        }
+      }, 404)
+    }
+
+    if (job.status !== 'PROCESSING') {
+      return c.json({
+        error: {
+          code: 'InvalidOperation',
+          message: `Cannot resume job with status ${job.status}. Only PROCESSING jobs can be resumed.`
+        }
+      }, 400)
+    }
+
+    // Check if job is already in queue
+    const existingJobs = await broadcastQueue.getJobs(['waiting', 'active', 'delayed'])
+    const alreadyQueued = existingJobs.some(
+      (queueJob) => queueJob.data.jobId === jobId && queueJob.data.type === 'resume'
+    )
+
+    if (alreadyQueued) {
+      return c.json({
+        error: {
+          code: 'AlreadyQueued',
+          message: 'This broadcast is already queued for recovery'
+        }
+      }, 400)
+    }
+
+    // Calculate progress for response
+    let processedCount = job.lastProcessedIndex || 0
+    if (!job.lastProcessedIndex && job.results) {
+      const results = job.results as unknown as RecipientResult[]
+      if (Array.isArray(results)) {
+        processedCount = results.length
+      }
+    }
+    const remainingCount = job.totalRecipients - processedCount
+
+    // Add to queue for resumption
+    await broadcastQueue.add(
+      'resume-broadcast',
+      {
+        type: 'resume',
+        jobId,
+      },
+      {
+        jobId: `resume-${jobId}-${Date.now()}`, // Unique ID
+      }
+    )
+
+    // Audit log
+    await auditLog(
+      'BROADCAST_RESUMED',
+      'BulkTemplateSend',
+      jobId,
+      {
+        resumedBy: (c as any).user?.id,
+        actingAgentId,
+        processedCount,
+        remainingCount,
+      },
+      (c as any).user?.id
+    )
+
+    logger.info('Broadcast job queued for resume via API', {
+      jobId,
+      userId,
+      processedCount,
+      remainingCount,
+    })
+
+    return c.json({
+      success: true,
+      message: 'Broadcast job queued for recovery',
+      data: {
+        jobId,
+        processedCount,
+        remainingCount,
+        totalRecipients: job.totalRecipients,
+      }
+    })
+  } catch (error: any) {
+    logger.error('Resume broadcast error', { error: error.message })
+    
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: 'Failed to resume broadcast job'
       }
     }, 500)
   }

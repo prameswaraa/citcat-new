@@ -92,7 +92,8 @@
     "partialSuccess": "Sebagian Berhasil",
     "mostlyFailed": "Sebagian Besar Gagal",
     "failed": "Gagal",
-    "cancelled": "Dibatalkan"
+    "cancelled": "Dibatalkan",
+    "stuck": "Terhenti"
   },
   "jobCard": {
     "recipients": "Penerima",
@@ -104,7 +105,21 @@
     "progress": "Progress",
     "cancelJob": "Batalkan Job",
     "viewDetails": "Lihat Detail",
-    "successRate": "berhasil"
+    "successRate": "berhasil",
+    "resume": "Lanjutkan",
+    "stuckWarning": "Broadcast terhenti. Klik Lanjutkan untuk melanjutkan pengiriman.",
+    "resumeTitle": "Lanjutkan Broadcast",
+    "resumeConfirm": "Lanjutkan Broadcast",
+    "resumeSuccess": "Broadcast dilanjutkan",
+    "resumeSuccessDesc": "Broadcast akan segera dilanjutkan",
+    "resumeFailed": "Gagal melanjutkan",
+    "totalRecipients": "Total",
+    "pending": "Belum Terkirim",
+    "sentRecipients": "Sudah Terkirim",
+    "pendingRecipients": "Belum Terkirim",
+    "noSentYet": "Belum ada yang terkirim",
+    "allSent": "Semua sudah terkirim",
+    "failedLoadDetail": "Gagal memuat detail broadcast"
   },
   "jobDetail": {
     "deliveryRate": "Tingkat Pengiriman",
