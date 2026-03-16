@@ -95,16 +95,54 @@ export async function handleMessageStatus(
       updateData.errorMessage = errorMessage
     }
 
-    // Update message status
-    await prisma.message.updateMany({
+    // Use atomic update with conditional WHERE to prevent race conditions
+    // This ensures we only update if the status is actually progressing forward
+    const statusProgression = ['PENDING', 'SENT', 'DELIVERED', 'READ']
+    const newStatusUpper = status.status.toUpperCase()
+    const newIndex = statusProgression.indexOf(newStatusUpper)
+    
+    // For broadcast statistics, we need to track the actual previous status
+    // Use a transaction to ensure atomicity
+    const previousStatus = message?.status || 'PENDING'
+    const previousIndex = statusProgression.indexOf(previousStatus)
+    
+    // Determine valid previous statuses for this update (prevent duplicate processing)
+    // A status update is only valid if coming from a lower status in the progression
+    const validPreviousStatuses: MessageStatus[] = []
+    if (newIndex > 0) {
+      // For forward progressions (sent, delivered, read), only accept if current status is lower
+      for (let i = 0; i < newIndex; i++) {
+        validPreviousStatuses.push(statusProgression[i] as MessageStatus)
+      }
+    }
+    
+    // For failed status, only accept from PENDING
+    if (status.status.toLowerCase() === 'failed') {
+      validPreviousStatuses.push('PENDING')
+    }
+    
+    // Atomic conditional update - only updates if status is in valid previous states
+    // This prevents double counting from duplicate webhooks or race conditions
+    const updateResult = await prisma.message.updateMany({
       where: {
         wamId: status.id,
-        userId: user.id
+        userId: user.id,
+        // Only update if current status allows progression to new status
+        ...(validPreviousStatuses.length > 0 && {
+          status: { in: validPreviousStatuses }
+        })
       },
       data: updateData
     })
-
-    console.log('✅ Message status updated:', status.id, '→', status.status)
+    
+    // Check if update actually happened (idempotency check)
+    const statusActuallyChanged = updateResult.count > 0
+    
+    if (statusActuallyChanged) {
+      console.log('✅ Message status updated:', status.id, '→', status.status)
+    } else {
+      console.log('⏭️ Message status update skipped (already processed or invalid progression):', status.id, '→', status.status)
+    }
 
     // Audit log for message status updates
     if (message) {
@@ -124,6 +162,7 @@ export async function handleMessageStatus(
           wamId: status.id,
           status: status.status,
           customerId: message.customerId,
+          statusActuallyChanged, // Track if this was a real change
           ...(errorCode && { errorCode }),
           ...(errorMessage && { errorMessage })
         },
@@ -132,9 +171,9 @@ export async function handleMessageStatus(
     }
 
     // Update broadcast job statistics if this message is part of a bulk send
-    if (message?.bulkSendJobId) {
+    // ONLY update counters if the status actually changed (prevents double counting)
+    if (message?.bulkSendJobId && statusActuallyChanged) {
       const statusLower = status.status.toLowerCase()
-      const previousStatus = message.status
 
       // Handle failed status - only update when message was previously PENDING
       if (statusLower === 'failed' && previousStatus === 'PENDING') {
@@ -152,9 +191,6 @@ export async function handleMessageStatus(
       // Increment delivery tracking counters based on status
       // WhatsApp may skip statuses (e.g., PENDING → READ directly), so we need to increment all skipped counters
       // Status progression: PENDING → SENT → DELIVERED → READ
-      const statusProgression = ['PENDING', 'SENT', 'DELIVERED', 'READ']
-      const previousIndex = statusProgression.indexOf(previousStatus)
-      const newIndex = statusProgression.indexOf(statusLower.toUpperCase())
 
       // Only process if this is a forward progression (not failed, not going backward)
       if (newIndex > previousIndex && newIndex > 0) {

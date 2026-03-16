@@ -485,7 +485,8 @@ function JobDetailContent({
     }
 
     if (filterStatus === "failed") {
-      return job.results.filter((result) => !result.success)
+      // Include both API call failures and webhook failures
+      return job.results.filter((result) => !result.success || result.status === 'failed')
     }
 
     // For sent/delivered/read: filter where success === true AND status matches
@@ -798,14 +799,17 @@ function JobDetailContent({
               </div>
             ) : (
               filteredResults.map((result, index) => {
+                // Check if this result is failed (either at API call or via webhook)
+                const isFailed = !result.success || result.status === 'failed'
+                
                 // Get structured error info for failed results
-                const errorInfo = !result.success && result.error
+                const errorInfo = isFailed && result.error
                   ? getErrorInfo(result.error, result.errorCode, tErrors)
                   : null
 
                 // Determine the display status and badge color
                 const getStatusBadge = () => {
-                  if (!result.success) {
+                  if (isFailed) {
                     return (
                       <div className="flex flex-col items-end gap-1">
                         <Badge variant="destructive" className="bg-red-500">

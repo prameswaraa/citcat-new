@@ -228,6 +228,8 @@ export class BulkTemplateSendService {
           select: {
             wamId: true,
             status: true,
+            errorCode: true,
+            errorMessage: true,
           },
         },
       },
@@ -237,27 +239,45 @@ export class BulkTemplateSendService {
       throw new Error(BULK_SEND_ERROR_CODES.JOB_NOT_FOUND);
     }
 
-    // Create a map of wamId to status from messages
-    const messageStatusMap = new Map<string, string>();
+    // Create a map of wamId to message info (status + error details)
+    const messageInfoMap = new Map<string, { 
+      status: string; 
+      errorCode?: string | null; 
+      errorMessage?: string | null;
+    }>();
     for (const msg of job.messages || []) {
       if (msg.wamId) {
-        messageStatusMap.set(msg.wamId, msg.status.toLowerCase());
+        messageInfoMap.set(msg.wamId, {
+          status: msg.status.toLowerCase(),
+          errorCode: msg.errorCode,
+          errorMessage: msg.errorMessage,
+        });
       }
     }
 
-    // Enrich results with status from messages
+    // Enrich results with status and error info from messages
     const results = (job.results as unknown) as RecipientResult[] | null;
     const enrichedResults = results?.map((result) => {
       if (result.success && result.messageId) {
-        const msgStatus = messageStatusMap.get(result.messageId);
-        if (msgStatus) {
+        const msgInfo = messageInfoMap.get(result.messageId);
+        if (msgInfo) {
+          // If message failed via webhook, include error details from Message table
+          if (msgInfo.status === 'failed') {
+            return {
+              ...result,
+              status: 'failed' as const,
+              // Prefer error from Message table (webhook), fallback to original result error
+              errorCode: msgInfo.errorCode || result.errorCode,
+              error: msgInfo.errorMessage || result.error,
+            };
+          }
           return {
             ...result,
-            status: msgStatus as 'sent' | 'delivered' | 'read' | 'failed',
+            status: msgInfo.status as 'sent' | 'delivered' | 'read',
           };
         }
       }
-      // For failed results, mark as failed
+      // For failed results (failed at API call time), keep original error info
       if (!result.success) {
         return {
           ...result,
@@ -267,7 +287,56 @@ export class BulkTemplateSendService {
       return result;
     }) || null;
 
-    return this.mapToJob({ ...job, results: enrichedResults });
+    // Calculate accurate counts from actual message statuses (not from stored counters)
+    // This ensures consistency between summary cards and detailed results
+    // 
+    // Counter logic (cumulative - matches webhook increment behavior):
+    // - sentCount: messages that reached at least "sent" status (includes delivered & read)
+    // - deliveredCount: messages that reached at least "delivered" status (includes read)
+    // - readCount: messages that reached "read" status
+    // - failedCount: messages that failed to send
+    let computedSentCount = 0;
+    let computedDeliveredCount = 0;
+    let computedReadCount = 0;
+    let computedFailedCount = 0;
+
+    if (enrichedResults) {
+      for (const result of enrichedResults) {
+        if (!result.success || result.status === 'failed') {
+          computedFailedCount++;
+        } else {
+          // Status follows progression: sent -> delivered -> read
+          // Counters are cumulative (same as webhook behavior)
+          const status = result.status || 'sent';
+          switch (status) {
+            case 'read':
+              computedReadCount++;
+              computedDeliveredCount++;
+              computedSentCount++;
+              break;
+            case 'delivered':
+              computedDeliveredCount++;
+              computedSentCount++;
+              break;
+            case 'sent':
+            default:
+              computedSentCount++;
+              break;
+          }
+        }
+      }
+    }
+
+    // Return job with computed counts for accuracy
+    return this.mapToJob({
+      ...job,
+      results: enrichedResults,
+      // Override stored counters with computed values for consistency
+      sentCount: computedSentCount,
+      deliveredCount: computedDeliveredCount,
+      readCount: computedReadCount,
+      failedCount: computedFailedCount,
+    });
   }
 
   /**
