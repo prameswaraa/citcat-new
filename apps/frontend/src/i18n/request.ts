@@ -27,6 +27,7 @@ import enWaba from '../../messages/en/waba.json';
 import enWabaHealth from '../../messages/en/wabaHealth.json';
 import enLegal from '../../messages/en/legal.json';
 import enWhatsappErrors from '../../messages/en/whatsappErrors.json';
+import enCredit from '../../messages/en/credit.json';
 
 import idCommon from '../../messages/id/common.json';
 import idNavigation from '../../messages/id/navigation.json';
@@ -52,6 +53,7 @@ import idWaba from '../../messages/id/waba.json';
 import idWabaHealth from '../../messages/id/wabaHealth.json';
 import idLegal from '../../messages/id/legal.json';
 import idWhatsappErrors from '../../messages/id/whatsappErrors.json';
+import idCredit from '../../messages/id/credit.json';
 
 // Pre-built message objects for each locale
 const messagesByLocale: Record<string, Record<string, unknown>> = {
@@ -80,6 +82,7 @@ const messagesByLocale: Record<string, Record<string, unknown>> = {
     wabaHealth: enWabaHealth,
     legal: enLegal,
     whatsappErrors: enWhatsappErrors,
+    credit: enCredit,
   },
   id: {
     common: idCommon,
@@ -106,6 +109,7 @@ const messagesByLocale: Record<string, Record<string, unknown>> = {
     wabaHealth: idWabaHealth,
     legal: idLegal,
     whatsappErrors: idWhatsappErrors,
+    credit: idCredit,
   },
 };
 

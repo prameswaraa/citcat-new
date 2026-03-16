@@ -228,10 +228,11 @@ export class XenditProvider implements PaymentProvider {
    * Requirements: 4.1, 4.2, 4.3
    */
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
-    logger.debug('XenditProvider.createPayment called', {
+    logger.info('XenditProvider.createPayment called', {
       orderId: params.orderId,
       amount: params.amount,
       paymentMethod: params.paymentMethod,
+      productDetails: params.productDetails,
     });
 
     try {

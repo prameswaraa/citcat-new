@@ -25,8 +25,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSubscription, type SubscriptionTier } from './hooks/use-subscription'
 import { PricingCards } from './components/pricing-cards'
 import { PaymentHistory } from './components/payment-history'
+import { CreditBalanceSection } from './components/credit-balance-section'
 import { PaymentModal } from '@/components/payment/payment-modal'
+import { TopUpModal } from '@/components/payment/topup-modal'
 import { RoleGuard } from '@/components/auth/role-guard'
+import { useCreditBalance, invalidateCreditBalance } from '@/hooks/use-credit'
+import { useQueryClient } from '@tanstack/react-query'
 
 // Status badge variants
 const statusVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -50,24 +54,32 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
 
 export default function SubscriptionPage() {
   const t = useTranslations('subscription')
+  const tCredit = useTranslations('credit')
   const tCommon = useTranslations('common')
   const { subscription, pricing, pricingWithDurations, loading, error, refetch } = useSubscription()
+  const { refetch: refetchCredit } = useCreditBalance()
+  const queryClient = useQueryClient()
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null)
   const [selectedDurationMonths, setSelectedDurationMonths] = useState<number>(1)
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [isTopUpModalOpen, setIsTopUpModalOpen] = useState(false)
   const [verifyingPayment, setVerifyingPayment] = useState(false)
+  const [verifyingTopUp, setVerifyingTopUp] = useState(false)
   
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
 
-  // Check for payment verification param
+  // Check for payment verification param (subscription or top-up)
   useEffect(() => {
     const paymentVerification = searchParams.get('payment_verification')
+    const topupVerification = searchParams.get('topup_verification')
     const orderId = searchParams.get('order_id')
 
     if (paymentVerification === 'true' && orderId) {
       verifyPayment(orderId)
+    } else if (topupVerification === 'true' && orderId) {
+      verifyTopUp(orderId)
     }
   }, [searchParams])
 
@@ -117,6 +129,53 @@ export default function SubscriptionPage() {
     }
   }
 
+  // Verify top-up payment after redirect
+  const verifyTopUp = async (orderId: string) => {
+    setVerifyingTopUp(true)
+    try {
+      // Poll status for 5 seconds (5 attempts)
+      for (let i = 0; i < 5; i++) {
+        const response = await fetch(`${API_URL}/api/v1/payment/status/${orderId}`, {
+          method: 'GET',
+          credentials: 'include',
+        })
+        
+        const result = await response.json()
+        
+        if (result.success && result.data.status === 'COMPLETED') {
+          toast({
+            title: tCredit('topUpSuccess'),
+            description: tCredit('topUpSuccessDesc', { amount: `Rp ${result.data.amount?.toLocaleString('id-ID') || '0'}` }),
+          })
+          invalidateCreditBalance(queryClient) // Refresh credit balance
+          
+          // Clear query params
+          const newParams = new URLSearchParams(searchParams.toString())
+          newParams.delete('topup_verification')
+          newParams.delete('order_id')
+          router.replace(`?${newParams.toString()}`)
+          
+          setVerifyingTopUp(false)
+          return
+        }
+        
+        // Wait 1s before next try
+        await new Promise(r => setTimeout(r, 1000))
+      }
+      
+      // If still not verified
+      toast({
+        variant: 'default',
+        title: t('paymentPending'),
+        description: t('paymentPendingDesc'),
+      })
+    } catch (err) {
+      console.error('Top-up verification failed', err)
+    } finally {
+      setVerifyingTopUp(false)
+    }
+  }
+
   // Get status label from translations
   const getStatusLabel = (status: string): string => {
     const statusMap: Record<string, string> = {
@@ -145,6 +204,20 @@ export default function SubscriptionPage() {
     setIsPaymentModalOpen(false)
     setSelectedTier(null)
     setSelectedDurationMonths(1)
+  }
+
+  // Top-up modal handlers
+  const handleTopUpClick = () => {
+    setIsTopUpModalOpen(true)
+  }
+
+  const handleTopUpSuccess = () => {
+    setIsTopUpModalOpen(false)
+    invalidateCreditBalance(queryClient)
+  }
+
+  const handleTopUpClose = () => {
+    setIsTopUpModalOpen(false)
   }
 
   // Get price for selected tier and duration
@@ -177,11 +250,21 @@ export default function SubscriptionPage() {
   return (
     <RoleGuard>
       <Header />
+      {/* Verifying Payment Overlay */}
       {verifyingPayment && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <p className="text-lg font-medium">{t('verifyingPayment')}</p>
+          </div>
+        </div>
+      )}
+      {/* Verifying Top-Up Overlay */}
+      {verifyingTopUp && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-lg font-medium">{tCredit('processingTopUp')}</p>
           </div>
         </div>
       )}
@@ -256,6 +339,9 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
 
+        {/* Credit Balance Section */}
+        <CreditBalanceSection onTopUpClick={handleTopUpClick} />
+
         {/* Expiry Warning */}
         {subscription?.status === 'EXPIRED' && (
           <Alert variant="destructive">
@@ -293,6 +379,13 @@ export default function SubscriptionPage() {
             tierPrice={getSelectedTierPrice()}
           />
         )}
+
+        {/* Top Up Modal */}
+        <TopUpModal
+          isOpen={isTopUpModalOpen}
+          onClose={handleTopUpClose}
+          onSuccess={handleTopUpSuccess}
+        />
       </div>
     </RoleGuard>
   )

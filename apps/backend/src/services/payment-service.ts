@@ -12,6 +12,7 @@ import { prisma } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 import { auditLog } from '../utils/auditLog.js';
 import { duitkuService, type DuitkuCallbackPayload } from './duitku-service.js';
+import { creditService } from './credit-service.js';
 import { adminSettingsService } from './admin/settings-service.js';
 import { adminSubscriptionPlansService } from './admin/subscription-plans-service.js';
 import { emailService } from './email/EmailService.js';
@@ -69,6 +70,9 @@ export interface CreatePaymentResponse {
   providerId?: string; // Provider that processed the payment
   error?: string;
   errorCode?: string;
+  // Credit payment support
+  paidWithCredit?: boolean; // True if fully paid with credit (Skenario A)
+  creditUsed?: number; // Amount of credit used for this payment
   // Proration info when upgrading from a paid tier
   proration?: {
     originalAmount: number;
@@ -396,18 +400,140 @@ export class PaymentService {
       const amount = effectiveAmount; // Use effective amount for payment
       const durationDays = selectedDuration.days;
 
+      // ===========================================================================
+      // Credit Support: Check user credit balance and calculate payment
+      // ===========================================================================
+      
+      // Get user's credit balance (returns 0 if no CreditBalance record exists)
+      const creditBalance = await creditService.getBalance(userId);
+      
+      // Calculate how much credit can be used (limited to subscription amount)
+      const creditToUse = Math.min(creditBalance, amount);
+      const amountToPay = amount - creditToUse;
+
+      // ===========================================================================
+      // SKENARIO A: Credit cukup untuk bayar semua (credit >= harga)
+      // Langsung potong credit dan aktifkan subscription, TIDAK perlu payment gateway
+      // Uses atomic transaction for credit deduction + transaction record creation
+      // ===========================================================================
+      if (amountToPay === 0 && creditToUse > 0) {
+        // Generate orderId untuk tracking
+        const orderId = this.generateOrderId();
+        
+        try {
+          // Step 1: Atomic operation - deduct credit and create transaction record
+          await prisma.$transaction(async (tx) => {
+            // Deduct credit within transaction
+            const creditBalance = await tx.creditBalance.findUnique({
+              where: { userId },
+            });
+            
+            if (!creditBalance || creditBalance.balance < creditToUse) {
+              throw new Error('Insufficient credit balance');
+            }
+            
+            const balanceBefore = creditBalance.balance;
+            const balanceAfter = balanceBefore - creditToUse;
+            
+            // Update credit balance
+            await tx.creditBalance.update({
+              where: { userId },
+              data: { balance: balanceAfter },
+            });
+            
+            // Create credit transaction record
+            await tx.creditTransaction.create({
+              data: {
+                userId,
+                type: 'PAYMENT_USED',
+                amount: -creditToUse,
+                balanceBefore,
+                balanceAfter,
+                orderId,
+              },
+            });
+            
+            // Create payment transaction record
+            await tx.paymentTransaction.create({
+              data: {
+                userId,
+                orderId,
+                amount: 0, // Tidak bayar ke gateway
+                creditUsed: creditToUse,
+                paymentMethod, // Keep selected method as placeholder
+                providerId, // Store provider for reference
+                targetTier: targetTier as SubscriptionTier,
+                transactionType: 'SUBSCRIPTION',
+                durationDays,
+                status: 'COMPLETED',
+                paidAt: new Date(),
+                expiresAt: new Date(), // Tidak relevan karena sudah COMPLETED
+                // Store prorate credit if applicable
+                ...(prorateCredit > 0 && { prorateCredit }),
+              } as any,
+            });
+          });
+          
+          // Step 2: Activate subscription (outside transaction - has side effects like email)
+          await this.activateSubscription(userId, targetTier as SubscriptionTier, orderId, creditToUse);
+          
+          // Step 3: Create success notification (non-critical)
+          await notificationService.createPaymentNotification(userId, 'success', orderId);
+          
+          logger.info('Payment completed with credit only (Skenario A)', {
+            orderId,
+            userId,
+            targetTier,
+            durationMonths,
+            durationDays,
+            originalAmount,
+            creditUsed: creditToUse,
+            prorateCredit: prorateCredit > 0 ? prorateCredit : undefined,
+          });
+          
+          return {
+            success: true,
+            paidWithCredit: true,
+            orderId,
+            amount: 0,
+            creditUsed: creditToUse,
+          };
+        } catch (creditError) {
+          logger.error('Failed to process credit-only payment (Skenario A)', {
+            userId,
+            targetTier,
+            creditToUse,
+            error: creditError instanceof Error ? creditError.message : 'Unknown error',
+          });
+          
+          return {
+            success: false,
+            error: 'Gagal memproses pembayaran dengan credit',
+            errorCode: 'CREDIT_PAYMENT_FAILED',
+          };
+        }
+      }
+
+      // ===========================================================================
+      // SKENARIO B & C: Perlu bayar via payment gateway
+      // Skenario B: credit > 0 tapi < harga → simpan creditUsed, potong nanti di callback
+      // Skenario C: credit = 0 → flow existing tanpa perubahan
+      // ===========================================================================
+
       // Generate order ID
       const orderId = this.generateOrderId();
       const expiryMinutes = 15;
       const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 
-      // Create transaction record with PENDING status, correct durationDays, providerId, and prorateCredit
+      // Create transaction record with PENDING status
+      // Note: Store creditUsed for Skenario B (will be deducted in callback when payment completes)
       // Note: Using type assertion for providerId as Prisma client may need regeneration after migration
       const transaction = await (prisma.paymentTransaction.create as any)({
         data: {
           userId,
           orderId,
-          amount,
+          amount: amountToPay, // Amount to pay via gateway (after credit deduction)
+          creditUsed: creditToUse > 0 ? creditToUse : 0, // Store credit to deduct later (default 0)
           paymentMethod, // Prisma enum now supports QRIS and VA_* methods
           providerId, // Store which provider is processing this transaction
           targetTier: targetTier as SubscriptionTier,
@@ -437,7 +563,7 @@ export class PaymentService {
       
       const productDetails = `${brandName} ${targetTier} Subscription - ${durationLabel}`;
 
-      // Call provider to create payment
+      // Call provider to create payment with amountToPay (after credit)
       // Sanitize FRONTEND_URL in case it has embedded quotes from misconfigured env
       const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/^["']|["']$/g, '');
       const locale = params.locale || 'en';
@@ -445,7 +571,7 @@ export class PaymentService {
       const returnUrl = `${frontendUrl}/${locale}/subscription?payment_verification=true&order_id=${orderId}`;
       const providerResponse = await provider.createPayment({
         orderId,
-        amount,
+        amount: amountToPay, // Send reduced amount to gateway
         customerEmail: user.email,
         customerName: user.name,
         productDetails,
@@ -493,13 +619,15 @@ export class PaymentService {
         durationMonths,
         durationDays,
         originalAmount,
+        creditUsed: creditToUse > 0 ? creditToUse : undefined,
+        amountToPay,
         prorateCredit: prorateCredit > 0 ? prorateCredit : undefined,
         effectiveAmount: amount,
         providerId,
         paymentMethod,
       });
 
-      // Build response with optional proration info
+      // Build response with optional proration info and credit info
       const response: CreatePaymentResponse = {
         success: true,
         orderId,
@@ -507,9 +635,11 @@ export class PaymentService {
         qrUrl: providerResponse.qrUrl,
         vaNumber: providerResponse.vaNumber,
         paymentUrl: providerResponse.paymentUrl,
-        amount,
+        amount: amountToPay, // Return amount user needs to pay (after credit)
         expiresAt,
         providerId,
+        // Include credit info for Skenario B
+        ...(creditToUse > 0 && { creditUsed: creditToUse }),
       };
 
       // Include proration details when applicable
@@ -723,6 +853,8 @@ export class PaymentService {
           targetTier: true,
           status: true,
           providerId: true,
+          transactionType: true, // For distinguishing TOP_UP vs SUBSCRIPTION
+          creditUsed: true, // For Skenario B credit deduction
           user: {
             select: {
               id: true,
@@ -731,7 +863,7 @@ export class PaymentService {
             },
           },
         },
-      }) as { id: string; orderId: string; userId: string; amount: number; targetTier: SubscriptionTier; status: PaymentStatus; providerId: string | null; user: { id: string; email: string; name: string } } | null;
+      }) as { id: string; orderId: string; userId: string; amount: number; targetTier: SubscriptionTier; status: PaymentStatus; providerId: string | null; transactionType: string | null; creditUsed: number | null; user: { id: string; email: string; name: string } } | null;
 
       if (!transaction) {
         logger.error('Transaction not found for callback', { orderId });
@@ -819,11 +951,134 @@ export class PaymentService {
         return { success: true, message: 'Already processed' };
       }
 
+      // ===========================================================================
+      // SECURITY: Amount validation - verify callback amount matches transaction
+      // Prevents attacks where attacker manipulates callback amount
+      // ===========================================================================
+      const callbackAmount = Number(payload.amount);
+      if (isNaN(callbackAmount) || callbackAmount !== transaction.amount) {
+        logger.error('Amount mismatch in callback - potential tampering detected', {
+          orderId,
+          callbackAmount: payload.amount,
+          expectedAmount: transaction.amount,
+          userId: transaction.userId,
+          providerId: effectiveProviderId,
+        });
+        
+        await auditLog(
+          'payment_callback_amount_mismatch',
+          'payment_transaction',
+          orderId,
+          {
+            callbackAmount: payload.amount,
+            expectedAmount: transaction.amount,
+            providerId: effectiveProviderId,
+          },
+          transaction.userId
+        );
+        
+        return { success: false, message: 'Amount mismatch' };
+      }
+
       // Determine status from callback
       const callbackStatus = this.mapDuitkuStatus(payload);
       const paidAt = callbackStatus === 'COMPLETED' ? new Date() : null;
+      const transactionType = transaction.transactionType || 'SUBSCRIPTION';
 
-      // Update transaction
+      // ===========================================================================
+      // Handle TOP_UP transaction: Use atomic transaction for credit + status update
+      // ===========================================================================
+      if (callbackStatus === 'COMPLETED' && transactionType === 'TOP_UP') {
+        try {
+          // Atomic operation: update transaction status AND add credit
+          await prisma.$transaction(async (tx) => {
+            // Update transaction status
+            await tx.paymentTransaction.update({
+              where: { orderId },
+              data: {
+                status: 'COMPLETED',
+                paidAt,
+                callbackPayload: payload as object,
+              },
+            });
+            
+            // Add credit to user balance
+            const creditBalance = await tx.creditBalance.upsert({
+              where: { userId: transaction.userId },
+              update: {},
+              create: { userId: transaction.userId, balance: 0 },
+            });
+            
+            const balanceBefore = creditBalance.balance;
+            const balanceAfter = balanceBefore + transaction.amount;
+            
+            await tx.creditBalance.update({
+              where: { userId: transaction.userId },
+              data: { balance: balanceAfter },
+            });
+            
+            await tx.creditTransaction.create({
+              data: {
+                userId: transaction.userId,
+                type: 'TOP_UP',
+                amount: transaction.amount,
+                balanceBefore,
+                balanceAfter,
+                orderId,
+                paymentTransactionId: transaction.id,
+              },
+            });
+          });
+          
+          logger.info('Top-up credit added (atomic)', {
+            userId: transaction.userId,
+            amount: transaction.amount,
+            orderId,
+          });
+          
+          // Audit log (outside transaction - non-critical)
+          await auditLog(
+            'payment_callback_received',
+            'payment_transaction',
+            orderId,
+            {
+              status: 'COMPLETED',
+              type: 'TOP_UP',
+              amount: transaction.amount,
+              providerId: effectiveProviderId,
+            },
+            transaction.userId
+          );
+          
+          // Create notification for top-up success
+          await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+          
+          logger.info('Payment callback processed (TOP_UP)', {
+            orderId,
+            status: callbackStatus,
+            userId: transaction.userId,
+            providerId: effectiveProviderId,
+            amount: transaction.amount,
+          });
+          
+          return { success: true, message: 'Top-up processed' };
+        } catch (creditError) {
+          logger.error('Failed to process top-up callback', {
+            userId: transaction.userId,
+            amount: transaction.amount,
+            orderId,
+            error: creditError instanceof Error ? creditError.message : 'Unknown error',
+          });
+          // Rethrow to trigger error handling - transaction will be rolled back
+          throw creditError;
+        }
+      }
+
+      // ===========================================================================
+      // Handle SUBSCRIPTION and FAILED/EXPIRED callbacks
+      // ===========================================================================
+      
+      // Update transaction status
       await prisma.paymentTransaction.update({
         where: { orderId },
         data: {
@@ -847,8 +1102,59 @@ export class PaymentService {
         transaction.userId
       );
 
-      // If successful, activate subscription and create success notification
+      // If successful subscription, handle credit deduction and activation
       if (callbackStatus === 'COMPLETED') {
+        
+        // ===========================================================================
+        // Handle SUBSCRIPTION transaction
+        // ===========================================================================
+        
+        // ===========================================================================
+        // SECURITY FIX: Skenario B - Deduct credit if creditUsed > 0
+        // Credit deduction MUST succeed before subscription activation
+        // If credit deduction fails, abort callback to prevent free subscription
+        // ===========================================================================
+        if (transaction.creditUsed && transaction.creditUsed > 0) {
+          try {
+            await creditService.deductCredit({
+              userId: transaction.userId,
+              amount: transaction.creditUsed,
+              type: 'PAYMENT_USED',
+              orderId,
+            });
+            
+            logger.info('Credit deducted for subscription (Skenario B)', {
+              userId: transaction.userId,
+              creditUsed: transaction.creditUsed,
+              orderId,
+            });
+          } catch (creditError) {
+            // SECURITY: Credit deduction failed - DO NOT activate subscription
+            // This prevents users from getting free subscriptions
+            logger.error('Credit deduction failed - aborting subscription activation', {
+              userId: transaction.userId,
+              creditUsed: transaction.creditUsed,
+              orderId,
+              error: creditError instanceof Error ? creditError.message : 'Unknown error',
+            });
+            
+            await auditLog(
+              'payment_callback_credit_deduction_failed',
+              'payment_transaction',
+              orderId,
+              {
+                creditUsed: transaction.creditUsed,
+                error: creditError instanceof Error ? creditError.message : 'Unknown error',
+              },
+              transaction.userId
+            );
+            
+            // Rethrow to fail the callback - payment provider will retry
+            throw new Error(`Credit deduction failed: ${creditError instanceof Error ? creditError.message : 'Unknown error'}`);
+          }
+        }
+        
+        // Activate subscription (only reached if credit deduction succeeded or no credit used)
         await this.activateSubscription(transaction.userId, transaction.targetTier, orderId, transaction.amount);
         await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
       } else if (callbackStatus === 'FAILED') {
@@ -915,6 +1221,8 @@ export class PaymentService {
           targetTier: true,
           status: true,
           providerId: true,
+          transactionType: true, // For distinguishing TOP_UP vs SUBSCRIPTION
+          creditUsed: true, // For Skenario B credit deduction
           user: {
             select: {
               id: true,
@@ -923,7 +1231,7 @@ export class PaymentService {
             },
           },
         },
-      }) as { id: string; orderId: string; userId: string; amount: number; targetTier: SubscriptionTier; status: PaymentStatus; providerId: string | null; user: { id: string; email: string; name: string } } | null;
+      }) as { id: string; orderId: string; userId: string; amount: number; targetTier: SubscriptionTier; status: PaymentStatus; providerId: string | null; transactionType: string | null; creditUsed: number | null; user: { id: string; email: string; name: string } } | null;
 
       if (!transaction) {
         logger.error('Transaction not found for provider callback', { orderId, providerId });
@@ -950,6 +1258,35 @@ export class PaymentService {
         return { success: true, message: 'Already processed', orderId };
       }
 
+      // ===========================================================================
+      // SECURITY: Amount validation - verify callback amount matches transaction
+      // Prevents attacks where attacker manipulates callback amount
+      // ===========================================================================
+      const callbackAmount = validationResult.amount;
+      if (callbackAmount !== undefined && callbackAmount !== transaction.amount) {
+        logger.error('Amount mismatch in provider callback - potential tampering detected', {
+          orderId,
+          callbackAmount,
+          expectedAmount: transaction.amount,
+          userId: transaction.userId,
+          providerId,
+        });
+        
+        await auditLog(
+          'payment_callback_amount_mismatch',
+          'payment_transaction',
+          orderId,
+          {
+            callbackAmount,
+            expectedAmount: transaction.amount,
+            providerId,
+          },
+          transaction.userId
+        );
+        
+        return { success: false, message: 'Amount mismatch', orderId };
+      }
+
       // Map provider status to our PaymentStatus
       const statusMap: Record<string, PaymentStatus> = {
         'SUCCESS': 'COMPLETED',
@@ -959,8 +1296,102 @@ export class PaymentService {
       };
       const callbackStatus = statusMap[validationResult.status || 'PENDING'] || 'PENDING';
       const paidAt = callbackStatus === 'COMPLETED' ? new Date() : null;
+      const transactionType = transaction.transactionType || 'SUBSCRIPTION';
 
-      // Update transaction
+      // ===========================================================================
+      // Handle TOP_UP transaction: Use atomic transaction for credit + status update
+      // ===========================================================================
+      if (callbackStatus === 'COMPLETED' && transactionType === 'TOP_UP') {
+        try {
+          // Atomic operation: update transaction status AND add credit
+          await prisma.$transaction(async (tx) => {
+            // Update transaction status
+            await tx.paymentTransaction.update({
+              where: { orderId },
+              data: {
+                status: 'COMPLETED',
+                paidAt,
+                callbackPayload: payload as object,
+              },
+            });
+            
+            // Add credit to user balance
+            const creditBalance = await tx.creditBalance.upsert({
+              where: { userId: transaction.userId },
+              update: {},
+              create: { userId: transaction.userId, balance: 0 },
+            });
+            
+            const balanceBefore = creditBalance.balance;
+            const balanceAfter = balanceBefore + transaction.amount;
+            
+            await tx.creditBalance.update({
+              where: { userId: transaction.userId },
+              data: { balance: balanceAfter },
+            });
+            
+            await tx.creditTransaction.create({
+              data: {
+                userId: transaction.userId,
+                type: 'TOP_UP',
+                amount: transaction.amount,
+                balanceBefore,
+                balanceAfter,
+                orderId,
+                paymentTransactionId: transaction.id,
+              },
+            });
+          });
+          
+          logger.info('Top-up credit added (atomic)', {
+            userId: transaction.userId,
+            amount: transaction.amount,
+            orderId,
+          });
+          
+          // Audit log (outside transaction - non-critical)
+          await auditLog(
+            'payment_callback_received',
+            'payment_transaction',
+            orderId,
+            {
+              status: 'COMPLETED',
+              type: 'TOP_UP',
+              amount: transaction.amount,
+              providerId,
+            },
+            transaction.userId
+          );
+          
+          // Create notification for top-up success
+          await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+          
+          logger.info('Provider callback processed (TOP_UP)', {
+            orderId,
+            status: callbackStatus,
+            userId: transaction.userId,
+            providerId,
+            amount: transaction.amount,
+          });
+          
+          return { success: true, message: 'Top-up processed', orderId };
+        } catch (creditError) {
+          logger.error('Failed to process top-up callback', {
+            userId: transaction.userId,
+            amount: transaction.amount,
+            orderId,
+            error: creditError instanceof Error ? creditError.message : 'Unknown error',
+          });
+          // Rethrow to trigger error handling - transaction will be rolled back
+          throw creditError;
+        }
+      }
+
+      // ===========================================================================
+      // Handle SUBSCRIPTION and FAILED/EXPIRED callbacks
+      // ===========================================================================
+      
+      // Update transaction status
       await prisma.paymentTransaction.update({
         where: { orderId },
         data: {
@@ -983,8 +1414,54 @@ export class PaymentService {
         transaction.userId
       );
 
-      // If successful, activate subscription and create success notification
+      // If successful subscription, handle credit deduction and activation
       if (callbackStatus === 'COMPLETED') {
+        // ===========================================================================
+        // SECURITY FIX: Skenario B - Deduct credit if creditUsed > 0
+        // Credit deduction MUST succeed before subscription activation
+        // If credit deduction fails, abort callback to prevent free subscription
+        // ===========================================================================
+        if (transaction.creditUsed && transaction.creditUsed > 0) {
+          try {
+            await creditService.deductCredit({
+              userId: transaction.userId,
+              amount: transaction.creditUsed,
+              type: 'PAYMENT_USED',
+              orderId,
+            });
+            
+            logger.info('Credit deducted for subscription (Skenario B)', {
+              userId: transaction.userId,
+              creditUsed: transaction.creditUsed,
+              orderId,
+            });
+          } catch (creditError) {
+            // SECURITY: Credit deduction failed - DO NOT activate subscription
+            // This prevents users from getting free subscriptions
+            logger.error('Credit deduction failed - aborting subscription activation', {
+              userId: transaction.userId,
+              creditUsed: transaction.creditUsed,
+              orderId,
+              error: creditError instanceof Error ? creditError.message : 'Unknown error',
+            });
+            
+            await auditLog(
+              'payment_callback_credit_deduction_failed',
+              'payment_transaction',
+              orderId,
+              {
+                creditUsed: transaction.creditUsed,
+                error: creditError instanceof Error ? creditError.message : 'Unknown error',
+              },
+              transaction.userId
+            );
+            
+            // Rethrow to fail the callback - payment provider will retry
+            throw new Error(`Credit deduction failed: ${creditError instanceof Error ? creditError.message : 'Unknown error'}`);
+          }
+        }
+        
+        // Activate subscription (only reached if credit deduction succeeded or no credit used)
         await this.activateSubscription(transaction.userId, transaction.targetTier, orderId, transaction.amount);
         await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
       } else if (callbackStatus === 'FAILED') {
@@ -1073,11 +1550,27 @@ export class PaymentService {
         select: { durationDays: true },
       });
 
-      // Use durationDays from transaction, fallback to 30 for backward compatibility
-      const durationDays = transaction?.durationDays || 30;
+      // ===========================================================================
+      // SECURITY FIX: Strict durationDays validation
+      // Prevent fallback to 30 days which could give users more days than paid for
+      // Only allow fallback for legacy transactions (backward compatibility)
+      // ===========================================================================
+      const durationDays = transaction?.durationDays;
+      if (!durationDays || durationDays <= 0) {
+        // Log warning but allow with minimal duration for legacy transactions
+        logger.warn('Invalid or missing durationDays in transaction - using minimum 30 days for backward compatibility', {
+          orderId,
+          userId,
+          targetTier,
+          durationDays: transaction?.durationDays,
+        });
+        // Use 30 as minimum fallback only for legacy transactions without durationDays
+        // New transactions MUST have valid durationDays set during createPayment
+      }
+      const effectiveDurationDays = (durationDays && durationDays > 0) ? durationDays : 30;
       
       const startDate = new Date();
-      const endDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      const endDate = new Date(startDate.getTime() + effectiveDurationDays * 24 * 60 * 60 * 1000);
 
       // Get user info for email
       const user = await prisma.user.findUnique({
@@ -1333,8 +1826,10 @@ export class PaymentService {
     amount: number;
     discountAmount: number | null;
     prorateCredit: number | null;
+    creditUsed: number | null;
     paymentMethod: string;
     targetTier: string;
+    transactionType: string;
     durationDays: number;
     status: string;
     createdAt: string;
@@ -1400,8 +1895,10 @@ export class PaymentService {
         amount: transaction.amount,
         discountAmount: transaction.discountAmount,
         prorateCredit: transaction.prorateCredit,
+        creditUsed: (transaction as any).creditUsed || null,
         paymentMethod: transaction.paymentMethod,
         targetTier: transaction.targetTier,
+        transactionType: (transaction as any).transactionType || 'SUBSCRIPTION',
         durationDays: transaction.durationDays,
         status: transaction.status,
         createdAt: transaction.createdAt.toISOString(),

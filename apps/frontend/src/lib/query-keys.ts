@@ -95,6 +95,15 @@ export const queryKeys = {
     rules: () => [...queryKeys.autoTagging.all, 'rules'] as const,
     rule: (id: string) => [...queryKeys.autoTagging.all, 'rule', id] as const,
   },
+
+  // Credit
+  credit: {
+    all: ['credit'] as const,
+    balance: () => [...queryKeys.credit.all, 'balance'] as const,
+    history: (page?: number, limit?: number) =>
+      [...queryKeys.credit.all, 'history', { page: page || 1, limit: limit || 10 }] as const,
+    packages: () => [...queryKeys.credit.all, 'packages'] as const,
+  },
 } as const
 
 // Type exports for type-safe query key usage
@@ -108,3 +117,4 @@ export type TeamKeys = typeof queryKeys.team
 export type MessagesKeys = typeof queryKeys.messages
 export type NotificationsKeys = typeof queryKeys.notifications
 export type AutoTaggingKeys = typeof queryKeys.autoTagging
+export type CreditKeys = typeof queryKeys.credit

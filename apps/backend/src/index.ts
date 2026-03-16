@@ -42,6 +42,7 @@ import publicApiRoutes from './routes/api/v1/public/index.js'
 import subscriptionRoutes from './routes/subscription.js'
 import adminRoutes from './routes/admin/index.js'
 import paymentRoutes from './routes/payment.js'
+import creditRoutes from './routes/credit.js'
 import duitkuWebhookRoutes from './routes/webhooks/duitku.js'
 import xenditWebhookRoutes from './routes/webhooks/xendit.js'
 import teamRoutes from './routes/team/index.js'
@@ -229,6 +230,9 @@ app.use('/api/v1/messenger/connection/*', authMiddleware)
 app.use('/api/v1/messenger/conversations/*', authMiddleware)
 app.use('/api/v1/subscription', authMiddleware)
 app.use('/api/v1/payment/*', authMiddleware)
+// Credit routes - protected
+app.use('/api/v1/credit/*', authMiddleware)
+app.use('/api/v1/credit', authMiddleware)
 // Payment status polling - higher rate limit (30 req/min) for status checks
 app.use('/api/v1/payment/status/*', paymentStatusRateLimiter)
 // Payment rate limiting - 10 requests/minute per user for other endpoints (Requirements: 10.4)
@@ -283,6 +287,7 @@ app.route('/api/v1/ig', instagramRoutes)
 app.route('/api/v1/messenger', messengerRoutes)
 app.route('/api/v1/subscription', subscriptionRoutes)
 app.route('/api/v1/payment', paymentRoutes)
+app.route('/api/v1/credit', creditRoutes)
 app.route('/api/v1/team', teamRoutes)
 app.route('/api/v1/admin', adminRoutes)
 app.route('/api/v1/template-variables', templateVariablesRoutes)

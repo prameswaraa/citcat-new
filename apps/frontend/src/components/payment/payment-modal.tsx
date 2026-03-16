@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { invalidateSubscriptionCache } from '@/hooks/use-subscription-query'
+import { useCreditBalance, invalidateCreditBalance } from '@/hooks/use-credit'
 import { subscriptionApi, type ProrateInfo } from '@/lib/api/subscription-api'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
@@ -82,6 +83,7 @@ export function PaymentModal({
   tierPrice = 0,
 }: PaymentModalProps) {
   const t = useTranslations('payment')
+  const tCredit = useTranslations('credit')
   const tCommon = useTranslations('common')
   const locale = useLocale()
   const queryClient = useQueryClient()
@@ -90,6 +92,10 @@ export function PaymentModal({
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null)
   const [prorateInfo, setProrateInfo] = useState<ProrateInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
+  
+  // Credit balance for showing credit usage info
+  const { data: creditData } = useCreditBalance()
+  const creditBalance = creditData?.balance ?? 0
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const hasFetchedProrate = useRef(false)
@@ -194,6 +200,7 @@ export function PaymentModal({
   // Handle success completion
   const handleSuccessClose = useCallback(() => {
     invalidateSubscriptionCache(queryClient)
+    invalidateCreditBalance(queryClient) // Also refresh credit balance
     onSuccess()
     handleClose()
   }, [queryClient, onSuccess, handleClose])
@@ -248,9 +255,15 @@ export function PaymentModal({
   // Render prorate info step
   const renderProrate = () => {
     const info = prorateInfo
-    const displayPrice = info?.effectivePrice ?? tierPrice
     const originalPrice = info?.originalPrice ?? tierPrice
-    const hasDiscount = info?.hasProration && info.prorateCredit && info.prorateCredit > 0
+    const priceAfterProrate = info?.effectivePrice ?? tierPrice
+    const hasProration = info?.hasProration && info.prorateCredit && info.prorateCredit > 0
+    
+    // Credit calculation
+    const creditToUse = Math.min(creditBalance, priceAfterProrate)
+    const amountToPay = priceAfterProrate - creditToUse
+    const hasCredit = creditBalance > 0
+    const isFullyCoveredByCredit = amountToPay === 0 && priceAfterProrate > 0
 
     return (
       <>
@@ -273,33 +286,63 @@ export function PaymentModal({
             </div>
 
             {/* Prorate Credit - only show if applicable */}
-            {hasDiscount && (
-              <>
-                <div className="flex justify-between items-center text-green-600 dark:text-green-400">
-                  <span className="text-sm">
-                    Kredit Prorata
-                    {info?.daysRemaining !== undefined && (
-                      <span className="text-xs text-muted-foreground ml-1">
-                        ({info.daysRemaining} hari tersisa dari {info.currentTier})
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-sm font-medium">-{formatPrice(info?.prorateCredit ?? 0)}</span>
-                </div>
+            {hasProration && (
+              <div className="flex justify-between items-center text-green-600 dark:text-green-400">
+                <span className="text-sm">
+                  Kredit Prorata
+                  {info?.daysRemaining !== undefined && (
+                    <span className="text-xs text-muted-foreground ml-1">
+                      ({info.daysRemaining} hari tersisa dari {info.currentTier})
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm font-medium">-{formatPrice(info?.prorateCredit ?? 0)}</span>
+              </div>
+            )}
 
-                {/* Divider */}
-                <div className="border-t border-dashed" />
-              </>
+            {/* Credit Balance Used - show if user has credit */}
+            {hasCredit && creditToUse > 0 && (
+              <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
+                <span className="text-sm">
+                  {tCredit('creditUsed')}
+                  <span className="text-xs text-muted-foreground ml-1">
+                    (Saldo: {formatPrice(creditBalance)})
+                  </span>
+                </span>
+                <span className="text-sm font-medium">-{formatPrice(creditToUse)}</span>
+              </div>
+            )}
+
+            {/* Divider before total */}
+            {(hasProration || hasCredit) && (
+              <div className="border-t border-dashed" />
             )}
 
             {/* Total */}
             <div className="flex justify-between items-center">
-              <span className="font-semibold">Total Bayar</span>
-              <span className="text-lg font-bold text-primary">{formatPrice(displayPrice)}</span>
+              <span className="font-semibold">{tCredit('amountToPay')}</span>
+              <span className="text-lg font-bold text-primary">{formatPrice(amountToPay)}</span>
             </div>
 
+            {/* Fully covered by credit badge */}
+            {isFullyCoveredByCredit && (
+              <div className="flex justify-center">
+                <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                  {tCredit('fullyCoveredByCredit')}
+                </span>
+              </div>
+            )}
+
+            {/* Remaining credit after payment */}
+            {hasCredit && creditToUse > 0 && (
+              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>{tCredit('remainingCredit')}</span>
+                <span>{formatPrice(creditBalance - creditToUse)}</span>
+              </div>
+            )}
+
             {/* Savings */}
-            {hasDiscount && info?.savings && info.savings > 0 && (
+            {hasProration && info?.savings && info.savings > 0 && (
               <div className="flex justify-center">
                 <span className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
                   Hemat {formatPrice(info.savings)}
@@ -310,7 +353,9 @@ export function PaymentModal({
 
           {/* Info text */}
           <p className="text-xs text-muted-foreground text-center">
-            Anda akan diarahkan ke halaman pembayaran Xendit
+            {isFullyCoveredByCredit
+              ? tCredit('noPaymentNeeded')
+              : 'Anda akan diarahkan ke halaman pembayaran Xendit'}
           </p>
         </div>
 
@@ -319,7 +364,7 @@ export function PaymentModal({
             {tCommon('cancel')}
           </Button>
           <Button onClick={handleProceedToPayment}>
-            Lanjut Bayar
+            {isFullyCoveredByCredit ? tCredit('payWithCredit') : 'Lanjut Bayar'}
           </Button>
         </DialogFooter>
       </>

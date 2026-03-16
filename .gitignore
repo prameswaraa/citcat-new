@@ -145,6 +145,11 @@ uploads/
 .claude/*.local.*
 
 # ========================
+# AI Agent Instructions (local only)
+# ========================
+AGENTS.md
+
+# ========================
 # Documentation (local dev)
 # ========================
 docs/

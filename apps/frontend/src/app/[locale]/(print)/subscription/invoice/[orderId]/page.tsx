@@ -20,8 +20,10 @@ interface InvoiceData {
   amount: number
   discountAmount: number | null
   prorateCredit: number | null
+  creditUsed: number | null
   paymentMethod: string
   targetTier: string
+  transactionType: 'SUBSCRIPTION' | 'TOP_UP'
   durationDays: number
   status: string
   createdAt: string
@@ -230,15 +232,28 @@ export default function InvoicePage() {
               <tbody>
                 <tr className="border-b border-gray-100">
                   <td className="py-4">
-                    <p className="text-gray-900 font-medium">
-                      Langganan {invoice.issuer.name} {invoice.targetTier}
-                    </p>
-                    <p className="text-gray-500 text-sm">
-                      Durasi: {getDurationLabel(invoice.durationDays)}
-                    </p>
-                    <p className="text-gray-500 text-sm">
-                      Metode Pembayaran: {paymentMethodLabels[invoice.paymentMethod] || invoice.paymentMethod}
-                    </p>
+                    {invoice.transactionType === 'TOP_UP' ? (
+                      <>
+                        <p className="text-gray-900 font-medium">
+                          Top Up Credit {invoice.issuer.name}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          Metode Pembayaran: {paymentMethodLabels[invoice.paymentMethod] || invoice.paymentMethod}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-gray-900 font-medium">
+                          Langganan {invoice.issuer.name} {invoice.targetTier}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          Durasi: {getDurationLabel(invoice.durationDays)}
+                        </p>
+                        <p className="text-gray-500 text-sm">
+                          Metode Pembayaran: {paymentMethodLabels[invoice.paymentMethod] || invoice.paymentMethod}
+                        </p>
+                      </>
+                    )}
                   </td>
                   <td className="py-4 text-right text-gray-900">
                     {formatPrice(originalAmount)}
@@ -297,7 +312,12 @@ export default function InvoicePage() {
 
           {/* Footer */}
           <div className="border-t border-gray-200 pt-8 text-center text-gray-500 text-sm">
-            <p>Terima kasih telah berlangganan {invoice.issuer.name}!</p>
+            <p>
+              {invoice.transactionType === 'TOP_UP' 
+                ? `Terima kasih telah melakukan top up di ${invoice.issuer.name}!`
+                : `Terima kasih telah berlangganan ${invoice.issuer.name}!`
+              }
+            </p>
             <p className="mt-1">
               Invoice ini dihasilkan secara otomatis dan sah tanpa tanda tangan.
             </p>

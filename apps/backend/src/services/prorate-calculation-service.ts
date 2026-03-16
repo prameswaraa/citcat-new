@@ -142,7 +142,7 @@ export class ProrateCalculationService {
         adminSubscriptionPlansService.getPlanPricing(targetTier.toLowerCase() as 'basic' | 'lite' | 'pro'),
       ]);
 
-      const currentTierPrice = currentPlanPricing.basePrice; // Monthly price
+      const currentTierMonthlyPrice = currentPlanPricing.basePrice; // Monthly price
 
       // Find the target duration option
       const targetDuration = targetPlanPricing.durations.find(d => d.months === durationMonths);
@@ -168,11 +168,35 @@ export class ProrateCalculationService {
       // Ensure daysRemaining is at least 0
       const effectiveDaysRemaining = Math.max(0, daysRemaining);
 
+      // Determine the months in current subscription period based on totalDays
+      // This maps the subscription period to a standard duration
+      const daysToMonths: Record<number, number> = {
+        30: 1,
+        90: 3,
+        180: 6,
+        365: 12,
+      };
+      
+      // Find the closest matching months for the current period
+      let currentPeriodMonths = 1;
+      for (const [days, months] of Object.entries(daysToMonths)) {
+        if (Math.abs(totalDays - parseInt(days)) <= 5) { // Allow 5 days tolerance
+          currentPeriodMonths = months;
+          break;
+        }
+      }
+      
+      // Find the current duration pricing to get actual paid price
+      const currentDuration = currentPlanPricing.durations.find(d => d.months === currentPeriodMonths);
+      
+      // Calculate total value paid for current subscription period
+      // Use the actual totalPrice from duration (includes any discounts) or fallback to monthly * months
+      const currentPeriodTotalPaid = currentDuration?.totalPrice ?? (currentTierMonthlyPrice * currentPeriodMonths);
+      
       // Calculate prorate credit using formula:
-      // prorateCredit = (currentTierPrice * daysRemaining) / totalDays
-      // This calculates the proportional value of unused subscription
-      // For multi-month subscriptions, we use the actual totalDays for accuracy
-      const prorateCredit = Math.round((currentTierPrice * effectiveDaysRemaining) / totalDays);
+      // prorateCredit = (totalPaidForPeriod * daysRemaining) / totalDays
+      // This calculates the proportional value of unused subscription based on actual amount paid
+      const prorateCredit = Math.round((currentPeriodTotalPaid * effectiveDaysRemaining) / totalDays);
 
       // Original price for target subscription (with duration discount applied)
       const originalPrice = targetDuration.totalPrice;
@@ -186,7 +210,7 @@ export class ProrateCalculationService {
       const prorateInfo: ProrateInfo = {
         currentTier,
         targetTier,
-        currentTierPrice,
+        currentTierPrice: currentTierMonthlyPrice,
         targetTierPrice: targetPlanPricing.basePrice,
         daysRemaining: effectiveDaysRemaining,
         totalDays,
@@ -283,8 +307,31 @@ export class ProrateCalculationService {
         (subscription.endDate.getTime() - subscription.startDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Use proper formula: (price * daysRemaining) / totalDays
-      const remainingValue = Math.round((planPricing.basePrice * daysRemaining) / totalDays);
+      // Determine the months in current subscription period based on totalDays
+      const daysToMonths: Record<number, number> = {
+        30: 1,
+        90: 3,
+        180: 6,
+        365: 12,
+      };
+      
+      // Find the closest matching months for the current period
+      let currentPeriodMonths = 1;
+      for (const [days, months] of Object.entries(daysToMonths)) {
+        if (Math.abs(totalDays - parseInt(days)) <= 5) { // Allow 5 days tolerance
+          currentPeriodMonths = months;
+          break;
+        }
+      }
+      
+      // Find the current duration pricing to get actual paid price
+      const currentDuration = planPricing.durations.find(d => d.months === currentPeriodMonths);
+      
+      // Calculate total value paid for current subscription period
+      const currentPeriodTotalPaid = currentDuration?.totalPrice ?? (planPricing.basePrice * currentPeriodMonths);
+      
+      // Use proper formula: (totalPaid * daysRemaining) / totalDays
+      const remainingValue = Math.round((currentPeriodTotalPaid * daysRemaining) / totalDays);
 
       return {
         tier: currentTier,
