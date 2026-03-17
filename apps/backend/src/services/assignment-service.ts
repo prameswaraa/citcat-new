@@ -258,6 +258,7 @@ export class AssignmentService {
    * @param assigneeId - The user ID to assign to
    * @param assignedById - The user ID making the assignment
    * @param businessOwnerId - The business owner's user ID
+   * @param escalationInfo - Optional escalation info when assignment is triggered by keyword
    * @returns The new assignment
    * Requirements: 1.2, 1.3, 1.4, 2.4, 4.1, 4.2
    */
@@ -266,7 +267,11 @@ export class AssignmentService {
     conversationType: ConversationType,
     assigneeId: string,
     assignedById: string,
-    businessOwnerId: string
+    businessOwnerId: string,
+    escalationInfo?: {
+      keywordGroup: string;
+      keyword: string;
+    }
   ): Promise<AssignmentResult> {
     // Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
@@ -301,6 +306,10 @@ export class AssignmentService {
           assigneeId,
           assignedById,
           businessOwnerId,
+          // Escalation info (if triggered by keyword)
+          isEscalation: !!escalationInfo,
+          escalationKeywordGroup: escalationInfo?.keywordGroup,
+          escalationKeyword: escalationInfo?.keyword,
         },
         include: {
           assignee: {
@@ -795,6 +804,10 @@ export class AssignmentService {
       assignedByName: assignment.assignedBy.name,
       assignedAt: assignment.assignedAt,
       unassignedAt: assignment.unassignedAt,
+      // Escalation info
+      isEscalation: assignment.isEscalation,
+      escalationKeywordGroup: assignment.escalationKeywordGroup,
+      escalationKeyword: assignment.escalationKeyword,
     }));
   }
 

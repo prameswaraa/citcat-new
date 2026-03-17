@@ -18,6 +18,7 @@ export type WebSocketEventType =
   | "unread_count_updated"
   | "assignment_changed"
   | "outbound_message"
+  | "new_notification"
 
 export interface NewMessagePayload {
   conversationId: string
@@ -170,6 +171,30 @@ export interface OutboundMessageEvent extends BaseEvent {
   payload: OutboundMessagePayload
 }
 
+/**
+ * Payload for new_notification event
+ * Emitted when a new notification is created for the user
+ */
+export interface NewNotificationPayload {
+  id: string
+  type: string
+  title: string
+  message: string
+  priority: string
+  actionUrl?: string | null
+  actionLabel?: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+/**
+ * Event for new notifications
+ */
+export interface NewNotificationEvent {
+  type: "new_notification"
+  payload: NewNotificationPayload
+}
+
 // ============================================
 // Hook Types
 // ============================================
@@ -192,6 +217,7 @@ export interface UseWebSocketOptions {
   onUnreadCountUpdated?: (event: UnreadCountUpdatedEvent) => void
   onAssignmentChanged?: (event: AssignmentChangedEvent) => void
   onOutboundMessage?: (event: OutboundMessageEvent) => void
+  onNewNotification?: (event: NewNotificationEvent) => void
   onConnectionChange?: (state: WebSocketState) => void
   enabled?: boolean
 }
@@ -224,6 +250,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     onUnreadCountUpdated,
     onAssignmentChanged,
     onOutboundMessage,
+    onNewNotification,
     onConnectionChange,
     enabled = true,
   } = options
@@ -252,6 +279,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   const onUnreadCountUpdatedRef = useRef(onUnreadCountUpdated)
   const onAssignmentChangedRef = useRef(onAssignmentChanged)
   const onOutboundMessageRef = useRef(onOutboundMessage)
+  const onNewNotificationRef = useRef(onNewNotification)
 
   // Update refs when callbacks change
   useEffect(() => {
@@ -262,7 +290,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     onUnreadCountUpdatedRef.current = onUnreadCountUpdated
     onAssignmentChangedRef.current = onAssignmentChanged
     onOutboundMessageRef.current = onOutboundMessage
-  }, [onNewMessage, onConversationUpdated, onMessageStatus, onTypingIndicator, onUnreadCountUpdated, onAssignmentChanged, onOutboundMessage])
+    onNewNotificationRef.current = onNewNotification
+  }, [onNewMessage, onConversationUpdated, onMessageStatus, onTypingIndicator, onUnreadCountUpdated, onAssignmentChanged, onOutboundMessage, onNewNotification])
 
   // Update enabled ref when prop changes
   useEffect(() => {
@@ -342,6 +371,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       socket.on("outbound_message", (event: OutboundMessageEvent) => {
         updateState({ lastEventAt: new Date() })
         onOutboundMessageRef.current?.(event)
+      })
+
+      // New notification event
+      socket.on("new_notification", (event: NewNotificationEvent) => {
+        updateState({ lastEventAt: new Date() })
+        onNewNotificationRef.current?.(event)
       })
     },
     [updateState]

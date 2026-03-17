@@ -85,6 +85,7 @@ import './workers/webhookWorker.js'
 import './workers/webhookOutboundWorker.js'
 import './workers/memoryWorker.js'
 import './workers/broadcastWorker.js'
+import './workers/documentWorker.js'
 
 // Import WebSocket server and event emitter
 import { initializeWebSocket, eventEmitter } from './websocket/index.js'

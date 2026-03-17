@@ -1,12 +1,11 @@
 import { Hono } from 'hono';
 import { prisma } from '../../utils/database.js';
-import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js';
 import { checkUsageLimit, checkFeatureAccess } from '../../middleware/subscription.js';
+import { documentQueue } from '../../utils/queue.js';
+import type { ProcessDocumentJobData } from '../../workers/documentWorker.js';
+import { logger } from '../../utils/logger.js';
 
 const app = new Hono();
-
-// In a real app, use a queue. For now, process in background or await (simple)
-const orchestrator = new AIOrchestrator();
 
 app.post('/upload', async (c) => {
   const user = (c as any).user;
@@ -56,38 +55,36 @@ app.post('/upload', async (c) => {
     },
   });
 
-  // 2. Process Async (Fire and forget, or use queue)
-  // We use a promise here but don't await it to block response, 
-  // but in serverless/lambda this might be killed. 
-  // For a long-running server, this is okay-ish but risky.
-  // Better: await it if it's fast (PDF parsing + embedding might take 10-30s).
-  // Let's await it for now to ensure feedback, or return 202 Accepted.
-  
-  // Using background processing
-  orchestrator.processAndStoreDocument(doc.id, buffer, mimeType)
-    .then(() => {
-      console.log(`Document ${doc.id} processed successfully`);
-    })
-    .catch(async (err) => {
-      console.error(`Error processing document ${doc.id}:`, err);
-      // Only update if document still exists (might have been deleted)
-      try {
-        await (prisma as any).knowledgeDocument.update({
-          where: { id: doc.id },
-          data: { 
-            status: 'FAILED',
-            errorMessage: err.message 
-          },
-        });
-      } catch (updateErr: any) {
-        // Document was deleted, ignore the error
-        if (updateErr.code === 'P2025') {
-          console.log(`Document ${doc.id} was deleted, skipping error update`);
-        } else {
-          console.error(`Failed to update document ${doc.id} status:`, updateErr);
-        }
+  // 2. Queue document for async processing via BullMQ
+  // This ensures processing survives server restarts and provides retry logic
+  try {
+    await documentQueue.add(
+      'process-document',
+      {
+        type: 'process-document',
+        documentId: doc.id,
+        fileBase64: buffer.toString('base64'), // Serialize buffer for Redis
+        mimeType,
+      } as ProcessDocumentJobData,
+      {
+        jobId: `doc-${doc.id}`, // Prevent duplicate processing
       }
+    );
+    logger.info(`Document ${doc.id} queued for processing`);
+  } catch (queueErr) {
+    logger.error(`Failed to queue document ${doc.id}:`, {
+      error: queueErr instanceof Error ? queueErr.message : 'Unknown error',
     });
+    // Update status to FAILED if queueing fails
+    await (prisma as any).knowledgeDocument.update({
+      where: { id: doc.id },
+      data: {
+        status: 'FAILED',
+        errorMessage: 'Failed to queue document for processing',
+      },
+    });
+    return c.json({ error: 'Failed to queue document for processing' }, 500);
+  }
 
   return c.json({ 
     message: 'File uploaded, processing started',

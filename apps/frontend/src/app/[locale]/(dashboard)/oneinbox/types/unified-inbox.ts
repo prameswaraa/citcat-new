@@ -84,6 +84,10 @@ export interface AssignmentResult {
 export interface AssignmentHistoryItem extends AssignmentResult {
   unassignedAt: Date | null
   assignedByName: string
+  // Escalation info (when assignment is triggered by keyword)
+  isEscalation?: boolean
+  escalationKeywordGroup?: string | null
+  escalationKeyword?: string | null
 }
 
 export interface FilterState {

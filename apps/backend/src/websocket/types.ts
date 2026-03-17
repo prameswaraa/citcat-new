@@ -17,6 +17,7 @@ export type WebSocketEventType =
   | 'typing_indicator'
   | 'assignment_changed'
   | 'outbound_message'
+  | 'new_notification'
 
 // ============================================
 // Zod Validation Schemas
@@ -122,6 +123,19 @@ export const outboundMessagePayloadSchema = z.object({
   })
 })
 
+// New notification event payload schema
+export const newNotificationPayloadSchema = z.object({
+  id: z.string().min(1),
+  type: z.string(),
+  title: z.string(),
+  message: z.string(),
+  priority: z.string(),
+  actionUrl: z.string().nullable().optional(),
+  actionLabel: z.string().nullable().optional(),
+  isRead: z.boolean(),
+  createdAt: z.string().datetime(),
+})
+
 // Full event schemas with type discriminator
 export const newMessageEventSchema = z.object({
   type: z.literal('new_message'),
@@ -165,6 +179,11 @@ export const outboundMessageEventSchema = z.object({
   payload: outboundMessagePayloadSchema
 })
 
+export const newNotificationEventSchema = z.object({
+  type: z.literal('new_notification'),
+  payload: newNotificationPayloadSchema
+})
+
 // Union schema for all WebSocket events
 export const webSocketEventSchema = z.discriminatedUnion('type', [
   newMessageEventSchema,
@@ -172,7 +191,8 @@ export const webSocketEventSchema = z.discriminatedUnion('type', [
   messageStatusEventSchema,
   typingIndicatorEventSchema,
   assignmentChangedEventSchema,
-  outboundMessageEventSchema
+  outboundMessageEventSchema,
+  newNotificationEventSchema
 ])
 
 // ============================================
@@ -222,6 +242,12 @@ export interface OutboundMessageEvent extends BaseEvent {
   payload: z.infer<typeof outboundMessagePayloadSchema>
 }
 
+// New notification event payload (simpler - no timestamp/userId needed at top level)
+export interface NewNotificationEvent {
+  type: 'new_notification'
+  payload: z.infer<typeof newNotificationPayloadSchema>
+}
+
 // Union type for all WebSocket events
 export type WebSocketEvent = 
   | NewMessageEvent 
@@ -230,6 +256,7 @@ export type WebSocketEvent =
   | TypingIndicatorEvent
   | AssignmentChangedEvent
   | OutboundMessageEvent
+  | NewNotificationEvent
 
 // ============================================
 // Server Configuration & Connection Types

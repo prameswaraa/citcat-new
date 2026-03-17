@@ -13,6 +13,10 @@ export interface ResolvedAIConfig {
   activeAgentId: string | null;
   temperature: number;
   filterWords: any;
+  timezone: string;
+  workingHours: any;
+  escalationKeywords: any;
+  escalationAutoAssign: boolean;
   source: 'whatsapp_account' | 'user_default';
 }
 
@@ -39,11 +43,22 @@ export async function resolveAIConfig(
     });
 
     if (accountConfig) {
+      // Type assertion needed until Prisma client is regenerated with new fields
+      const config = accountConfig as typeof accountConfig & {
+        timezone?: string;
+        workingHours?: any;
+        escalationKeywords?: any;
+        escalationAutoAssign?: boolean;
+      };
       return {
-        enabled: accountConfig.enabled,
-        activeAgentId: accountConfig.activeAgentId,
-        temperature: accountConfig.temperature,
-        filterWords: accountConfig.filterWords,
+        enabled: config.enabled,
+        activeAgentId: config.activeAgentId,
+        temperature: config.temperature,
+        filterWords: config.filterWords,
+        timezone: config.timezone ?? 'Asia/Jakarta',
+        workingHours: config.workingHours ?? null,
+        escalationKeywords: config.escalationKeywords ?? null,
+        escalationAutoAssign: config.escalationAutoAssign ?? true,
         source: 'whatsapp_account',
       };
     }
@@ -59,11 +74,23 @@ export async function resolveAIConfig(
 
   if (!userConfig) return null;
 
+  // Type assertion needed until Prisma client is regenerated with new fields
+  const config = userConfig as typeof userConfig & {
+    timezone?: string;
+    workingHours?: any;
+    escalationKeywords?: any;
+    escalationAutoAssign?: boolean;
+  };
+
   return {
-    enabled: userConfig.enabled,
-    activeAgentId: userConfig.activeAgentId,
-    temperature: userConfig.temperature,
-    filterWords: userConfig.filterWords,
+    enabled: config.enabled,
+    activeAgentId: config.activeAgentId,
+    temperature: config.temperature,
+    filterWords: config.filterWords,
+    timezone: config.timezone ?? 'Asia/Jakarta',
+    workingHours: config.workingHours ?? null,
+    escalationKeywords: config.escalationKeywords ?? null,
+    escalationAutoAssign: config.escalationAutoAssign ?? true,
     source: 'user_default',
   };
 }

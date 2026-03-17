@@ -42,6 +42,8 @@ export default function OneInboxPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const phoneParam = searchParams.get("phone")
+  const conversationParam = searchParams.get("conversation")
+  const typeParam = searchParams.get("type") // whatsapp, instagram, messenger
   
   const {
     filteredConversations,
@@ -124,8 +126,9 @@ export default function OneInboxPage() {
   // State for mobile panel sheet
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   
-  // Track if we've already handled the phone param to avoid repeated selections
+  // Track if we've already handled the params to avoid repeated selections
   const phoneParamHandledRef = useRef<string | null>(null)
+  const conversationParamHandledRef = useRef<string | null>(null)
 
   // Detect if we're on desktop (lg breakpoint = 1024px)
   const isDesktop = useMediaQuery("(min-width: 1024px)")
@@ -156,6 +159,33 @@ export default function OneInboxPage() {
       router.replace(newUrl, { scroll: false })
     }
   }, [phoneParam, loading, conversations, selectConversation, router])
+
+  // Auto-select conversation when conversation ID query param is provided (e.g., from notification)
+  useEffect(() => {
+    if (!conversationParam || loading || conversations.length === 0) return
+    if (conversationParamHandledRef.current === conversationParam) return // Already handled
+    
+    // Find conversation matching the ID and optional type
+    const conversation = conversations.find((c) => {
+      const idMatches = c.id === conversationParam
+      if (!idMatches) return false
+      
+      // If type is specified, also match channel
+      if (typeParam) {
+        return c.channel === typeParam.toLowerCase()
+      }
+      return true
+    })
+    
+    if (conversation) {
+      conversationParamHandledRef.current = conversationParam
+      selectConversation(conversation)
+      
+      // Remove the query params from URL to clean up
+      const newUrl = window.location.pathname
+      router.replace(newUrl, { scroll: false })
+    }
+  }, [conversationParam, typeParam, loading, conversations, selectConversation, router])
 
   // Handle linking customer to conversation
   const handleLinkCustomer = async (customerId: string) => {

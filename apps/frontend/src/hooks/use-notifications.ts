@@ -3,8 +3,10 @@
  *
  * TanStack Query hooks for notifications data fetching with proper caching.
  * Supports optimistic updates for immediate UI feedback.
+ * Includes WebSocket integration for realtime notifications.
  */
 
+import { useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   notificationsApi,
@@ -14,6 +16,7 @@ import {
 } from '@/lib/api/notifications-api'
 import { queryKeys } from '@/lib/query-keys'
 import { CACHE_TIMES } from '@/lib/cache-config'
+import { useWebSocket, type NewNotificationPayload } from './use-websocket'
 
 /**
  * Hook for fetching notifications with pagination support
@@ -47,6 +50,25 @@ export function useUnreadNotificationCount(enabled: boolean = true) {
     refetchInterval: 60000, // 1 minute
     refetchIntervalInBackground: true,
   })
+}
+
+/**
+ * Hook for realtime notification updates via WebSocket
+ * Invalidates notification queries when new notification arrives
+ */
+export function useRealtimeNotifications() {
+  const queryClient = useQueryClient()
+  
+  const { state } = useWebSocket({
+    onNewNotification: (event) => {
+      console.log('[Notifications] New notification received:', event.payload.title)
+      
+      // Invalidate all notification queries to trigger refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all })
+    },
+  })
+
+  return { isConnected: state.isConnected }
 }
 
 /**

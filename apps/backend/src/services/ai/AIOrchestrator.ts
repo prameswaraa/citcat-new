@@ -12,6 +12,8 @@ import { assignmentService } from '../assignment-service.js';
 import type { ConversationType } from '@prisma/client';
 import { resolveAIConfig } from './resolve-ai-config.js';
 import { createMemoryVectorStore, MemoryVectorStore, MemorySearchResult } from './memory/index.js';
+import { isWithinWorkingHours, WorkingHours } from './working-hours.js';
+import { checkEscalation, checkEscalationWithGroups, handleEscalationAssign, handleEscalationAssignToAgent } from './escalation.js';
 
 /**
  * AIOrchestrator
@@ -313,7 +315,51 @@ Response was: ${m.memory.responseMessage}`)
       return null
     }
 
-    // 1.2 Determine which AI Agent to use (Requirement 3.3, 3.4)
+    // 1.1 Check Working Hours
+    console.log('🤖 AI Orchestrator: Working hours config:', {
+      timezone: config.timezone,
+      workingHours: config.workingHours,
+      hasWorkingHours: !!config.workingHours,
+    });
+    if (!isWithinWorkingHours(config.workingHours as WorkingHours | null, config.timezone || 'Asia/Jakarta')) {
+      console.log('🤖 AI Orchestrator: Outside working hours, AI will not respond');
+      return null;
+    }
+
+    // 1.2 Check Escalation Keywords (with keyword groups support)
+    // First check keyword groups (assigns to specific agent), then general keywords
+    const escalationResult = whatsappAccountId
+      ? await checkEscalationWithGroups(userMessage, config.escalationKeywords as string[] | null, whatsappAccountId, userId)
+      : checkEscalation(userMessage, config.escalationKeywords as string[] | null);
+    
+    if (escalationResult.shouldEscalate) {
+      console.log('🤖 AI Orchestrator: Escalation keyword detected:', escalationResult.matchedKeyword);
+      
+      if (customerId && whatsappAccountId) {
+        try {
+          // Check if this matched a keyword group (assigns to specific agent)
+          if (escalationResult.matchedGroup && escalationResult.matchedKeyword) {
+            console.log('🤖 AI Orchestrator: Assigning to specific agent:', escalationResult.matchedGroup.assignedAgent?.name);
+            await handleEscalationAssignToAgent(
+              customerId,
+              'WHATSAPP',
+              userId,
+              escalationResult.matchedGroup,
+              escalationResult.matchedKeyword
+            );
+          } else if (config.escalationAutoAssign) {
+            // General escalation keyword - move to unassigned queue
+            await handleEscalationAssign(customerId, 'WHATSAPP', userId);
+          }
+        } catch (error) {
+          logger.warn('Failed to handle escalation assignment', { error });
+        }
+      }
+      
+      return null;
+    }
+
+    // 1.4 Determine which AI Agent to use (Requirement 3.3, 3.4)
     // If aiAgentIdOverride is provided, use that specific AI Agent
     // Otherwise, use the default active agent from AIConfig
     const agentIdToUse = aiAgentIdOverride || config.activeAgentId;
@@ -323,7 +369,7 @@ Response was: ${m.memory.responseMessage}`)
       return null
     }
 
-    // 1.3 Get the AI Agent (either override or default)
+    // 1.5 Get the AI Agent (either override or default)
     // Only include knowledge documents with COMPLETED status (has chunks ready for search)
     const activeAgent = await prisma.aIAgent.findUnique({
       where: { id: agentIdToUse, userId },
@@ -346,7 +392,7 @@ Response was: ${m.memory.responseMessage}`)
       isOverride: !!aiAgentIdOverride,
     });
 
-    // 1.5 Check Filter Words
+    // 1.6 Check Filter Words
     if (config.filterWords && Array.isArray(config.filterWords) && config.filterWords.length > 0) {
       const lowerMessage = userMessage.toLowerCase();
       const hasForbiddenWord = (config.filterWords as string[]).some(word =>

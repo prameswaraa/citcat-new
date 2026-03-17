@@ -1,12 +1,55 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
 
 export interface AIConfig {
+  id?: string; // Config ID (for WhatsAppAccountAIConfig)
   enabled: boolean;
   model: string;
   systemPrompt: string;
   temperature: number;
   filterWords?: string[];
   activeAgentId?: string;
+  // Working Hours & Escalation fields
+  timezone?: string;
+  workingHours?: WorkingHours | null;
+  escalationKeywords?: string[];
+  escalationAutoAssign?: boolean;
+}
+
+export interface DaySchedule {
+  start: string;
+  end: string;
+}
+
+export interface WorkingHours {
+  monday?: DaySchedule | null;
+  tuesday?: DaySchedule | null;
+  wednesday?: DaySchedule | null;
+  thursday?: DaySchedule | null;
+  friday?: DaySchedule | null;
+  saturday?: DaySchedule | null;
+  sunday?: DaySchedule | null;
+}
+
+export interface EscalationKeywordGroup {
+  id: string;
+  whatsappAccountAIConfigId: string;
+  name: string;
+  keywords: string[];
+  assignedAgentId: string;
+  assignedAgent?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeamAgent {
+  id: string;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'BUSINESS_OWNER' | 'AGENT';
 }
 
 export interface AIAgent {
@@ -351,5 +394,104 @@ export const aiApi = {
 
     const json = await response.json();
     return json.data;
+  },
+
+  // ============================================================================
+  // Escalation Keyword Groups
+  // ============================================================================
+
+  async getEscalationGroups(configId: string): Promise<EscalationKeywordGroup[]> {
+    const response = await fetch(`${API_URL}/api/v1/ai/escalation-groups?configId=${configId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to fetch escalation groups');
+    }
+
+    const json = await response.json();
+    return json.data || [];
+  },
+
+  async createEscalationGroup(data: {
+    configId: string;
+    name: string;
+    keywords: string[];
+    assignedAgentId: string;
+  }): Promise<EscalationKeywordGroup> {
+    const response = await fetch(`${API_URL}/api/v1/ai/escalation-groups`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to create escalation group');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
+
+  async updateEscalationGroup(
+    groupId: string,
+    data: { name?: string; keywords?: string[]; assignedAgentId?: string }
+  ): Promise<EscalationKeywordGroup> {
+    const response = await fetch(`${API_URL}/api/v1/ai/escalation-groups/${groupId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to update escalation group');
+    }
+
+    const json = await response.json();
+    return json.data;
+  },
+
+  async deleteEscalationGroup(groupId: string): Promise<void> {
+    const response = await fetch(`${API_URL}/api/v1/ai/escalation-groups/${groupId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to delete escalation group');
+    }
+  },
+
+  async getTeamAgents(): Promise<TeamAgent[]> {
+    const response = await fetch(`${API_URL}/api/v1/ai/team-agents`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || 'Failed to fetch team agents');
+    }
+
+    const json = await response.json();
+    return json.data || [];
   },
 };

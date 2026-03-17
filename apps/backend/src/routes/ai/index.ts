@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
+import { z } from 'zod'
 import { requireRole } from '../../middleware/auth.js'
 import { prisma } from '../../utils/database.js'
 import { AIOrchestrator } from '../../services/ai/AIOrchestrator.js'
@@ -7,8 +8,32 @@ import { adminSettingsService } from '../../services/admin/settings-service.js'
 import { checkFeatureAccess } from '../../middleware/subscription.js'
 import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
 import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
+import { aiTestChatRateLimiter } from '../../middleware/rateLimiter.js'
 import agents from './agents.js'
 import knowledge from './knowledge.js'
+import {
+  getEscalationGroups,
+  createEscalationGroup,
+  updateEscalationGroup,
+  deleteEscalationGroup,
+} from '../../services/ai/escalation-groups.js'
+
+// ============================================================================
+// Zod Schemas for Escalation Groups
+// ============================================================================
+
+const createEscalationGroupSchema = z.object({
+  configId: z.string().min(1, 'configId is required'),
+  name: z.string().min(1, 'name is required').max(100, 'name must be 100 characters or less'),
+  keywords: z.array(z.string().min(1).max(100)).min(1, 'At least one keyword is required').max(50, 'Maximum 50 keywords allowed'),
+  assignedAgentId: z.string().min(1, 'assignedAgentId is required'),
+})
+
+const updateEscalationGroupSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  keywords: z.array(z.string().min(1).max(100)).min(1).max(50).optional(),
+  assignedAgentId: z.string().min(1).optional(),
+})
 
 const app = new Hono()
 const orchestrator = new AIOrchestrator()
@@ -141,12 +166,22 @@ app.post('/config', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context)
           activeAgentId: body.activeAgentId ?? null,
           temperature: body.temperature ?? 0.7,
           filterWords: body.filterWords ?? null,
+          // Working Hours & Escalation
+          timezone: body.timezone ?? 'Asia/Jakarta',
+          workingHours: body.workingHours ?? null,
+          escalationKeywords: body.escalationKeywords ?? null,
+          escalationAutoAssign: body.escalationAutoAssign ?? true,
         },
         update: {
           enabled: body.enabled,
           activeAgentId: body.activeAgentId,
           temperature: body.temperature,
           filterWords: body.filterWords,
+          // Working Hours & Escalation
+          timezone: body.timezone,
+          workingHours: body.workingHours,
+          escalationKeywords: body.escalationKeywords,
+          escalationAutoAssign: body.escalationAutoAssign,
         },
       })
 
@@ -162,6 +197,11 @@ app.post('/config', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context)
         temperature: body.temperature,
         filterWords: body.filterWords,
         activeAgentId: body.activeAgentId,
+        // Working Hours & Escalation
+        timezone: body.timezone,
+        workingHours: body.workingHours,
+        escalationKeywords: body.escalationKeywords,
+        escalationAutoAssign: body.escalationAutoAssign,
       },
     })
 
@@ -334,7 +374,8 @@ app.delete('/memory/customer', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (
 })
 
 // POST /api/v1/ai/test-chat - Test chat with AI agent
-app.post('/test-chat', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+// Rate limited to prevent OpenAI credit abuse
+app.post('/test-chat', aiTestChatRateLimiter, requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
   try {
     if (!c.user) {
       return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
@@ -390,6 +431,236 @@ app.post('/test-chat', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Conte
       error: {
         code: 'InternalServerError',
         message: error instanceof Error ? error.message : 'Failed to generate response',
+      },
+    }, 500)
+  }
+})
+
+// ============================================================================
+// Escalation Keyword Groups Routes
+// ============================================================================
+
+// GET /api/v1/ai/escalation-groups?configId= - Get escalation groups for a config
+app.get('/escalation-groups', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const configId = c.req.query('configId')
+    if (!configId) {
+      return c.json({ error: { code: 'BadRequest', message: 'configId is required' } }, 400)
+    }
+
+    // Verify config belongs to user
+    const config = await prisma.whatsAppAccountAIConfig.findFirst({
+      where: { id: configId, userId: c.user.id },
+    })
+
+    if (!config) {
+      return c.json({ error: { code: 'NotFound', message: 'Config not found' } }, 404)
+    }
+
+    const groups = await getEscalationGroups(configId)
+    return c.json({ success: true, data: groups })
+  } catch (error) {
+    console.error('Failed to get escalation groups:', error)
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: error instanceof Error ? error.message : 'Failed to get escalation groups',
+      },
+    }, 500)
+  }
+})
+
+// POST /api/v1/ai/escalation-groups - Create escalation group
+app.post('/escalation-groups', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const body = await c.req.json()
+    
+    // Validate input with Zod
+    const parseResult = createEscalationGroupSchema.safeParse(body)
+    if (!parseResult.success) {
+      const errorMessage = parseResult.error.issues.map(e => e.message).join(', ')
+      return c.json({
+        error: { code: 'BadRequest', message: errorMessage },
+      }, 400)
+    }
+    
+    const { configId, name, keywords, assignedAgentId } = parseResult.data
+
+    // Verify config belongs to user
+    const config = await prisma.whatsAppAccountAIConfig.findFirst({
+      where: { id: configId, userId: c.user.id },
+    })
+
+    if (!config) {
+      return c.json({ error: { code: 'NotFound', message: 'Config not found' } }, 404)
+    }
+
+    // Verify agent belongs to user's team
+    const agent = await prisma.user.findFirst({
+      where: {
+        id: assignedAgentId,
+        OR: [
+          { id: c.user.id }, // Business owner themselves
+          { agentMembership: { businessOwnerId: c.user.id } }, // Team member
+        ],
+      },
+    })
+
+    if (!agent) {
+      return c.json({ error: { code: 'NotFound', message: 'Agent not found in your team' } }, 404)
+    }
+
+    const group = await createEscalationGroup({
+      whatsappAccountAIConfigId: configId,
+      name,
+      keywords,
+      assignedAgentId,
+    })
+
+    return c.json({ success: true, data: group }, 201)
+  } catch (error) {
+    console.error('Failed to create escalation group:', error)
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: error instanceof Error ? error.message : 'Failed to create escalation group',
+      },
+    }, 500)
+  }
+})
+
+// PUT /api/v1/ai/escalation-groups/:id - Update escalation group
+app.put('/escalation-groups/:id', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const groupId = c.req.param('id')
+    const body = await c.req.json()
+    
+    // Validate input with Zod
+    const parseResult = updateEscalationGroupSchema.safeParse(body)
+    if (!parseResult.success) {
+      const errorMessage = parseResult.error.issues.map(e => e.message).join(', ')
+      return c.json({
+        error: { code: 'BadRequest', message: errorMessage },
+      }, 400)
+    }
+    
+    const { name, keywords, assignedAgentId } = parseResult.data
+
+    // Verify group belongs to user's config
+    const existingGroup = await prisma.escalationKeywordGroup.findFirst({
+      where: { id: groupId },
+      include: { whatsappAccountAIConfig: { select: { userId: true } } },
+    })
+
+    if (!existingGroup || existingGroup.whatsappAccountAIConfig.userId !== c.user.id) {
+      return c.json({ error: { code: 'NotFound', message: 'Escalation group not found' } }, 404)
+    }
+
+    // If updating agent, verify agent belongs to user's team
+    if (assignedAgentId) {
+      const agent = await prisma.user.findFirst({
+        where: {
+          id: assignedAgentId,
+          OR: [
+            { id: c.user.id },
+            { agentMembership: { businessOwnerId: c.user.id } },
+          ],
+        },
+      })
+
+      if (!agent) {
+        return c.json({ error: { code: 'NotFound', message: 'Agent not found in your team' } }, 404)
+      }
+    }
+
+    const group = await updateEscalationGroup(groupId, { name, keywords, assignedAgentId })
+    return c.json({ success: true, data: group })
+  } catch (error) {
+    console.error('Failed to update escalation group:', error)
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: error instanceof Error ? error.message : 'Failed to update escalation group',
+      },
+    }, 500)
+  }
+})
+
+// DELETE /api/v1/ai/escalation-groups/:id - Delete escalation group
+app.delete('/escalation-groups/:id', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    const groupId = c.req.param('id')
+
+    // Verify group belongs to user's config
+    const existingGroup = await prisma.escalationKeywordGroup.findFirst({
+      where: { id: groupId },
+      include: { whatsappAccountAIConfig: { select: { userId: true } } },
+    })
+
+    if (!existingGroup || existingGroup.whatsappAccountAIConfig.userId !== c.user.id) {
+      return c.json({ error: { code: 'NotFound', message: 'Escalation group not found' } }, 404)
+    }
+
+    await deleteEscalationGroup(groupId)
+    return c.json({ success: true, message: 'Escalation group deleted' })
+  } catch (error) {
+    console.error('Failed to delete escalation group:', error)
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: error instanceof Error ? error.message : 'Failed to delete escalation group',
+      },
+    }, 500)
+  }
+})
+
+// GET /api/v1/ai/team-agents - Get agents available for assignment
+app.get('/team-agents', requireRole(['ADMIN', 'BUSINESS_OWNER']), async (c: Context) => {
+  try {
+    if (!c.user) {
+      return c.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, 401)
+    }
+
+    // Get business owner + their team agents
+    const agents = await prisma.user.findMany({
+      where: {
+        OR: [
+          { id: c.user.id }, // Business owner
+          { agentMembership: { businessOwnerId: c.user.id } }, // Team members
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return c.json({ success: true, data: agents })
+  } catch (error) {
+    console.error('Failed to get team agents:', error)
+    return c.json({
+      error: {
+        code: 'InternalServerError',
+        message: error instanceof Error ? error.message : 'Failed to get team agents',
       },
     }, 500)
   }

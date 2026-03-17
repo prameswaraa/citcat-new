@@ -9,6 +9,7 @@
 import { prisma } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 import { NotificationType, NotificationPriority, type Notification } from '@prisma/client';
+import { eventEmitter } from '../websocket/event-emitter.js';
 
 // =============================================================================
 // Types and Interfaces
@@ -82,6 +83,22 @@ export class NotificationService {
         userId,
         type,
         priority,
+      });
+
+      // Emit realtime notification to user via WebSocket
+      eventEmitter.emitToUser(userId, {
+        type: 'new_notification',
+        payload: {
+          id: notification.id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          priority: notification.priority,
+          actionUrl: notification.actionUrl,
+          actionLabel: notification.actionLabel,
+          isRead: notification.isRead,
+          createdAt: notification.createdAt.toISOString(),
+        },
       });
 
       return notification;
@@ -460,6 +477,65 @@ export class NotificationService {
       logger.error('Failed to create API key expiry notification', {
         userId,
         keyName,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      // Don't throw - notification failures shouldn't break the main flow
+    }
+  }
+
+  /**
+   * Create an escalation assignment notification
+   * Notifies an agent that a conversation has been assigned to them due to escalation keyword
+   *
+   * @param agentId - The agent user ID to notify
+   * @param conversationId - The conversation ID
+   * @param conversationType - 'WHATSAPP' or 'INSTAGRAM'
+   * @param groupName - Name of the escalation keyword group
+   * @param customerName - Name of the customer (optional)
+   */
+  async createEscalationNotification(
+    agentId: string,
+    conversationId: string,
+    conversationType: 'WHATSAPP' | 'INSTAGRAM',
+    groupName: string,
+    customerName?: string
+  ): Promise<void> {
+    try {
+      const customerDisplay = customerName || 'Customer';
+      const channelDisplay = conversationType === 'WHATSAPP' ? 'WhatsApp' : 'Instagram';
+
+      // Build prefixed conversation ID to match frontend UnifiedConversation format
+      // WhatsApp: wa-{customerId}, Instagram: ig-{conversationId}, Messenger: msg-{conversationId}
+      const channelPrefix = conversationType === 'WHATSAPP' ? 'wa' : conversationType === 'INSTAGRAM' ? 'ig' : 'msg';
+      const prefixedConversationId = `${channelPrefix}-${conversationId}`;
+
+      await this.create({
+        userId: agentId,
+        type: NotificationType.ESCALATION_ASSIGNMENT,
+        title: 'New Conversation Assigned',
+        message: `${customerDisplay} needs assistance (${groupName}). A new ${channelDisplay} conversation has been assigned to you.`,
+        priority: NotificationPriority.HIGH,
+        actionUrl: `/oneinbox?conversation=${prefixedConversationId}&type=${conversationType.toLowerCase()}`,
+        actionLabel: 'View Conversation',
+        metadata: {
+          conversationId: prefixedConversationId,
+          conversationType,
+          groupName,
+          customerName,
+        },
+      });
+
+      logger.info('Escalation notification created', {
+        agentId,
+        conversationId,
+        conversationType,
+        groupName,
+      });
+    } catch (error) {
+      logger.error('Failed to create escalation notification', {
+        agentId,
+        conversationId,
+        groupName,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       // Don't throw - notification failures shouldn't break the main flow

@@ -12,6 +12,8 @@ import {
   Bot,
   MessageSquare,
   Brain,
+  Clock,
+  UserPlus,
 } from "lucide-react"
 import { Header } from "@/components/layout/header"
 import { useSession } from "@/lib/auth-client"
@@ -31,6 +33,8 @@ import { FilterSettings } from "./components/filter-settings"
 import { HelpSection } from "./components/help-section"
 import { ChatTest } from "./components/chat-test"
 import { MemoryManagement } from "./components/memory-management"
+import { WorkingHoursSettings } from "./components/working-hours-settings"
+import { EscalationSettings } from "./components/escalation-settings"
 
 export default function AIPage() {
   const { data: session, isPending } = useSession()
@@ -125,6 +129,14 @@ export default function AIPage() {
                 <Ban className="h-4 w-4" />
                 Filters
               </TabsTrigger>
+              <TabsTrigger value="working-hours" className="flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Working Hours
+              </TabsTrigger>
+              <TabsTrigger value="escalation" className="flex items-center gap-2">
+                <UserPlus className="h-4 w-4" />
+                Escalation
+              </TabsTrigger>
               <TabsTrigger value="help" className="flex items-center gap-2">
                 <HelpCircle className="h-4 w-4" />
                 Contoh Prompt
@@ -184,6 +196,22 @@ export default function AIPage() {
               <LockedContent />
             ) : (
               <FilterSettings initialConfig={config} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="working-hours" className="space-y-6">
+            {isRestrictedUser ? (
+              <LockedContent />
+            ) : (
+              <WorkingHoursSettings initialConfig={config} phoneNumbers={phoneNumbers} />
+            )}
+          </TabsContent>
+
+          <TabsContent value="escalation" className="space-y-6">
+            {isRestrictedUser ? (
+              <LockedContent />
+            ) : (
+              <EscalationSettings initialConfig={config} phoneNumbers={phoneNumbers} />
             )}
           </TabsContent>
 

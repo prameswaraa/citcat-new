@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { IconHistory, IconUserPlus, IconUserOff, IconRobot } from "@tabler/icons-react"
+import { IconHistory, IconUserPlus, IconUserOff, IconRobot, IconAlertTriangle } from "@tabler/icons-react"
 import { formatDistanceToNow } from "date-fns"
 import { useAssignmentHistory } from "../../hooks/use-assignment-history"
 import type { AssignmentHistoryItem, ChannelType } from "../../types/unified-inbox"
@@ -152,11 +152,17 @@ export function AssignmentHistorySection({
                   
                   <div className="flex-1 min-w-0">
                     {/* Assignee name and status */}
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium truncate">{displayName}</span>
                       {isActive && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium">
                           {t("current")}
+                        </span>
+                      )}
+                      {item.isEscalation && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-600 dark:text-orange-400 font-medium flex items-center gap-0.5">
+                          <IconAlertTriangle className="h-2.5 w-2.5" />
+                          Escalation
                         </span>
                       )}
                     </div>
@@ -170,6 +176,16 @@ export function AssignmentHistorySection({
                           {formatDistanceToNow(item.assignedAt, { addSuffix: true })}
                         </span>
                       </div>
+                      
+                      {/* Escalation info */}
+                      {item.isEscalation && item.escalationKeywordGroup && (
+                        <div className="flex items-center gap-1 mt-0.5 text-orange-600 dark:text-orange-400">
+                          <IconAlertTriangle className="h-3 w-3" />
+                          <span>
+                            Keyword: &quot;{item.escalationKeyword}&quot; ({item.escalationKeywordGroup})
+                          </span>
+                        </div>
+                      )}
                       
                       {item.unassignedAt && (
                         <div className="flex items-center gap-1 mt-0.5">

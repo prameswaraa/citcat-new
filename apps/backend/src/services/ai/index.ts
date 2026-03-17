@@ -6,3 +6,4 @@ export * from './vector/IVectorStore.js';
 export * from './vector/PgVectorStore.js';
 export * from './knowledge/DocumentProcessor.js';
 export * from './memory/index.js';
+export * from './working-hours.js';

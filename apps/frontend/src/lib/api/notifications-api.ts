@@ -15,6 +15,10 @@ export type NotificationType =
   | 'PAYMENT_STATUS'
   | 'API_KEY_EXPIRY'
   | 'SYSTEM_ANNOUNCEMENT'
+  | 'MAINTENANCE'
+  | 'PROMOTION'
+  | 'CUSTOM'
+  | 'ESCALATION_ASSIGNMENT'
 
 /**
  * Notification interface matching backend response

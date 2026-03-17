@@ -20,6 +20,7 @@ export const QUEUE_NAMES = {
     WEBHOOK_OUTBOUND: 'webhook-outbound',
     MEMORY: 'memory-processing',
     BROADCAST: 'broadcast-processing',
+    DOCUMENT: 'document-processing',
 } as const
 
 // Webhook Queue - for processing incoming webhooks
@@ -117,6 +118,25 @@ export const broadcastQueue = new Queue(QUEUE_NAMES.BROADCAST, {
     },
 })
 
+// Document Queue - for processing knowledge base document uploads (PDF parsing + embeddings)
+export const documentQueue = new Queue(QUEUE_NAMES.DOCUMENT, {
+    connection: redisConnection,
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 5000, // 5s, 10s, 20s - PDF processing can take time
+        },
+        removeOnComplete: {
+            count: 100,
+            age: 3600, // Remove after 1 hour
+        },
+        removeOnFail: {
+            count: 500, // Keep failed jobs for debugging
+        },
+    },
+})
+
 // Queue Events for monitoring
 export const webhookQueueEvents = new QueueEvents(QUEUE_NAMES.WEBHOOK, {
     connection: redisConnection,
@@ -138,6 +158,10 @@ export const broadcastQueueEvents = new QueueEvents(QUEUE_NAMES.BROADCAST, {
     connection: redisConnection,
 })
 
+export const documentQueueEvents = new QueueEvents(QUEUE_NAMES.DOCUMENT, {
+    connection: redisConnection,
+})
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
     console.log('📦 Closing queues...')
@@ -146,11 +170,13 @@ process.on('SIGTERM', async () => {
     await webhookOutboundQueue.close()
     await memoryQueue.close()
     await broadcastQueue.close()
+    await documentQueue.close()
     await webhookQueueEvents.close()
     await messageQueueEvents.close()
     await webhookOutboundQueueEvents.close()
     await memoryQueueEvents.close()
     await broadcastQueueEvents.close()
+    await documentQueueEvents.close()
     await redisConnection.quit()
     console.log('✅ Queues closed')
 })
@@ -195,4 +221,12 @@ memoryQueueEvents.on('completed', ({ jobId }) => {
 
 broadcastQueueEvents.on('completed', ({ jobId }) => {
     console.log(`✅ Broadcast job ${jobId} completed`)
+})
+
+documentQueueEvents.on('failed', ({ jobId, failedReason }) => {
+    console.error(`❌ Document job ${jobId} failed:`, failedReason)
+})
+
+documentQueueEvents.on('completed', ({ jobId }) => {
+    console.log(`✅ Document job ${jobId} completed`)
 })

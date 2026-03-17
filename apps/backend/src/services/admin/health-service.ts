@@ -1,6 +1,6 @@
 import { prisma } from '../../utils/database.js'
 import { connectionManager } from '../../websocket/connection-manager.js'
-import { webhookQueue, messageQueue, webhookOutboundQueue, QUEUE_NAMES } from '../../utils/queue.js'
+import { webhookQueue, messageQueue, webhookOutboundQueue, documentQueue, QUEUE_NAMES } from '../../utils/queue.js'
 import type { Job } from 'bullmq'
 
 export interface DatabaseHealth {
@@ -25,6 +25,7 @@ export interface QueueStats {
     webhook: { pending: number; active: number; completed: number; failed: number }
     message: { pending: number; active: number; completed: number; failed: number }
     webhookOutbound: { pending: number; active: number; completed: number; failed: number }
+    document: { pending: number; active: number; completed: number; failed: number }
   }
 }
 
@@ -123,18 +124,19 @@ export class AdminHealthService {
    * Requirements: 6.3
    */
   static async getQueueStats(): Promise<QueueStats> {
-    const [webhookCounts, messageCounts, webhookOutboundCounts] = await Promise.all([
+    const [webhookCounts, messageCounts, webhookOutboundCounts, documentCounts] = await Promise.all([
       webhookQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed'),
       messageQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed'),
-      webhookOutboundQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed')
+      webhookOutboundQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed'),
+      documentQueue.getJobCounts('waiting', 'active', 'completed', 'failed', 'delayed')
     ])
 
     return {
-      pending: webhookCounts.waiting + messageCounts.waiting + webhookOutboundCounts.waiting,
-      active: webhookCounts.active + messageCounts.active + webhookOutboundCounts.active,
-      completed: webhookCounts.completed + messageCounts.completed + webhookOutboundCounts.completed,
-      failed: webhookCounts.failed + messageCounts.failed + webhookOutboundCounts.failed,
-      delayed: webhookCounts.delayed + messageCounts.delayed + webhookOutboundCounts.delayed,
+      pending: webhookCounts.waiting + messageCounts.waiting + webhookOutboundCounts.waiting + documentCounts.waiting,
+      active: webhookCounts.active + messageCounts.active + webhookOutboundCounts.active + documentCounts.active,
+      completed: webhookCounts.completed + messageCounts.completed + webhookOutboundCounts.completed + documentCounts.completed,
+      failed: webhookCounts.failed + messageCounts.failed + webhookOutboundCounts.failed + documentCounts.failed,
+      delayed: webhookCounts.delayed + messageCounts.delayed + webhookOutboundCounts.delayed + documentCounts.delayed,
       byQueue: {
         webhook: {
           pending: webhookCounts.waiting,
@@ -153,6 +155,12 @@ export class AdminHealthService {
           active: webhookOutboundCounts.active,
           completed: webhookOutboundCounts.completed,
           failed: webhookOutboundCounts.failed
+        },
+        document: {
+          pending: documentCounts.waiting,
+          active: documentCounts.active,
+          completed: documentCounts.completed,
+          failed: documentCounts.failed
         }
       }
     }
@@ -262,6 +270,7 @@ export class AdminHealthService {
       { name: QUEUE_NAMES.WEBHOOK, queue: webhookQueue, label: 'webhook' },
       { name: QUEUE_NAMES.MESSAGE, queue: messageQueue, label: 'message' },
       { name: QUEUE_NAMES.WEBHOOK_OUTBOUND, queue: webhookOutboundQueue, label: 'webhookOutbound' },
+      { name: QUEUE_NAMES.DOCUMENT, queue: documentQueue, label: 'document' },
     ]
 
     const failedJobs: FailedJobDetails[] = []
@@ -290,13 +299,14 @@ export class AdminHealthService {
     })
 
     // Get total failed count
-    const [webhookFailed, messageFailed, webhookOutboundFailed] = await Promise.all([
+    const [webhookFailed, messageFailed, webhookOutboundFailed, documentFailed] = await Promise.all([
       webhookQueue.getJobCounts('failed'),
       messageQueue.getJobCounts('failed'),
       webhookOutboundQueue.getJobCounts('failed'),
+      documentQueue.getJobCounts('failed'),
     ])
 
-    const totalFailed = webhookFailed.failed + messageFailed.failed + webhookOutboundFailed.failed
+    const totalFailed = webhookFailed.failed + messageFailed.failed + webhookOutboundFailed.failed + documentFailed.failed
 
     return {
       failedJobs: failedJobs.slice(0, limit * queues.length),
@@ -306,10 +316,10 @@ export class AdminHealthService {
 
   /**
    * Retry a failed job
-   * @param queueName - Queue name ('webhook' | 'message' | 'webhookOutbound')
+   * @param queueName - Queue name ('webhook' | 'message' | 'webhookOutbound' | 'document')
    * @param jobId - Job ID to retry
    */
-  static async retryFailedJob(queueName: 'webhook' | 'message' | 'webhookOutbound', jobId: string): Promise<boolean> {
+  static async retryFailedJob(queueName: 'webhook' | 'message' | 'webhookOutbound' | 'document', jobId: string): Promise<boolean> {
     let queue
     switch (queueName) {
       case 'webhook':
@@ -320,6 +330,9 @@ export class AdminHealthService {
         break
       case 'webhookOutbound':
         queue = webhookOutboundQueue
+        break
+      case 'document':
+        queue = documentQueue
         break
       default:
         throw new Error(`Invalid queue name: ${queueName}`)
@@ -336,10 +349,10 @@ export class AdminHealthService {
 
   /**
    * Delete a failed job
-   * @param queueName - Queue name ('webhook' | 'message' | 'webhookOutbound')
+   * @param queueName - Queue name ('webhook' | 'message' | 'webhookOutbound' | 'document')
    * @param jobId - Job ID to delete
    */
-  static async deleteFailedJob(queueName: 'webhook' | 'message' | 'webhookOutbound', jobId: string): Promise<boolean> {
+  static async deleteFailedJob(queueName: 'webhook' | 'message' | 'webhookOutbound' | 'document', jobId: string): Promise<boolean> {
     let queue
     switch (queueName) {
       case 'webhook':
@@ -350,6 +363,9 @@ export class AdminHealthService {
         break
       case 'webhookOutbound':
         queue = webhookOutboundQueue
+        break
+      case 'document':
+        queue = documentQueue
         break
       default:
         throw new Error(`Invalid queue name: ${queueName}`)
@@ -372,6 +388,7 @@ export class AdminHealthService {
       { name: 'webhook', queue: webhookQueue },
       { name: 'message', queue: messageQueue },
       { name: 'webhookOutbound', queue: webhookOutboundQueue },
+      { name: 'document', queue: documentQueue },
     ]
 
     let totalDeleted = 0

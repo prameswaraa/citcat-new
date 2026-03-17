@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Bell, CheckCheck, Loader2, ExternalLink, Clock, CreditCard, DollarSign, Key, Info } from "lucide-react"
+import { useRouter } from "@/i18n/routing"
+import { Bell, CheckCheck, Loader2, ExternalLink, Clock, CreditCard, DollarSign, Key, Info, UserPlus } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +20,7 @@ import {
   useUnreadNotificationCount,
   useMarkNotificationAsRead,
   useMarkAllNotificationsAsRead,
+  useRealtimeNotifications,
 } from "@/hooks/use-notifications"
 import type { NotificationType } from "@/lib/api/notifications-api"
 
@@ -38,6 +40,8 @@ function getNotificationIcon(type: NotificationType) {
       return Key
     case "SYSTEM_ANNOUNCEMENT":
       return Info
+    case "ESCALATION_ASSIGNMENT":
+      return UserPlus
     default:
       return Bell
   }
@@ -55,6 +59,8 @@ function getNotificationIconColor(type: NotificationType) {
       return "text-yellow-500"
     case "SYSTEM_ANNOUNCEMENT":
       return "text-blue-500"
+    case "ESCALATION_ASSIGNMENT":
+      return "text-purple-500"
     default:
       return "text-muted-foreground"
   }
@@ -67,12 +73,16 @@ function getNotificationIconColor(type: NotificationType) {
  * Shows popover with notification preview on click.
  */
 export function NotificationIcon({ className }: NotificationIconProps) {
+  const router = useRouter()
   const [open, setOpen] = useState(false)
   const { data: unreadCount = 0, isLoading: isLoadingCount } = useUnreadNotificationCount()
   const { data, isLoading } = useNotifications({ limit: 5, offset: 0 })
   const markAsRead = useMarkNotificationAsRead()
   const markAllAsRead = useMarkAllNotificationsAsRead()
   const [markingId, setMarkingId] = useState<string | null>(null)
+  
+  // Enable realtime notification updates via WebSocket
+  useRealtimeNotifications()
 
   const notifications = data?.notifications || []
 
@@ -164,18 +174,24 @@ export function NotificationIcon({ className }: NotificationIconProps) {
                 const iconColor = getNotificationIconColor(notification.type)
                 const isMarking = markingId === notification.id
 
-                return (
+                const handleNotificationClick = (e: React.MouseEvent) => {
+                  if (!notification.read) {
+                    handleMarkAsRead(notification.id, e)
+                  }
+                  // Navigate and close popover when clicking notification with actionUrl
+                  if (notification.actionUrl) {
+                    setOpen(false)
+                    router.push(notification.actionUrl)
+                  }
+                }
+
+                const notificationContent = (
                   <div
-                    key={notification.id}
                     className={cn(
                       "flex gap-3 p-3 hover:bg-muted/50 transition-colors cursor-pointer",
                       !notification.read && "bg-accent/30"
                     )}
-                    onClick={(e) => {
-                      if (!notification.read) {
-                        handleMarkAsRead(notification.id, e)
-                      }
-                    }}
+                    onClick={handleNotificationClick}
                   >
                     <div
                       className={cn(
@@ -225,6 +241,12 @@ export function NotificationIcon({ className }: NotificationIconProps) {
                         )}
                       </div>
                     </div>
+                  </div>
+                )
+
+                return (
+                  <div key={notification.id}>
+                    {notificationContent}
                   </div>
                 )
               })}

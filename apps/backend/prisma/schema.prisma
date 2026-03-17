@@ -590,6 +590,9 @@ model User {
   // Conversation Memory Relations
   conversationMemories ConversationMemory[]
 
+  // Escalation Keyword Group Relations
+  escalationAssignments EscalationKeywordGroup[] @relation("EscalationAssignedAgent")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1021,6 +1024,14 @@ model AIConfig {
 
   filterWords Json? // Array of strings
 
+  // Working Hours - AI only responds during configured hours
+  timezone     String @default("Asia/Jakarta")
+  workingHours Json?  // { "monday": { "start": "09:00", "end": "17:00" }, ... } - null day = off
+
+  // Escalation - Keywords that trigger handover to human
+  escalationKeywords   Json?   // Array of strings: ["bicara cs", "komplain", "refund"]
+  escalationAutoAssign Boolean @default(true) // true = assign to human queue, false = just stop AI
+
   activeAgentId String?
   activeAgent   AIAgent? @relation(fields: [activeAgentId], references: [id], onDelete: SetNull)
 
@@ -1043,12 +1054,43 @@ model WhatsAppAccountAIConfig {
   temperature   Float   @default(0.7)
   filterWords   Json?
 
+  // Working Hours - AI only responds during configured hours
+  timezone     String @default("Asia/Jakarta")
+  workingHours Json?  // { "monday": { "start": "09:00", "end": "17:00" }, ... } - null day = off
+
+  // Escalation - Keywords that trigger handover to human
+  escalationKeywords   Json?   // Array of strings: ["bicara cs", "komplain", "refund"]
+  escalationAutoAssign Boolean @default(true) // true = assign to human queue, false = just stop AI
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Relation to escalation keyword groups
+  escalationKeywordGroups EscalationKeywordGroup[]
 
   @@unique([userId, whatsappAccountId])
   @@index([whatsappAccountId])
   @@index([activeAgentId])
+}
+
+// Escalation Keyword Groups - Map keywords to specific agents
+model EscalationKeywordGroup {
+  id                      String              @id @default(cuid())
+  whatsappAccountAIConfigId String
+  whatsappAccountAIConfig WhatsAppAccountAIConfig @relation(fields: [whatsappAccountAIConfigId], references: [id], onDelete: Cascade)
+
+  name     String   // Group name, e.g., "Finance", "Technical Support"
+  keywords Json     // Array of keywords: ["billing", "tagihan", "bayar"]
+
+  // Agent to assign when keyword matches
+  assignedAgentId String
+  assignedAgent   User   @relation("EscalationAssignedAgent", fields: [assignedAgentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([whatsappAccountAIConfigId])
+  @@index([assignedAgentId])
 }
 
 model AIAgent {
@@ -1820,6 +1862,11 @@ model ConversationAssignment {
   businessOwnerId String // For scoping queries
   businessOwner   User   @relation("BusinessOwnerAssignments", fields: [businessOwnerId], references: [id], onDelete: Cascade)
 
+  // Escalation info (when assignment is triggered by escalation keyword)
+  isEscalation          Boolean @default(false)
+  escalationKeywordGroup String? // Name of the keyword group that triggered escalation
+  escalationKeyword     String? // The specific keyword that was matched
+
   // Timestamps
   assignedAt   DateTime  @default(now())
   unassignedAt DateTime? // Null = currently active
@@ -1851,6 +1898,7 @@ enum NotificationType {
   MAINTENANCE
   PROMOTION
   CUSTOM
+  ESCALATION_ASSIGNMENT // New conversation assigned due to escalation keyword
 }
 
 enum NotificationPriority {
