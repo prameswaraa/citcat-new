@@ -20,6 +20,7 @@ import { paymentGatewayManager } from './payment/gateway-manager.js';
 import { duitkuProvider } from './payment/providers/duitku-provider.js';
 import { notificationService } from './notification-service.js';
 import { prorateCalculationService, type ProrateInfo } from './prorate-calculation-service.js';
+import { affiliateService } from './affiliate-service.js';
 import type { DuitkuSettings, BrandingSettings } from '../types/admin-settings.js';
 import { DEFAULT_BRANDING } from '../types/admin-settings.js';
 import type { PaymentProvider, PaymentMethod } from './payment/types.js';
@@ -479,6 +480,22 @@ export class PaymentService {
           
           // Step 3: Create success notification (non-critical)
           await notificationService.createPaymentNotification(userId, 'success', orderId);
+
+          // Step 4: Create affiliate commission if user was referred
+          try {
+            await affiliateService.createCommission({
+              referredUserId: userId,
+              orderId,
+              transactionType: 'SUBSCRIPTION',
+              transactionAmount: creditToUse, // Full amount paid (all via credit)
+            });
+          } catch (commissionError) {
+            // Non-critical - log but don't fail payment
+            logger.warn('Failed to create affiliate commission', {
+              orderId,
+              error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+            });
+          }
           
           logger.info('Payment completed with credit only (Skenario A)', {
             orderId,
@@ -1052,6 +1069,22 @@ export class PaymentService {
           
           // Create notification for top-up success
           await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+          // Create affiliate commission if user was referred
+          try {
+            await affiliateService.createCommission({
+              referredUserId: transaction.userId,
+              orderId,
+              transactionType: 'TOP_UP',
+              transactionAmount: transaction.amount, // Full top-up amount
+            });
+          } catch (commissionError) {
+            // Non-critical - log but don't fail payment
+            logger.warn('Failed to create affiliate commission for top-up', {
+              orderId,
+              error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+            });
+          }
           
           logger.info('Payment callback processed (TOP_UP)', {
             orderId,
@@ -1157,6 +1190,22 @@ export class PaymentService {
         // Activate subscription (only reached if credit deduction succeeded or no credit used)
         await this.activateSubscription(transaction.userId, transaction.targetTier, orderId, transaction.amount);
         await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+        // Create affiliate commission if user was referred
+        try {
+          await affiliateService.createCommission({
+            referredUserId: transaction.userId,
+            orderId,
+            transactionType: 'SUBSCRIPTION',
+            transactionAmount: transaction.amount + (transaction.creditUsed || 0), // Full amount for commission calculation
+          });
+        } catch (commissionError) {
+          // Non-critical - log but don't fail payment
+          logger.warn('Failed to create affiliate commission', {
+            orderId,
+            error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+          });
+        }
       } else if (callbackStatus === 'FAILED') {
         // Create failure notification
         await notificationService.createPaymentNotification(transaction.userId, 'failed', orderId);
@@ -1365,6 +1414,22 @@ export class PaymentService {
           
           // Create notification for top-up success
           await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+          // Create affiliate commission if user was referred
+          try {
+            await affiliateService.createCommission({
+              referredUserId: transaction.userId,
+              orderId,
+              transactionType: 'TOP_UP',
+              transactionAmount: transaction.amount, // Full top-up amount
+            });
+          } catch (commissionError) {
+            // Non-critical - log but don't fail payment
+            logger.warn('Failed to create affiliate commission for top-up', {
+              orderId,
+              error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+            });
+          }
           
           logger.info('Provider callback processed (TOP_UP)', {
             orderId,
@@ -1464,6 +1529,22 @@ export class PaymentService {
         // Activate subscription (only reached if credit deduction succeeded or no credit used)
         await this.activateSubscription(transaction.userId, transaction.targetTier, orderId, transaction.amount);
         await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+        // Create affiliate commission if user was referred
+        try {
+          await affiliateService.createCommission({
+            referredUserId: transaction.userId,
+            orderId,
+            transactionType: 'SUBSCRIPTION',
+            transactionAmount: transaction.amount + (transaction.creditUsed || 0), // Full amount for commission calculation
+          });
+        } catch (commissionError) {
+          // Non-critical - log but don't fail payment
+          logger.warn('Failed to create affiliate commission', {
+            orderId,
+            error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+          });
+        }
       } else if (callbackStatus === 'FAILED') {
         // Create failure notification
         await notificationService.createPaymentNotification(transaction.userId, 'failed', orderId);

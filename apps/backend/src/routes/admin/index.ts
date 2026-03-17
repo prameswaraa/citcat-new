@@ -11,6 +11,7 @@ import subscriptionPlansRoutes from './subscription-plans.js'
 import messageRetentionSettingsRoutes from './message-retention-settings.js'
 import notificationsRoutes from './notifications.js'
 import emailTemplatesRoutes from './email-templates.js'
+import affiliatesRoutes from './affiliates.js'
 
 const app = new Hono()
 
@@ -29,6 +30,7 @@ app.route('/settings', settingsRoutes)
 app.route('/revenue', revenueRoutes)
 app.route('/subscription-plans', subscriptionPlansRoutes)
 app.route('/notifications', notificationsRoutes)
+app.route('/affiliates', affiliatesRoutes)
 
 // Health check for admin routes
 app.get('/', (c) => {
@@ -46,7 +48,8 @@ app.get('/', (c) => {
       '/revenue',
       '/subscription-plans',
       '/notifications',
-      '/email-templates'
+      '/email-templates',
+      '/affiliates'
     ]
   })
 })

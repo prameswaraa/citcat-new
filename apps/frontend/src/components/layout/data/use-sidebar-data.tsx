@@ -19,6 +19,7 @@ import {
   IconBroadcast,
   IconChartLine,
   IconTags,
+  IconHeartHandshake,
 } from "@tabler/icons-react"
 import { BrainCircuit, HelpCircle } from "lucide-react"
 import { type SidebarData, type NavItem } from "../types"
@@ -158,6 +159,12 @@ export function useSidebarData(): SidebarData {
           title: t("subscription"),
           url: "/subscription",
           icon: IconCreditCard,
+          roles: ["BUSINESS_OWNER", "ADMIN"],
+        },
+        {
+          title: t("affiliate"),
+          url: "/affiliate",
+          icon: IconHeartHandshake,
           roles: ["BUSINESS_OWNER", "ADMIN"],
         },
         {

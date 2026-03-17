@@ -9,6 +9,8 @@ import { emailService } from '../services/email/EmailService.js'
 import { sanitizeEmail, sanitizeIP, sanitizeName } from '../utils/sanitize.js'
 import type { Context } from 'hono'
 import { handleValidationError, logDetailedError } from '../middleware/errorHandler.js'
+import { affiliateService } from '../services/affiliate-service.js'
+import { logger } from '../utils/logger.js'
 
 const app = new Hono()
 
@@ -43,7 +45,8 @@ const registerSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   name: nameSchema,
-  role: z.enum(['BUSINESS_OWNER', 'AGENT']).default('BUSINESS_OWNER')
+  role: z.enum(['BUSINESS_OWNER', 'AGENT']).default('BUSINESS_OWNER'),
+  referralCode: z.string().max(50).optional()
 })
 
 const changePasswordSchema = z.object({
@@ -56,6 +59,7 @@ const initiateRegistrationSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
   name: nameSchema,
+  referralCode: z.string().max(50).optional()
 })
 
 const verifyOTPSchema = z.object({
@@ -237,7 +241,10 @@ app.post('/login', async (c: Context) => {
 app.post('/register', async (c: Context) => {
   try {
     const body = await c.req.json()
-    const { email, password, name, role } = registerSchema.parse(body)
+    const { email, password, name, role, referralCode: bodyReferralCode } = registerSchema.parse(body)
+    
+    // Get referral code from body or query param
+    const referralCode = bodyReferralCode || c.req.query('ref')
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -282,6 +289,21 @@ app.post('/register', async (c: Context) => {
 
       return newUser
     })
+
+    // Track referral if referral code provided (non-blocking)
+    if (referralCode) {
+      try {
+        await affiliateService.trackReferral(referralCode, user.id)
+        logger.info('Referral tracked', { userId: user.id, referralCode })
+      } catch (error) {
+        // Non-critical - log but don't fail registration
+        logger.warn('Failed to track referral', {
+          userId: user.id,
+          referralCode,
+          error: error instanceof Error ? error.message : 'Unknown',
+        })
+      }
+    }
     
     // Generate JWT
     const token = await generateJWT(
@@ -293,7 +315,8 @@ app.post('/register', async (c: Context) => {
     // Audit log
     await auditLog('USER_REGISTERED', 'User', user.id, {
       email,
-      role
+      role,
+      referralCode: referralCode || null
     }, user.id)
     
     return c.json({
@@ -334,9 +357,12 @@ app.post('/register', async (c: Context) => {
 app.post('/register/initiate', async (c: Context) => {
   try {
     const body = await c.req.json()
-    const { email, password, name } = initiateRegistrationSchema.parse(body)
+    const { email, password, name, referralCode: bodyReferralCode } = initiateRegistrationSchema.parse(body)
     const normalizedEmail = sanitizeEmail(email) || email.toLowerCase()
     const sanitizedName = sanitizeName(name)
+    
+    // Get referral code from body or query param
+    const referralCode = bodyReferralCode || c.req.query('ref')
 
     // Get client IP for rate limiting and logging
     const clientIP = getClientIP(c)
@@ -373,12 +399,13 @@ app.post('/register/initiate', async (c: Context) => {
     const otp = otpService.generateOTP()
 
     // Store pending registration (even if user exists, to prevent enumeration)
-    // Use sanitized name for storage
+    // Use sanitized name for storage, include referral code if provided
     const { expiresAt } = await otpService.storePendingRegistration(
       normalizedEmail,
       sanitizedName,
       passwordHash,
-      otp
+      otp,
+      referralCode
     )
 
     // Only send email if user doesn't exist
@@ -516,6 +543,21 @@ app.post('/register/verify', async (c: Context) => {
       return newUser
     })
 
+    // Track referral if referral code was stored during initiation (non-blocking)
+    if (pendingReg.referralCode) {
+      try {
+        await affiliateService.trackReferral(pendingReg.referralCode, user.id)
+        logger.info('Referral tracked', { userId: user.id, referralCode: pendingReg.referralCode })
+      } catch (error) {
+        // Non-critical - log but don't fail registration
+        logger.warn('Failed to track referral', {
+          userId: user.id,
+          referralCode: pendingReg.referralCode,
+          error: error instanceof Error ? error.message : 'Unknown',
+        })
+      }
+    }
+
     // Clean up pending registration
     await otpService.invalidateOTP(normalizedEmail)
 
@@ -534,7 +576,8 @@ app.post('/register/verify', async (c: Context) => {
     // Audit log
     await auditLog('USER_REGISTERED_OTP', 'User', user.id, {
       email: normalizedEmail,
-      role: user.role
+      role: user.role,
+      referralCode: pendingReg.referralCode || null
     }, user.id)
 
     return c.json({

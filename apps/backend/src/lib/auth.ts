@@ -4,6 +4,8 @@ import { prismaAdapter } from "better-auth/adapters/prisma"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { emailService } from "../services/email/EmailService.js"
+import { affiliateService } from "../services/affiliate-service.js"
+import { verifySignedReferralToken } from "../routes/affiliate.js"
 
 const prisma = new PrismaClient()
 
@@ -79,6 +81,10 @@ export const auth = betterAuth({
           } catch (error) {
             console.error('[Database Hook] Failed to create subscription:', error)
           }
+          
+          // NOTE: Referral tracking for OAuth users (Google) is handled in the 
+          // hooks.after middleware, which has access to the request context (cookies).
+          // The referral code is read from the 'referral_code' cookie set by /ref/[code] page.
           
           // Check if this user was created via OAuth by checking accounts
           // We'll send welcome email here for all new users
@@ -228,6 +234,41 @@ export const auth = betterAuth({
         const isFirstTimeUser = isNewUser(user.createdAt)
         
         console.log('[Google OAuth] Path:', ctx.path, '| User:', user.email, '| isNewUser:', isFirstTimeUser, '| createdAt:', user.createdAt)
+        
+        // Track referral for new Google OAuth users
+        if (isFirstTimeUser) {
+          // Try to get signed referral token from cookie
+          const cookieHeader = ctx.headers?.get('cookie') || ''
+          const referralTokenMatch = cookieHeader.match(/referral_token=([^;]+)/)
+          const signedToken = referralTokenMatch ? decodeURIComponent(referralTokenMatch[1]) : null
+          
+          console.log('[Google OAuth] Signed referral token from cookie:', signedToken ? 'present' : 'none')
+          
+          if (signedToken) {
+            // Verify the signed token to prevent manipulation
+            const referralCode = verifySignedReferralToken(signedToken)
+            
+            if (referralCode) {
+              try {
+                await affiliateService.trackReferral(referralCode, user.id)
+                console.log('[Google OAuth] Referral tracked:', { userId: user.id, referralCode })
+                
+                await createAuditLog(
+                  'REFERRAL_TRACKED',
+                  'Referral',
+                  user.id,
+                  { referralCode, provider: 'google' },
+                  user.id,
+                  ip
+                )
+              } catch (refError) {
+                console.error('[Google OAuth] Failed to track referral:', refError)
+              }
+            } else {
+              console.warn('[Google OAuth] Invalid or expired referral token')
+            }
+          }
+        }
         
         await createAuditLog(
           isFirstTimeUser ? 'USER_REGISTERED' : 'LOGIN_SUCCESS',

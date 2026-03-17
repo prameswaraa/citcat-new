@@ -20,6 +20,7 @@ import { xenditProvider } from '../../services/payment/providers/xendit-provider
 import { prisma } from '../../utils/database.js';
 import { auditLog } from '../../utils/auditLog.js';
 import { notificationService } from '../../services/notification-service.js';
+import { affiliateService } from '../../services/affiliate-service.js';
 
 const app = new Hono();
 
@@ -268,6 +269,22 @@ app.post('/callback', async (c: Context) => {
           
           // Create notification for top-up success
           await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+          // Create affiliate commission if user was referred
+          try {
+            await affiliateService.createCommission({
+              referredUserId: transaction.userId,
+              orderId,
+              transactionType: 'TOP_UP',
+              transactionAmount: transaction.amount,
+            });
+          } catch (commissionError) {
+            // Non-critical - log but don't fail payment
+            logger.warn('Failed to create affiliate commission (TOP_UP)', {
+              orderId,
+              error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+            });
+          }
           
           logger.info('Xendit callback processed (TOP_UP)', {
             orderId,
@@ -371,6 +388,22 @@ app.post('/callback', async (c: Context) => {
           
           // Create notification for subscription success
           await notificationService.createPaymentNotification(transaction.userId, 'success', orderId);
+
+          // Create affiliate commission if user was referred
+          try {
+            await affiliateService.createCommission({
+              referredUserId: transaction.userId,
+              orderId,
+              transactionType: 'SUBSCRIPTION',
+              transactionAmount: transaction.amount + (transaction.creditUsed || 0),
+            });
+          } catch (commissionError) {
+            // Non-critical - log but don't fail payment
+            logger.warn('Failed to create affiliate commission', {
+              orderId,
+              error: commissionError instanceof Error ? commissionError.message : 'Unknown',
+            });
+          }
         } else if (callbackStatus === 'FAILED') {
           // Create failure notification
           await notificationService.createPaymentNotification(transaction.userId, 'failed', orderId);

@@ -104,6 +104,17 @@ export const queryKeys = {
       [...queryKeys.credit.all, 'history', { page: page || 1, limit: limit || 10 }] as const,
     packages: () => [...queryKeys.credit.all, 'packages'] as const,
   },
+
+  // Affiliate
+  affiliate: {
+    all: ['affiliate'] as const,
+    status: () => [...queryKeys.affiliate.all, 'status'] as const,
+    referrals: (page?: number, limit?: number) =>
+      [...queryKeys.affiliate.all, 'referrals', { page: page || 1, limit: limit || 10 }] as const,
+    earnings: (page?: number, limit?: number, status?: string) =>
+      [...queryKeys.affiliate.all, 'earnings', { page: page || 1, limit: limit || 10, status }] as const,
+    validate: (code: string) => [...queryKeys.affiliate.all, 'validate', code] as const,
+  },
 } as const
 
 // Type exports for type-safe query key usage
@@ -118,3 +129,4 @@ export type MessagesKeys = typeof queryKeys.messages
 export type NotificationsKeys = typeof queryKeys.notifications
 export type AutoTaggingKeys = typeof queryKeys.autoTagging
 export type CreditKeys = typeof queryKeys.credit
+export type AffiliateKeys = typeof queryKeys.affiliate

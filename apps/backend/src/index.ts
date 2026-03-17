@@ -54,6 +54,7 @@ import insightsRoutes from './routes/insights.js'
 import assignmentRoutes from './routes/assignments/index.js'
 import notificationRoutes from './routes/notifications.js'
 import conversationRoutes from './routes/conversations.js'
+import affiliateRoutes from './routes/affiliate.js'
 
 // Import middleware
 import { authMiddleware } from './middleware/auth.js'
@@ -77,6 +78,7 @@ import { startWABAHealthCheckJob } from './cron/wabaHealthCheck.js'
 import { startPhoneNumberStatusCheckJob } from './cron/phoneNumberStatusCheck.js'
 import { startMemoryCleanupJobs } from './cron/memoryCleanup.js'
 import { startBroadcastRecoveryJob } from './cron/broadcastRecovery.js'
+import { startAffiliateCommissionReleaseJob } from './cron/affiliateCommissionRelease.js'
 
 // Import webhook workers
 import './workers/webhookWorker.js'
@@ -109,6 +111,7 @@ startWABAHealthCheckJob()
 startPhoneNumberStatusCheckJob()
 startMemoryCleanupJobs() // Memory cleanup and retry failed embeddings
 startBroadcastRecoveryJob() // Recover stuck broadcasts on startup and periodically
+startAffiliateCommissionReleaseJob() // Release pending affiliate commissions daily
 // Monitoring check disabled - use new monitoring service instead
 
 // Security headers middleware (apply to all routes)
@@ -266,6 +269,13 @@ app.use('/api/v1/notifications', authMiddleware)
 // Conversation routes - protected (typing indicators, etc.)
 app.use('/api/v1/conversations/*', authMiddleware)
 
+// Affiliate routes - protected (except validate/:code which is public)
+app.use('/api/v1/affiliate/status', authMiddleware)
+app.use('/api/v1/affiliate/register', authMiddleware)
+app.use('/api/v1/affiliate/referrals', authMiddleware)
+app.use('/api/v1/affiliate/earnings', authMiddleware)
+// Note: /api/v1/affiliate/validate/:code is public (no auth required)
+
 // Admin routes - require both auth and admin role
 app.use('/api/v1/admin/*', authMiddleware)
 app.use('/api/v1/admin/*', adminAuthMiddleware)
@@ -296,6 +306,7 @@ app.route('/api/v1/insights', insightsRoutes)
 app.route('/api/v1/assignments', assignmentRoutes)
 app.route('/api/v1/notifications', notificationRoutes)
 app.route('/api/v1/conversations', conversationRoutes)
+app.route('/api/v1/affiliate', affiliateRoutes)
 
 // Public branding route (no auth required - used by auth pages)
 app.route('/api/v1/branding', brandingRoutes)

@@ -26,6 +26,7 @@ import {
   IconTrash,
   IconBell,
   IconMail,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 import { usePathname } from "@/i18n/routing"
 import { OptimizedLink } from "@/components/optimized-link"
@@ -54,6 +55,11 @@ const adminNavGroups = [
         title: "Subscriptions",
         url: "/admin/subscriptions",
         icon: IconCreditCard,
+      },
+      {
+        title: "Affiliates",
+        url: "/admin/affiliates",
+        icon: IconUsersGroup,
       },
       {
         title: "Revenue",

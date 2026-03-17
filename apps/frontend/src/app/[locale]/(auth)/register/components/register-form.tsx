@@ -1,10 +1,11 @@
 "use client"
 
-import { HTMLAttributes, useState } from "react"
+import { HTMLAttributes, useState, useEffect } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useTranslations } from "next-intl"
+import { useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -44,14 +45,29 @@ function useFormSchema() {
     })
 }
 
+// Note: referral_token cookie is httpOnly so cannot be read client-side
+// This is intentional for security - the token is only read server-side
+// For email registration, we use the URL param directly
+
 export function RegisterForm({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
   const [otp, setOtp] = useState("")
+  const [referralCode, setReferralCode] = useState<string | null>(null)
   const t = useTranslations("auth")
   const tCommon = useTranslations("common")
+  const searchParams = useSearchParams()
   const formSchema = useFormSchema()
+
+  // Get referral code from URL param
+  // Note: referral_token cookie is httpOnly for security, only read server-side
+  useEffect(() => {
+    const refParam = searchParams.get("ref")
+    if (refParam) {
+      setReferralCode(refParam)
+    }
+  }, [searchParams])
 
   // Get mascot state setter (with fallback if context not available)
   let setMascotState: ((state: "idle" | "email" | "password") => void) | null = null
@@ -92,6 +108,7 @@ export function RegisterForm({
       email: data.email,
       password: data.password,
       name: data.name,
+      ...(referralCode && { referralCode }),
     })
   }
 

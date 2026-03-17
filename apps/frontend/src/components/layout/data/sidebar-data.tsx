@@ -11,6 +11,7 @@ import {
   IconCode,
   IconTemplate,
   IconCreditCard,
+  IconUsersGroup,
 } from "@tabler/icons-react"
 import { BrainCircuit, HelpCircle } from "lucide-react"
 import { type SidebarData } from "../types"
@@ -103,6 +104,11 @@ export const sidebarData: SidebarData = {
           title: "Subscription",
           url: "/subscription",
           icon: IconCreditCard,
+        },
+        {
+          title: "Affiliate",
+          url: "/affiliate",
+          icon: IconUsersGroup,
         },
         {
           title: "Settings",

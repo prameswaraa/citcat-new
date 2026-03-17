@@ -132,7 +132,12 @@ export function useRegister() {
   }, [state.expiresAt, getTimeRemaining])
 
   const initiateRegistration = useCallback(
-    async (data: { email: string; password: string; name: string }) => {
+    async (data: {
+      email: string
+      password: string
+      name: string
+      referralCode?: string
+    }) => {
       setState((prev) => ({ ...prev, loading: true, error: null }))
 
       try {
