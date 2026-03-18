@@ -365,45 +365,54 @@ export class AdminSettingsService {
 
   /**
    * Test WhatsApp/Meta API connection
+   * 
+   * NOTE: access_token is NOT stored in system settings anymore.
+   * Each WABA uses its own OAuth token stored in WhatsAppAccount table (per Meta policy).
+   * This test validates that the Meta App credentials (app_id, app_secret) are configured.
    */
   private async testWhatsAppConnection(): Promise<TestConnectionResult> {
     try {
-      const accessToken = await this.getRawValue('whatsapp', 'access_token');
       const appId = await this.getRawValue('whatsapp', 'app_id');
+      const appSecret = await this.getRawValue('whatsapp', 'app_secret');
 
-      if (!accessToken || !appId) {
+      if (!appId || !appSecret) {
         return {
           success: false,
-          message: 'WhatsApp credentials not configured',
+          message: 'WhatsApp credentials not configured (App ID and App Secret required)',
         };
       }
 
+      // Generate app access token for validation (app_id|app_secret)
+      // This validates that the Meta App credentials are correct
+      const appAccessToken = `${appId}|${appSecret}`;
+
       const response = await axios.get(
-        `https://graph.facebook.com/v23.0/debug_token`,
+        `https://graph.facebook.com/v23.0/${appId}`,
         {
           params: {
-            input_token: accessToken,
-            access_token: accessToken,
+            access_token: appAccessToken,
+            fields: 'id,name',
           },
           timeout: 30000,
           httpsAgent,
         }
       );
 
-      if (response.data?.data?.is_valid) {
+      if (response.data?.id) {
         return {
           success: true,
-          message: 'WhatsApp API connection successful',
+          message: 'WhatsApp/Meta App credentials verified successfully',
           details: {
-            appId: response.data.data.app_id,
-            expiresAt: response.data.data.expires_at,
+            appId: response.data.id,
+            appName: response.data.name,
+            note: 'Individual WABA tokens are stored per-account after OAuth',
           },
         };
       }
 
       return {
         success: false,
-        message: 'WhatsApp token is invalid',
+        message: 'Failed to verify Meta App credentials',
         details: response.data,
       };
     } catch (error) {
