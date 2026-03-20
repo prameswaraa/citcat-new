@@ -25,7 +25,10 @@ interface WhatsAppConfig {
 
 interface SendMessageParams {
   phoneNumberId: string
-  to: string
+  /** Phone number (E.164 format) - prioritized if both provided */
+  to?: string
+  /** BSUID - used if phone number not provided (May 2026+) */
+  recipient?: string
   type: 'text' | 'template' | 'image' | 'document' | 'audio' | 'video' | 'interactive'
   text?: {
     body: string
@@ -171,13 +174,25 @@ export class WhatsAppAPI {
     // Refresh client to get latest token from .env
     this.refreshClient()
     
-    const { phoneNumberId, to, type, ...messageData } = params
+    const { phoneNumberId, to, recipient, type, ...messageData } = params
+
+    // Validate: must have either phone number or BSUID
+    if (!to && !recipient) {
+      throw new Error('Either "to" (phone number) or "recipient" (BSUID) is required')
+    }
 
     const payload: any = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
-      to,
       type
+    }
+
+    // Add recipient identifiers (phone takes priority per Meta docs)
+    if (to) {
+      payload.to = to
+    }
+    if (recipient) {
+      payload.recipient = recipient
     }
 
     if (type === 'text' && messageData.text) {
@@ -197,6 +212,17 @@ export class WhatsAppAPI {
     }
 
     const response = await this.client.post(`/${phoneNumberId}/messages`, payload)
+    
+    // Log BSUID in response for monitoring
+    const contacts = response.data?.contacts
+    if (contacts?.[0]?.user_id) {
+      logger.info('Message sent with BSUID in response', {
+        input: contacts[0].input,
+        wa_id: contacts[0].wa_id,
+        user_id: contacts[0].user_id,
+      })
+    }
+    
     return response.data
   }
 

@@ -17,6 +17,7 @@ import { AuditLogService } from '../services/audit-log-service.js'
 import { AutoTaggingService } from '../services/auto-tagging-service.js'
 import { createMemoryVectorStore } from '../services/ai/memory/index.js'
 import { OpenAIProvider } from '../services/ai/providers/OpenAIProvider.js'
+import { getSendTarget } from '../utils/customer-lookup.js'
 
 console.log('📦 webhookWorker imports loaded')
 
@@ -101,30 +102,78 @@ interface WebhookJobData {
 
 /**
  * WhatsApp contact object from webhook payload
+ * Extended to support BSUID (starting 31 Mar 2026)
  */
 interface WhatsAppContact {
     profile?: {
         name?: string
+        /** Username if user enabled the feature */
+        username?: string
     }
-    wa_id: string
+    /** Phone number - may be omitted if user enabled username */
+    wa_id?: string
+    /** Business-Scoped User ID - always present after 31 Mar 2026 */
+    user_id?: string
+    /** Parent BSUID for linked business portfolios */
+    parent_user_id?: string
 }
 
 /**
- * Extract profile name from contacts array by matching wa_id with sender
- * @param contacts - Array of contacts from webhook payload
- * @param senderWaId - The wa_id of the message sender (message.from)
- * @returns Profile name or null if not found
+ * Extracted contact data including profile name and BSUID
  */
+interface ExtractedContactData {
+    name: string | null
+    bsuid: string | null
+    parentBsuid: string | null
+    username: string | null
+}
+
+/**
+ * Extract profile data from contacts array by matching wa_id or user_id with sender
+ * @param contacts - Array of contacts from webhook payload
+ * @param senderWaId - The wa_id of the message sender (optional)
+ * @param senderBsuid - The user_id of the message sender (optional)
+ * @returns Extracted contact data including name and BSUID
+ */
+export function extractContactData(
+    contacts: WhatsAppContact[] | undefined,
+    senderWaId?: string,
+    senderBsuid?: string
+): ExtractedContactData {
+    const result: ExtractedContactData = {
+        name: null,
+        bsuid: null,
+        parentBsuid: null,
+        username: null,
+    }
+
+    if (!contacts || contacts.length === 0) return result
+
+    // Find contact matching sender's wa_id or user_id
+    const contact = contacts.find(c => 
+        (senderWaId && c.wa_id === senderWaId) ||
+        (senderBsuid && c.user_id === senderBsuid)
+    )
+
+    if (!contact) return result
+
+    // Extract profile name (truncate if exceeds 255 characters)
+    if (contact.profile?.name) {
+        const name = contact.profile.name
+        result.name = name.length > 255 ? name.substring(0, 255) : name
+    }
+
+    // Extract BSUID data
+    result.bsuid = contact.user_id || null
+    result.parentBsuid = contact.parent_user_id || null
+    result.username = contact.profile?.username || null
+
+    return result
+}
+
+// Keep backward compatible wrapper
 export function extractProfileName(contacts: WhatsAppContact[] | undefined, senderWaId: string): string | null {
-    if (!contacts || contacts.length === 0) return null
-
-    // Find contact matching sender's wa_id
-    const contact = contacts.find(c => c.wa_id === senderWaId)
-    if (!contact?.profile?.name) return null
-
-    // Truncate if exceeds 255 characters (database field limit)
-    const name = contact.profile.name
-    return name.length > 255 ? name.substring(0, 255) : name
+    return extractContactData(contacts, senderWaId).name
 }
 
 /**
@@ -156,8 +205,19 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
 
         console.log('📨 Pesan diterima - diproses')
 
-        // Extract profile name from contacts array (Requirements: 1.1, 2.1, 2.2, 3.1)
-        const customerName = extractProfileName(contacts, message.from)
+        // Extract profile data including BSUID from contacts array
+        // BSUID support starting 31 Mar 2026
+        const contactData = extractContactData(
+            contacts,
+            message.from,           // wa_id (phone number)
+            message.from_user_id    // BSUID (new field)
+        )
+        const customerName = contactData.name
+
+        // Get BSUID from message or contact
+        const customerBsuid = message.from_user_id || contactData.bsuid
+        const customerParentBsuid = message.from_parent_user_id || contactData.parentBsuid
+        const customerUsername = contactData.username
 
         // Find or create customer per phone number (multi-number support)
         // Each business phone number has its own customer records
@@ -168,36 +228,80 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
         while (retryCount < maxRetries) {
             try {
                 customer = await prisma.$transaction(async (tx) => {
-                    // Find existing customer for this specific (userId, phoneNumber, whatsappPhoneNumberId)
-                    let customer = await tx.customer.findFirst({
-                        where: {
-                            userId: user.id,
-                            phoneNumber: message.from,
-                            whatsappPhoneNumberId: phoneNumberRecord?.id || null,
-                        },
-                    })
+                    // Find existing customer for this specific (userId, phoneNumber/BSUID, whatsappPhoneNumberId)
+                    // Support username-only users who may not have phone number
+                    const lookupConditions: any[] = []
+                    if (message.from) {
+                        lookupConditions.push({ phoneNumber: message.from })
+                    }
+                    if (customerBsuid) {
+                        lookupConditions.push({ whatsappBsuid: customerBsuid })
+                    }
+
+                    let customer = lookupConditions.length > 0
+                        ? await tx.customer.findFirst({
+                            where: {
+                                userId: user.id,
+                                whatsappPhoneNumberId: phoneNumberRecord?.id || null,
+                                OR: lookupConditions,
+                            },
+                        })
+                        : null
 
                     if (customer) {
-                        // Update name if changed
+                        // Update name and BSUID if changed
+                        const updateData: Record<string, any> = {}
+                        
                         if (customerName && customer.name !== customerName) {
+                            updateData.name = customerName
+                        }
+                        
+                        // Store BSUID if newly received (don't overwrite existing)
+                        if (customerBsuid && !customer.whatsappBsuid) {
+                            updateData.whatsappBsuid = customerBsuid
+                            updateData.bsuidMappedAt = new Date()
+                            console.log('📍 BSUID mapped:', customerBsuid)
+                        }
+                        
+                        // Update parent BSUID (can change if business links portfolios)
+                        if (customerParentBsuid && customer.whatsappParentBsuid !== customerParentBsuid) {
+                            updateData.whatsappParentBsuid = customerParentBsuid
+                        }
+                        
+                        // Update username if changed
+                        if (customerUsername && customer.whatsappUsername !== customerUsername) {
+                            updateData.whatsappUsername = customerUsername
+                        }
+                        
+                        if (Object.keys(updateData).length > 0) {
                             customer = await tx.customer.update({
                                 where: { id: customer.id },
-                                data: { name: customerName },
+                                data: updateData,
                             })
-                            console.log('✅ Customer name updated')
+                            console.log('✅ Customer updated:', Object.keys(updateData).join(', '))
                         }
                     } else {
-                        // Create new customer for this phone number pair
+                        // Use phone number if available, otherwise BSUID (username-only users)
+                        const phoneNumber = message.from || customerBsuid
+                        if (!phoneNumber) {
+                            throw new Error('No phone number or BSUID available to identify customer')
+                        }
+                        
                         customer = await tx.customer.create({
                             data: {
                                 userId: user.id,
-                                phoneNumber: message.from,
+                                phoneNumber: phoneNumber,
                                 name: customerName,
-                                consentStatus: true, // Auto-consent customers who message us
+                                consentStatus: true,
                                 consentCapturedAt: new Date(),
                                 consentSource: 'AUTO_INBOUND',
                                 consentPurpose: 'Service messages after customer initiated contact',
                                 whatsappPhoneNumberId: phoneNumberRecord?.id || null,
+                                // BSUID fields
+                                whatsappBsuid: customerBsuid || null,
+                                whatsappParentBsuid: customerParentBsuid || null,
+                                whatsappUsername: customerUsername || null,
+                                bsuidMappedAt: customerBsuid ? new Date() : null,
                             },
                         })
 
@@ -214,9 +318,10 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                         console.log('✅ New customer created with auto-consent')
                         // Audit log: New customer created
                         AuditLogService.logCustomerCreated(user.id, customer.id, {
-                            phoneNumber: message.from,
+                            phoneNumber: message.from || customerBsuid || 'unknown',
                             name: customerName || undefined,
                             source: 'INBOUND_MESSAGE',
+                            ...(customerBsuid && { bsuid: customerBsuid }),
                         }).catch(e => console.error('Failed to log customer created:', e))
                     }
 
@@ -628,9 +733,11 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                             ? `*[${i + 1}/${messageParts.length}]*\n\n${part}`
                             : part
 
+                        // Use getSendTarget for BSUID support (username-only users)
+                        const sendTarget = getSendTarget(customer)
                         const result = await whatsapp.sendMessage({
                             phoneNumberId: phoneNumberRecord?.phoneNumberId || '',
-                            to: message.from,
+                            ...sendTarget,
                             type: 'text',
                             text: { body: messageBody },
                         })

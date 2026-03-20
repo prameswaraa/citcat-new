@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Loader2, Phone, Mail, User, Pencil, Check, X } from "lucide-react"
+import { Loader2, Phone, Mail, User, Pencil, Check, X, MessageCircle } from "lucide-react"
 import type { CRMCustomerDetail } from "../../types/unified-inbox"
 
 interface ContactSectionProps {
@@ -183,6 +183,23 @@ export function ContactSection({ customer, onUpdate, loading = false }: ContactS
           validate={validateEmail}
           disabled={loading}
         />
+
+        {/* WhatsApp Identifier (BSUID) */}
+        {customer.whatsappBsuid && (
+          <div className="flex items-center gap-2">
+            <div className="text-muted-foreground shrink-0">
+              <MessageCircle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">WhatsApp ID</p>
+              {customer.whatsappUsername ? (
+                <p className="text-sm truncate">{customer.whatsappUsername}</p>
+              ) : (
+                <p className="text-sm font-mono truncate">{customer.whatsappBsuid}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Custom fields */}
         {Object.keys(customer.customFields || {}).length > 0 && (

@@ -18,6 +18,7 @@ import {
     IconMessageCircle,
     IconCalendar,
     IconListDetails,
+    IconBrandWhatsapp,
 } from "@tabler/icons-react"
 
 interface CustomerDetailTabsProps {
@@ -61,6 +62,21 @@ export function CustomerDetailTabs({ customer, getConsentBadge }: CustomerDetail
                                 <div className="flex-1">
                                     <p className="text-muted-foreground text-xs">Email</p>
                                     <p className="font-medium">{customer.email}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* WhatsApp Identifier (BSUID) */}
+                        {customer.whatsappBsuid && (
+                            <div className="flex items-start gap-3">
+                                <IconBrandWhatsapp className="text-muted-foreground mt-0.5 h-4 w-4" />
+                                <div className="flex-1">
+                                    <p className="text-muted-foreground text-xs">WhatsApp ID</p>
+                                    {customer.whatsappUsername ? (
+                                        <p className="font-medium">{customer.whatsappUsername}</p>
+                                    ) : (
+                                        <p className="font-mono text-xs">{customer.whatsappBsuid}</p>
+                                    )}
                                 </div>
                             </div>
                         )}

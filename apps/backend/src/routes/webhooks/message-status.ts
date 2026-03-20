@@ -67,6 +67,25 @@ export async function handleMessageStatus(
       }
     })
 
+    // Extract BSUID data from status contacts array (new in BSUID update)
+    // Status webhooks now include contacts array with user_id
+    const statusContacts = status.contacts as Array<{
+      profile?: { name?: string; username?: string }
+      wa_id?: string
+      user_id?: string
+      parent_user_id?: string
+    }> | undefined
+
+    // Log BSUID info if present (for monitoring rollout)
+    if (statusContacts?.[0]?.user_id) {
+      console.log('📍 Status webhook contains BSUID:', {
+        messageId: status.id,
+        bsuid: statusContacts[0].user_id,
+        parentBsuid: statusContacts[0].parent_user_id,
+        username: statusContacts[0].profile?.username,
+      })
+    }
+
     // Build update data
     const updateData: {
       status: MessageStatus;
@@ -168,6 +187,36 @@ export async function handleMessageStatus(
         },
         user.id
       )
+    }
+
+    // Update customer BSUID if received in status webhook and not yet stored
+    if (message?.customer && statusContacts?.[0]?.user_id) {
+      const customerBsuid = statusContacts[0].user_id
+      const customerParentBsuid = statusContacts[0].parent_user_id
+      const customerUsername = statusContacts[0].profile?.username
+      
+      try {
+        // Only update if BSUID not yet stored
+        const existingCustomer = await prisma.customer.findUnique({
+          where: { id: message.customer.id },
+          select: { whatsappBsuid: true }
+        })
+        
+        if (!existingCustomer?.whatsappBsuid && customerBsuid) {
+          await prisma.customer.update({
+            where: { id: message.customer.id },
+            data: {
+              whatsappBsuid: customerBsuid,
+              whatsappParentBsuid: customerParentBsuid || undefined,
+              whatsappUsername: customerUsername || undefined,
+              bsuidMappedAt: new Date(),
+            }
+          })
+          console.log('📍 Customer BSUID updated from status webhook:', customerBsuid)
+        }
+      } catch (err) {
+        console.error('Failed to update customer BSUID from status:', err)
+      }
     }
 
     // Update broadcast job statistics if this message is part of a bulk send

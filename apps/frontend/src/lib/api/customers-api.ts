@@ -25,6 +25,11 @@ export interface Customer {
         messages: number
         consentLogs: number
     }
+    // WhatsApp BSUID fields
+    whatsappBsuid?: string | null
+    whatsappParentBsuid?: string | null
+    whatsappUsername?: string | null
+    bsuidMappedAt?: string | null
 }
 
 /**

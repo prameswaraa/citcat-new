@@ -29,6 +29,7 @@ import { createMemoryVectorStore } from '../../services/ai/memory/index.js'
 import { OpenAIProvider } from '../../services/ai/providers/OpenAIProvider.js'
 import { eventEmitter } from '../../websocket/index.js'
 import { normalizePhoneNumber } from '../../utils/validation.js'
+import { getSendTarget } from '../../utils/customer-lookup.js'
 
 const app = new Hono()
 
@@ -562,9 +563,10 @@ app.post('/send', async (c: Context) => {
     // Create WhatsApp client with resolved account credentials
     const whatsapp = new WhatsAppAPI({ accessToken: credentials.accessToken });
 
+    const sendTarget = getSendTarget(customer)
     const result = await whatsapp.sendMessage({
       phoneNumberId: phoneNumberId,
-      to: customer.phoneNumber,
+      ...sendTarget, // Includes to and/or recipient (BSUID)
       type: data.type as any,
       ...whatsappData
     })

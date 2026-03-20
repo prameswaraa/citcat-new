@@ -138,6 +138,11 @@ export interface CRMCustomerDetail {
   customFields: Record<string, string>
   createdAt: Date
   updatedAt: Date
+  // WhatsApp BSUID fields
+  whatsappBsuid?: string | null
+  whatsappParentBsuid?: string | null
+  whatsappUsername?: string | null
+  bsuidMappedAt?: Date | null
 }
 
 export interface UnifiedConversation {

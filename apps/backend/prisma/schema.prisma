@@ -649,6 +649,13 @@ model Customer {
   instagramIgsid    String? // Instagram-scoped User ID
   instagramUsername String?
 
+  // WhatsApp BSUID (Business-Scoped User ID) - new identifier system
+  // Format: <country_code>.<alphanumeric> (e.g., US.13491208655302741918)
+  whatsappBsuid       String?   // Primary BSUID for this customer
+  whatsappParentBsuid String?   // Parent BSUID (for linked business portfolios)
+  whatsappUsername    String?   // WhatsApp username (if user enabled feature)
+  bsuidMappedAt       DateTime? // When BSUID was first recorded
+
   // WhatsApp phone number link (which business number this customer chats with)
   whatsappPhoneNumberId String?
   whatsappPhoneNumber   PhoneNumber? @relation("WhatsAppPhoneCustomers", fields: [whatsappPhoneNumberId], references: [id])
@@ -687,6 +694,8 @@ model Customer {
   @@index([leadScore])
   @@index([instagramUsername])
   @@index([whatsappPhoneNumberId])
+  @@index([whatsappBsuid])
+  @@index([userId, whatsappBsuid])
 }
 
 model ConsentLog {

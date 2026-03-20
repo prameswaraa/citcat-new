@@ -55,6 +55,11 @@ export const customerSchema = z.object({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date().optional(),
   channels: z.array(z.string()).optional().default([]),
+  // WhatsApp BSUID fields
+  whatsappBsuid: z.string().optional().nullable(),
+  whatsappParentBsuid: z.string().optional().nullable(),
+  whatsappUsername: z.string().optional().nullable(),
+  bsuidMappedAt: z.coerce.date().optional().nullable(),
 })
 
 export type Customer = z.infer<typeof customerSchema>
