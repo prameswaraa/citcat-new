@@ -1,11 +1,10 @@
 /**
  * Referral Link Handler
  *
- * Validates referral code and redirects to registration page with ref param.
- * Sets a signed referral token cookie for secure Google OAuth tracking.
+ * Validates referral code and redirects to the route handler
+ * which sets the cookie then redirects to register.
  */
 
-import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
@@ -49,23 +48,15 @@ async function validateReferralCode(code: string): Promise<ValidateResponse> {
 export default async function ReferralPage({ params }: Props) {
   const { locale, code } = await params
 
-  // Validate the referral code and get signed token
   const validation = await validateReferralCode(code)
 
-  // Set signed referral token cookie for Google OAuth tracking
   if (validation.valid && validation.signedToken) {
-    const cookieStore = await cookies()
-    cookieStore.set("referral_token", validation.signedToken, {
-      httpOnly: true, // Prevent client-side JS access
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 24 * 60 * 60, // 24 hours (matches token expiry)
-      path: "/",
-    })
+    redirect(
+      `/api/ref/${code}?token=${encodeURIComponent(validation.signedToken)}&locale=${locale}`
+    )
   }
 
-  // Redirect to register page with ref param
-  redirect(`/${locale}/register?ref=${code.toUpperCase()}`)
+  redirect(`/${locale}/register`)
 }
 
 export async function generateMetadata({ params }: Props) {
