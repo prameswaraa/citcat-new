@@ -4,6 +4,9 @@
  * Resolves the effective AI configuration for a user, optionally scoped
  * to a specific WhatsApp account. Per-account config takes priority,
  * falling back to the user-level default AIConfig.
+ * 
+ * IMPORTANT: Global AIConfig.enabled acts as a master switch.
+ * If global is disabled, AI will not respond even if per-account is enabled.
  */
 
 import { prisma } from '../../utils/database.js';
@@ -24,16 +27,28 @@ export interface ResolvedAIConfig {
  * Resolve AI config for a given user, optionally scoped to a WhatsApp account.
  *
  * Priority:
- * 1. WhatsAppAccountAIConfig (per-account override) if whatsappAccountId is provided
- * 2. If whatsappAccountId is provided but no per-account config exists → return null
+ * 1. Check global AIConfig.enabled first - if disabled, return enabled: false
+ *    (Global setting acts as master switch)
+ * 2. WhatsAppAccountAIConfig (per-account override) if whatsappAccountId is provided
+ * 3. If whatsappAccountId is provided but no per-account config exists → return null
  *    (AI is not assigned to this number, so it should not respond)
- * 3. AIConfig (user-level default) only when no whatsappAccountId is specified
+ * 4. AIConfig (user-level default) only when no whatsappAccountId is specified
  *    (used for test-chat and other non-number-specific contexts)
  */
 export async function resolveAIConfig(
   userId: string,
   whatsappAccountId?: string | null
 ): Promise<ResolvedAIConfig | null> {
+  // 0. Check global AIConfig first - acts as master switch
+  const globalConfig = await prisma.aIConfig.findUnique({
+    where: { userId },
+    select: { enabled: true },
+  });
+
+  // If global AI is disabled, return early with enabled: false
+  // This ensures the global toggle works as a master switch
+  const isGloballyDisabled = globalConfig && !globalConfig.enabled;
+
   // 1. Try per-account config if whatsappAccountId is given
   if (whatsappAccountId) {
     const accountConfig = await prisma.whatsAppAccountAIConfig.findUnique({
@@ -51,7 +66,8 @@ export async function resolveAIConfig(
         escalationAutoAssign?: boolean;
       };
       return {
-        enabled: config.enabled,
+        // Global disabled overrides per-account enabled
+        enabled: isGloballyDisabled ? false : config.enabled,
         activeAgentId: config.activeAgentId,
         temperature: config.temperature,
         filterWords: config.filterWords,
