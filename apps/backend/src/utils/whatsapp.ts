@@ -30,6 +30,10 @@ interface SendMessageParams {
   /** BSUID - used if phone number not provided (May 2026+) */
   recipient?: string
   type: 'text' | 'template' | 'image' | 'document' | 'audio' | 'video' | 'interactive'
+  /** Context for reply-to-specific-message (quoted reply) */
+  context?: {
+    message_id: string  // wamId of the message being replied to
+  }
   text?: {
     body: string
     preview_url?: boolean
@@ -174,7 +178,7 @@ export class WhatsAppAPI {
     // Refresh client to get latest token from .env
     this.refreshClient()
     
-    const { phoneNumberId, to, recipient, type, ...messageData } = params
+    const { phoneNumberId, to, recipient, type, context, ...messageData } = params
 
     // Validate: must have either phone number or BSUID
     if (!to && !recipient) {
@@ -193,6 +197,13 @@ export class WhatsAppAPI {
     }
     if (recipient) {
       payload.recipient = recipient
+    }
+
+    // Add context for reply-to-specific-message (quoted reply)
+    if (context?.message_id) {
+      payload.context = {
+        message_id: context.message_id
+      }
     }
 
     if (type === 'text' && messageData.text) {
@@ -223,6 +234,45 @@ export class WhatsAppAPI {
       })
     }
     
+    return response.data
+  }
+
+  // Send reaction to a message
+  async sendReaction(params: {
+    phoneNumberId: string
+    to?: string
+    recipient?: string
+    messageId: string  // wamId of message to react to
+    emoji: string      // emoji or "" to unreact
+  }) {
+    this.refreshClient()
+
+    const { phoneNumberId, to, recipient, messageId, emoji } = params
+
+    // Validate: must have either phone number or BSUID
+    if (!to && !recipient) {
+      throw new Error('Either "to" (phone number) or "recipient" (BSUID) is required')
+    }
+
+    const payload: any = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      type: 'reaction',
+      reaction: {
+        message_id: messageId,
+        emoji: emoji
+      }
+    }
+
+    // Add recipient identifiers (phone takes priority per Meta docs)
+    if (to) {
+      payload.to = to
+    }
+    if (recipient) {
+      payload.recipient = recipient
+    }
+
+    const response = await this.client.post(`/${phoneNumberId}/messages`, payload)
     return response.data
   }
 

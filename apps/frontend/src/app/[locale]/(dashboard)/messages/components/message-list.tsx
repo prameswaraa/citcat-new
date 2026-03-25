@@ -1,4 +1,4 @@
-import { RefObject, useState } from "react"
+import { RefObject, useState, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { Check, CheckCheck, AlertCircle, Clock, Bot, Smartphone, RotateCcw, Info, Lightbulb } from "lucide-react"
 import { MediaPreview, MediaType } from "./media-preview"
@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import type { Message, MessageSource } from "@/lib/api/messages-api"
 import { WABAErrorDialog } from "@/components/waba/waba-error-dialog"
 import { getErrorInfo, type WhatsAppErrorInfo } from "../../broadcast/utils/error-categorizer"
+import { MessageHoverActions } from "./message-hover-actions"
 
 interface MessageListProps {
     messages: any[]
@@ -14,6 +15,10 @@ interface MessageListProps {
     containerRef: RefObject<HTMLDivElement>
     onScroll: () => void
     onRetry?: (message: Message) => void
+    /** Send reaction to a message (messageId, emoji) */
+    onReact?: (messageId: string, emoji: string) => Promise<any>
+    /** Start replying to a specific message */
+    onReply?: (message: Message) => void
 }
 
 // Helper to extract media URL from message - handles both stored URLs and media IDs
@@ -115,7 +120,9 @@ export function MessageList({
     scrollRef,
     containerRef,
     onScroll,
-    onRetry
+    onRetry,
+    onReact,
+    onReply
 }: MessageListProps) {
     const tErrors = useTranslations("whatsappErrors")
     const [errorDialogOpen, setErrorDialogOpen] = useState(false)
@@ -165,14 +172,43 @@ export function MessageList({
                     return "bg-blue-500 text-white rounded-tr-none" // Default: Human from Inbox
                 }
 
+                // Handler for reaction
+                const handleReact = (emoji: string) => {
+                    if (onReact && msg.id) {
+                        onReact(msg.id, emoji)
+                    }
+                }
+
+                // Handler for reply
+                const handleReply = () => {
+                    if (onReply) {
+                        onReply(msg as Message)
+                    }
+                }
+
+                // Check if message has wamId (can be reacted to / replied to)
+                const canInteract = !!msg.wamId && !isFailed && !isPending
+
                 return (
                     <div
                         key={msg.id}
                         className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                     >
+                        {/* Message wrapper with hover actions */}
+                        <div className="relative group max-w-[85%] sm:max-w-[70%]">
+                            {/* Hover Actions - only show if reaction/reply is available */}
+                            {canInteract && (onReact || onReply) && (
+                                <MessageHoverActions
+                                    onReact={handleReact}
+                                    onReply={handleReply}
+                                    isOutbound={isOutbound}
+                                    disabled={!canInteract}
+                                />
+                            )}
+
                         <div
                             className={cn(
-                                "max-w-[85%] sm:max-w-[70%] shadow-sm transition-opacity",
+                                "shadow-sm transition-opacity",
                                 // Stickers have minimal styling - transparent background, smaller padding
                                 isSticker
                                     ? "bg-transparent p-1 max-w-[150px]"
@@ -520,6 +556,7 @@ export function MessageList({
                                     </div>
                                 )
                             })()}
+                        </div>
                         </div>
                     </div>
                 )

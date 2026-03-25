@@ -37,6 +37,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { WindowStatus } from "@/lib/window-utils"
 
+// WhatsApp Business API limit for text messages
+const WHATSAPP_TEXT_MAX_LENGTH = 4096
+const WHATSAPP_TEXT_WARNING_THRESHOLD = 3800 // Show warning when approaching limit
+
 // Separate component to avoid closure issues with state
 interface VariableInfo {
     key: string
@@ -221,6 +225,10 @@ interface MessageInputProps {
     templates: any[]
     windowStatus?: WindowStatus | null
     customerId?: string
+    /** Message being replied to (for quoted reply) */
+    replyToMessage?: import("@/lib/api/messages-api").Message | null
+    /** Cancel reply action */
+    onCancelReply?: () => void
 }
 
 export function MessageInput({
@@ -234,7 +242,9 @@ export function MessageInput({
     uploading,
     templates,
     windowStatus,
-    customerId
+    customerId,
+    replyToMessage,
+    onCancelReply
 }: MessageInputProps) {
     const t = useTranslations('common')
     const [messageText, setMessageText] = useState("")
@@ -391,6 +401,37 @@ export function MessageInput({
                 </Alert>
             )}
 
+            {/* Reply Preview */}
+            {replyToMessage && (
+                <div className="mb-3 flex items-start gap-2 px-3 py-2 bg-muted/50 border-l-4 border-primary rounded-r-md">
+                    <svg className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-primary">
+                            Replying to {replyToMessage.direction === "INBOUND" 
+                                ? replyToMessage.customer?.name || replyToMessage.customer?.phoneNumber || "Customer"
+                                : "You"}
+                        </div>
+                        <div className="text-xs text-muted-foreground truncate">
+                            {replyToMessage.content?.length && replyToMessage.content.length > 100
+                                ? replyToMessage.content.substring(0, 100) + "..."
+                                : replyToMessage.content || "[Media]"}
+                        </div>
+                    </div>
+                    {onCancelReply && (
+                        <button
+                            type="button"
+                            onClick={onCancelReply}
+                            className="p-0.5 hover:bg-muted rounded transition-colors flex-shrink-0"
+                            title="Cancel reply"
+                        >
+                            <X className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
+            )}
+
             {/* File Preview */}
             {selectedFile && (
                 <div className="mb-4 p-3 bg-muted/50 rounded-lg flex items-start gap-3 relative group">
@@ -503,6 +544,7 @@ export function MessageInput({
                     }
                     className="flex-1 min-h-[44px] max-h-[120px] resize-none py-3"
                     rows={1}
+                    maxLength={WHATSAPP_TEXT_MAX_LENGTH}
                     disabled={sending || uploading || (!windowStatus?.isActive && windowStatus !== null)}
                     autoFocus
                 />
@@ -510,12 +552,31 @@ export function MessageInput({
                 <Button
                     type="submit"
                     size="icon"
-                    disabled={(!messageText.trim() && !selectedFile) || sending || uploading || (!windowStatus?.isActive && windowStatus !== null)}
+                    disabled={(!messageText.trim() && !selectedFile) || sending || uploading || (!windowStatus?.isActive && windowStatus !== null) || messageText.length > WHATSAPP_TEXT_MAX_LENGTH}
                     className={sending || uploading ? "opacity-70" : ""}
                 >
                     <Send className="h-5 w-5" />
                 </Button>
             </form>
+
+            {/* Character count warning */}
+            {messageText.length > WHATSAPP_TEXT_WARNING_THRESHOLD && (
+                <div className={`text-xs px-3 py-1.5 flex justify-between items-center ${
+                    messageText.length > WHATSAPP_TEXT_MAX_LENGTH 
+                        ? "text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400" 
+                        : "text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400"
+                }`}>
+                    <span>
+                        {messageText.length > WHATSAPP_TEXT_MAX_LENGTH 
+                            ? `Message too long! Reduce by ${messageText.length - WHATSAPP_TEXT_MAX_LENGTH} characters.`
+                            : `Approaching character limit`
+                        }
+                    </span>
+                    <span className="font-mono">
+                        {messageText.length}/{WHATSAPP_TEXT_MAX_LENGTH}
+                    </span>
+                </div>
+            )}
 
             {/* Template Selection Dialog */}
             <Dialog open={showTemplateMenu} onOpenChange={setShowTemplateMenu}>

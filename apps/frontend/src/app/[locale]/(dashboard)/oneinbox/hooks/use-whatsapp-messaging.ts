@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from "react"
 import { messagesApi, type Message, type APIError } from "@/lib/api/messages-api"
+// Note: APIError is already imported above for error handling
 import { useToast } from "@/hooks/use-toast"
 import type { WindowStatus } from "@/lib/window-utils"
 import type { UnifiedConversation, Customer } from "./unified-inbox-types"
@@ -50,8 +51,38 @@ export function useWhatsAppMessaging({
     }
   }, [userId])
 
+  // WhatsApp reaction sending
+  const sendWhatsAppReaction = useCallback(async (messageId: string, emoji: string) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") {
+      return false
+    }
+
+    try {
+      await messagesApi.sendReaction(messageId, emoji)
+      
+      toast({
+        title: emoji ? "Reaction sent" : "Reaction removed",
+        description: emoji ? `Reacted with ${emoji}` : "Reaction removed",
+      })
+      return true
+    } catch (error: any) {
+      console.error("Failed to send reaction:", error)
+      
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send reaction"
+      
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description: errorMessage,
+      })
+      return false
+    }
+  }, [selectedConversation, toast])
+
   // WhatsApp message sending with Optimistic UI
-  const sendWhatsAppMessage = useCallback(async (text: string) => {
+  // replyToWamId: wamId of message being replied to (for quoted reply)
+  const sendWhatsAppMessage = useCallback(async (text: string, replyToWamId?: string) => {
     if (!selectedConversation || selectedConversation.channel !== "whatsapp" || !text.trim()) {
       return false
     }
@@ -99,6 +130,8 @@ export function useWhatsAppMessaging({
         phoneNumber: customer.phoneNumber,
         type: "text",
         text: { body: text },
+        // Include context for reply-to-specific-message
+        context: replyToWamId ? { message_id: replyToWamId } : undefined,
       })
 
       // Update optimistic message with real data (SENT status)
@@ -946,5 +979,6 @@ export function useWhatsAppMessaging({
     sendWhatsAppReplyButtons,
     sendWhatsAppListMessage,
     retryWhatsAppMessage,
+    sendWhatsAppReaction,
   }
 }

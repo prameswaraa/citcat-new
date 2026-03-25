@@ -97,6 +97,7 @@ export default function OneInboxPage() {
     sendWhatsAppReplyButtons,
     sendWhatsAppListMessage,
     retryWhatsAppMessage,
+    sendWhatsAppReaction,
     igMessages,
     sendInstagramMessage,
     sendInstagramReaction,
@@ -327,6 +328,7 @@ export default function OneInboxPage() {
                 onSendReplyButtons={sendWhatsAppReplyButtons}
                 onSendListMessage={sendWhatsAppListMessage}
                 onSendMedia={sendWhatsAppMedia}
+                onSendReaction={sendWhatsAppReaction}
                 sending={sending}
                 uploading={uploading}
                 templates={waTemplates}

@@ -104,13 +104,20 @@ function dbTemplateToWhatsAppTemplate(dbTemplate: {
   }
 }
 
+// WhatsApp Business API limit for text messages
+const WHATSAPP_TEXT_MAX_LENGTH = 4096
+
 const sendMessageSchema = z.object({
   userId: z.string().optional(), // Optional - will use effectiveUserId if not provided
   customerId: z.string().optional(),
   phoneNumber: z.string().optional(),
   type: z.enum(['text', 'template', 'image', 'document', 'interactive']),
+  // Context for reply-to-specific-message (quoted reply)
+  context: z.object({
+    message_id: z.string() // wamId of the message being replied to
+  }).optional(),
   text: z.object({
-    body: z.string(),
+    body: z.string().min(1, 'Message body is required').max(WHATSAPP_TEXT_MAX_LENGTH, `Message too long (max ${WHATSAPP_TEXT_MAX_LENGTH} characters)`),
     preview_url: z.boolean().optional()
   }).optional(),
   template: z.object({
@@ -568,6 +575,7 @@ app.post('/send', async (c: Context) => {
       phoneNumberId: phoneNumberId,
       ...sendTarget, // Includes to and/or recipient (BSUID)
       type: data.type as any,
+      context: data.context, // For reply-to-specific-message (quoted reply)
       ...whatsappData
     })
 

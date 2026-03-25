@@ -5,6 +5,10 @@ interface SendMessageRequest {
     customerId?: string
     phoneNumber?: string
     type: 'text' | 'template' | 'image' | 'document' | 'interactive'
+    /** Context for reply-to-specific-message (quoted reply) */
+    context?: {
+        message_id: string  // wamId of the message being replied to
+    }
     text?: {
         body: string
         preview_url?: boolean
@@ -110,6 +114,8 @@ export type MessageSource = 'API' | 'AI_BOT' | 'WHATSAPP_APP' | 'INSTAGRAM'
 export interface Message {
     id: string
     waMessageId?: string
+    /** WhatsApp message ID (wamId) - used for reactions and replies */
+    wamId?: string
     userId: string
     customerId: string
     direction: 'INBOUND' | 'OUTBOUND'
@@ -290,5 +296,37 @@ export const messagesApi = {
         } catch {
             // Silent fail - non-critical feature
         }
+    },
+
+    /**
+     * Send reaction to a WhatsApp message
+     * @param messageId - Internal message ID (not wamId)
+     * @param emoji - Emoji to react with, or "" to remove reaction
+     */
+    async sendReaction(messageId: string, emoji: string): Promise<{ success: boolean; data?: any }> {
+        const response = await fetch(`${API_URL}/api/v1/messages/${messageId}/react`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ emoji }),
+        })
+
+        if (!response.ok) {
+            const errorResult = await response.json().catch(() => ({}))
+            console.error('Reaction API Error:', errorResult)
+            
+            const errorData = errorResult.error || {}
+            throw createAPIError({
+                message: errorData.message || 'Failed to send reaction',
+                code: errorData.code,
+                category: errorData.category,
+                retryable: errorData.retryable,
+                recoveryAction: errorData.recoveryAction,
+            })
+        }
+
+        return response.json()
     },
 }

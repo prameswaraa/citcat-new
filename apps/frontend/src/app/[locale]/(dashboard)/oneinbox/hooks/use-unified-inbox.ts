@@ -787,6 +787,7 @@ export function useUnifiedInbox() {
     sendWhatsAppReplyButtons: whatsappMessaging.sendWhatsAppReplyButtons,
     sendWhatsAppListMessage: whatsappMessaging.sendWhatsAppListMessage,
     retryWhatsAppMessage: whatsappMessaging.retryWhatsAppMessage,
+    sendWhatsAppReaction: whatsappMessaging.sendWhatsAppReaction,
     // Instagram specific
     igMessages: instagramMessaging.igMessages,
     sendInstagramMessage: instagramMessaging.sendInstagramMessage,
