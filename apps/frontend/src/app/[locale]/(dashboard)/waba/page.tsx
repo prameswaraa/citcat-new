@@ -13,9 +13,8 @@ import {
 import { RoleGuard } from "@/components/auth/role-guard"
 import { WABAStatusBanner } from "@/components/waba/waba-status-banner"
 import { DeviceInfoCard } from "@/components/waba/device-info-card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import {
   IconPlus,
   IconX,
@@ -146,8 +145,6 @@ export default function WABAPage() {
   }
 
   const connectedAccounts = accounts.filter((a) => a.connectionStatus === "connected")
-  const disconnectedAccounts = accounts.filter((a) => a.connectionStatus !== "connected")
-
   // Flatten: one card per phone number
   const allPhoneCards = connectedAccounts.flatMap((account) =>
     account.phoneNumbers.map((pn) => ({ account, phoneNumber: pn }))
@@ -224,30 +221,6 @@ export default function WABAPage() {
                   handleSetPrimary(account.wabaId, phoneNumber.phoneNumberId)
                 }
               />
-            ))}
-          </div>
-        )}
-
-        {/* Disconnected Accounts */}
-        {disconnectedAccounts.length > 0 && (
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-muted-foreground">
-              Disconnected Accounts
-            </h3>
-            {disconnectedAccounts.map((account) => (
-              <Card key={account.id} className="opacity-60">
-                <CardContent className="flex items-center justify-between py-4">
-                  <div>
-                    <p className="font-medium">
-                      {account.wabaName || "WhatsApp Business"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      WABA ID: {account.wabaId}
-                    </p>
-                  </div>
-                  <Badge variant="secondary">Disconnected</Badge>
-                </CardContent>
-              </Card>
             ))}
           </div>
         )}

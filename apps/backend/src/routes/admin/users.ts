@@ -7,7 +7,7 @@ const app = new Hono()
 
 // Valid enum values
 const VALID_ROLES: Role[] = ['ADMIN', 'BUSINESS_OWNER', 'AGENT']
-const VALID_TIERS: SubscriptionTier[] = ['FREE', 'LITE', 'PRO']
+const VALID_TIERS: SubscriptionTier[] = ['FREE', 'BASIC', 'LITE', 'PRO']
 const VALID_STATUSES: SubscriptionStatus[] = ['ACTIVE', 'PENDING_PAYMENT', 'EXPIRED', 'CANCELLED']
 
 /**
