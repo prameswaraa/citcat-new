@@ -40,7 +40,10 @@ async function checkTypingRateLimit(customerId: string): Promise<{ allowed: bool
     await cacheRedis.setex(key, TYPING_RATE_LIMIT_SECONDS, '1');
     return { allowed: true };
   } catch (error) {
-    logger.error('Typing rate limit check error:', error);
+    logger.error('Typing rate limit check error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Fail open
     return { allowed: true };
   }
@@ -159,7 +162,10 @@ app.post('/:customerId/typing', async (c: Context) => {
     }
     
   } catch (error: unknown) {
-    logger.error('Typing indicator error:', error);
+    logger.error('Typing indicator error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return c.json({
       error: {
         code: 'InternalServerError',
@@ -187,7 +193,7 @@ async function sendWhatsAppTyping(
   }
   
   // Resolve credentials for sending
-  const credentials = await resolveCredentialsForSending(userId, customer.phoneNumber);
+  const credentials = await resolveCredentialsForSending(userId, customer.id);
   
   if (!credentials) {
     return c.json({
@@ -323,7 +329,10 @@ async function sendInstagramTyping(
       }
     }
     
-    logger.error('Instagram typing indicator error:', error);
+    logger.error('Instagram typing indicator error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return c.json({
       error: {
         code: 'InternalServerError',

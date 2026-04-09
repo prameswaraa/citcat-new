@@ -32,7 +32,10 @@ async function checkTypingRateLimit(customerId: string): Promise<{ allowed: bool
     await cacheRedis.setex(key, TYPING_RATE_LIMIT_SECONDS, '1');
     return { allowed: true };
   } catch (error) {
-    logger.error('Typing rate limit check error:', error);
+    logger.error('Typing rate limit check error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     // Fail open
     return { allowed: true };
   }
@@ -193,8 +196,11 @@ app.post('/:customerIdentifier/typing', async (c: Context) => {
       }, 400);
     }
     
-  } catch (error: any) {
-    logger.error('Public API typing indicator error:', error);
+  } catch (error: unknown) {
+    logger.error('Public API typing indicator error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     
     return c.json({
       error: {
@@ -336,8 +342,11 @@ async function sendInstagramTyping(c: Context, userId: string, customer: any) {
         timestamp: new Date().toISOString(),
       },
     });
-  } catch (error) {
-    logger.error('Instagram typing indicator error:', error);
+  } catch (error: unknown) {
+    logger.error('Instagram typing indicator error', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     
     if (error instanceof InstagramError) {
       // Handle specific Instagram errors

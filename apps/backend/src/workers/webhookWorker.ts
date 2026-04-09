@@ -18,6 +18,7 @@ import { AutoTaggingService } from '../services/auto-tagging-service.js'
 import { createMemoryVectorStore } from '../services/ai/memory/index.js'
 import { OpenAIProvider } from '../services/ai/providers/OpenAIProvider.js'
 import { getSendTarget } from '../utils/customer-lookup.js'
+import { runAfterWhatsAppTypingDelay } from './webhook-typing.js'
 
 console.log('📦 webhookWorker imports loaded')
 
@@ -653,13 +654,18 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                 // - If assigned to human → skip AI response
                 // - If assigned to AI Agent → use that AI Agent's configuration
                 // - If unassigned with AI enabled → use default AI Agent
-                const response = await aiOrchestrator.handleMessageWithAssignmentCheck(
-                    user.id,
-                    content,
-                    customer.id, // conversationId for WhatsApp is the Customer ID
-                    'WHATSAPP',  // conversationType
-                    customer.id, // customerId for conversation history
-                    whatsappAccount?.id // per-account AI config resolution
+                const response = await runAfterWhatsAppTypingDelay(
+                    whatsapp,
+                    phoneNumberRecord?.phoneNumberId,
+                    message.id,
+                    () => aiOrchestrator.handleMessageWithAssignmentCheck(
+                        user.id,
+                        content,
+                        customer.id, // conversationId for WhatsApp is the Customer ID
+                        'WHATSAPP',  // conversationType
+                        customer.id, // customerId for conversation history
+                        whatsappAccount?.id // per-account AI config resolution
+                    )
                 )
 
                 // Only send typing indicator + mark as read if AI will actually reply
@@ -669,10 +675,6 @@ async function processWebhook(job: Job<WebhookJobData>): Promise<void> {
                     console.log('📝 Converted Markdown → WhatsApp format')
 
                     // Send typing indicator to show we're about to reply
-                    whatsapp.markAsRead(phoneNumberRecord?.phoneNumberId || '', message.id, true).catch((e) => {
-                        console.error('Failed to send typing indicator:', e)
-                    })
-
                     console.log('🤖 AI Auto-Reply generated for:', message.id)
 
                     // WhatsApp API limit: 4096 characters per message

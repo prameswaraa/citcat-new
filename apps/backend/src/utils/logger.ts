@@ -1,13 +1,16 @@
 import winston from 'winston'
 
+import { sanitizeLogValue, serializeLogMeta } from './logger-serializer.js'
+
 const { combine, timestamp, errors, printf, colorize } = winston.format
+const sanitizeFormat = winston.format((info) => sanitizeLogValue(info) as winston.Logform.TransformableInfo)
 
 // Custom format for console output - include all metadata
 const consoleFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   // Remove service from meta as it's redundant
   const { service, ...restMeta } = meta
   const metaStr = Object.keys(restMeta).length > 0 
-    ? '\n' + JSON.stringify(restMeta, null, 2) 
+    ? '\n' + serializeLogMeta(restMeta) 
     : ''
   return `${timestamp} [${level}]: ${stack || message}${metaStr}`
 })
@@ -16,6 +19,7 @@ const consoleFormat = printf(({ level, message, timestamp, stack, ...meta }) => 
 export const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: combine(
+    sanitizeFormat(),
     timestamp(),
     errors({ stack: true }),
     winston.format.json()
