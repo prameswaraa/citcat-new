@@ -37,7 +37,7 @@ Panduan lengkap cara download/fork source code KirimChat dari repository utama, 
 
 ### Step 1: Fork di GitHub
 
-1. Buka https://github.com/tech-provider/kirimchat
+1. Buka https://github.com/tech-provider/kirimchat-multi
 2. Klik tombol **Fork** (pojok kanan atas)
 3. Di halaman "Create a new fork":
    - **Owner**: pilih akun GitHub Anda
@@ -57,7 +57,7 @@ cd kirimchat
 Supaya bisa tarik update dari repo utama di kemudian hari:
 
 ```bash
-git remote add upstream https://github.com/tech-provider/kirimchat.git
+git remote add upstream https://github.com/tech-provider/kirimchat-multi.git
 ```
 
 Cek remotes:
@@ -67,10 +67,10 @@ git remote -v
 
 Output:
 ```
-origin    https://github.com/GITHUB_ANDA/kirimchat.git (fetch)
-origin    https://github.com/GITHUB_ANDA/kirimchat.git (push)
-upstream  https://github.com/tech-provider/kirimchat.git (fetch)
-upstream  https://github.com/tech-provider/kirimchat.git (push)
+origin    https://github.com/GITHUB_ANDA/kirimchat-multi.git (fetch)
+origin    https://github.com/GITHUB_ANDA/kirimchat-multi.git (push)
+upstream  https://github.com/tech-provider/kirimchat-multi.git (fetch)
+upstream  https://github.com/tech-provider/kirimchat-multi.git (push)
 ```
 
 Selesai! Repo sudah ada di GitHub Anda.
@@ -94,7 +94,7 @@ Gunakan cara ini jika tidak bisa fork langsung (misal repo private, atau ingin r
 ### Step 2: Clone Repo Utama
 
 ```bash
-git clone https://github.com/tech-provider/kirimchat.git kirimchat
+git clone https://github.com/tech-provider/kirimchat-multi.git kirimchat
 cd kirimchat
 ```
 
@@ -105,7 +105,7 @@ cd kirimchat
 git remote rename origin upstream
 
 # Tambah remote origin ke repo GitHub Anda
-git remote add origin https://github.com/GITHUB_ANDA/kirimchat.git
+git remote add origin https://github.com/GITHUB_ANDA/kirimchat-multi.git
 ```
 
 ### Step 4: Push ke GitHub Anda
@@ -121,10 +121,10 @@ git remote -v
 
 Output:
 ```
-origin    https://github.com/GITHUB_ANDA/kirimchat.git (fetch)
-origin    https://github.com/GITHUB_ANDA/kirimchat.git (push)
-upstream  https://github.com/tech-provider/kirimchat.git (fetch)
-upstream  https://github.com/tech-provider/kirimchat.git (push)
+origin    https://github.com/GITHUB_ANDA/kirimchat-multi.git (fetch)
+origin    https://github.com/GITHUB_ANDA/kirimchat-multi.git (push)
+upstream  https://github.com/tech-provider/kirimchat-multi.git (fetch)
+upstream  https://github.com/tech-provider/kirimchat-multi.git (push)
 ```
 
 Selesai! Source code sekarang ada di GitHub Anda sendiri.
@@ -208,7 +208,7 @@ Tidak, selama repo di-set **Private**. Hanya Anda dan collaborator yang Anda und
 ### Q: `git fetch upstream` error "remote upstream does not exist"
 Berarti belum menambahkan upstream. Tambahkan:
 ```bash
-git remote add upstream https://github.com/tech-provider/kirimchat.git
+git remote add upstream https://github.com/tech-provider/kirimchat-multi.git
 ```
 
 ### Q: `git push` minta username/password?
@@ -247,22 +247,22 @@ Lanjut ke panduan berikutnya sesuai kebutuhan:
 ### Fork (Cara A)
 ```bash
 # Clone fork
-git clone https://github.com/GITHUB_ANDA/kirimchat.git
+git clone https://github.com/GITHUB_ANDA/kirimchat-multi.git
 cd kirimchat
 
 # Tambah upstream
-git remote add upstream https://github.com/tech-provider/kirimchat.git
+git remote add upstream https://github.com/tech-provider/kirimchat-multi.git
 ```
 
 ### Download & Push (Cara B)
 ```bash
 # Clone repo utama
-git clone https://github.com/tech-provider/kirimchat.git kirimchat
+git clone https://github.com/tech-provider/kirimchat-multi.git kirimchat
 cd kirimchat
 
 # Setup remotes
 git remote rename origin upstream
-git remote add origin https://github.com/GITHUB_ANDA/kirimchat.git
+git remote add origin https://github.com/GITHUB_ANDA/kirimchat-multi.git
 
 # Push ke GitHub Anda
 git push -u origin main

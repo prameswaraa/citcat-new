@@ -232,7 +232,7 @@ scp -r ./kirimchat user@your-server:~/kirimchat-source
 ### Step 9: Install Dependencies
 
 ```bash
-cd ~/kirimchat/backend
+cd ~/kirimchat
 
 # Install all dependencies (monorepo)
 pnpm install
@@ -325,8 +325,8 @@ BETTER_AUTH_SECRET="your-super-secret-better-auth-key-change-in-production"
 BETTER_AUTH_URL="https://yourdomain.com"
 
 # Google OAuth (wajib)
-# GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
-# GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
 # Public URL (for media links - MUST match frontend API URL)
 PUBLIC_URL="https://api.yourdomain.com"
@@ -334,7 +334,7 @@ PUBLIC_URL="https://api.yourdomain.com"
 # AI Configuration (optional)
 # OPENAI_API_KEY="your-key"
 
-# Instagram API Configuration (optional)
+# Instagram API Configuration (optional bisa dari admin panel)
 # INSTAGRAM_APP_ID="your-instagram-app-id"
 # INSTAGRAM_APP_SECRET="your-instagram-app-secret"
 # INSTAGRAM_REDIRECT_URI="https://api.yourdomain.com/api/v1/ig/auth/callback"

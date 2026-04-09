@@ -56,7 +56,6 @@ Root directory: /apps/frontend
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 NEXT_PUBLIC_APP_NAME=Chat.Kirim
-NODE_ENV=production
 ```
 
 ### 2. Deploy
@@ -75,29 +74,6 @@ NODE_ENV=production
 6. Wait for SSL certificate (usually instant)
 
 ---
-
-## DNS Configuration
-
-### If Auto-Configuration Doesn't Work
-
-In Cloudflare DNS, add these records:
-
-```
-Type    Name    Content                 Proxy   TTL
-CNAME   @       your-pages.pages.dev    Yes     Auto
-CNAME   www     your-pages.pages.dev    Yes     Auto
-```
-
-**Important:**
-- Enable **Proxy** (orange cloud) for CDN benefits
-- SSL/TLS mode should be **Full** or **Full (strict)**
-
-### SSL/TLS Settings
-
-1. Go to **SSL/TLS** → **Overview**
-2. Set encryption mode to **Full** or **Full (strict)**
-3. Enable **Always Use HTTPS**
-4. Enable **Automatic HTTPS Rewrites**
 
 ---
 
@@ -128,7 +104,7 @@ CNAME   www     your-pages.pages.dev    Yes     Auto
 3. View build logs
 
 **Common issues:**
-- Node version mismatch → Set `NODE_VERSION=18` in environment variables
+- Node version mismatch → Set `NODE_VERSION=22` in environment variables
 - Build command wrong → Should be `pnpm build:worker`
 
 ### Environment variables not working
