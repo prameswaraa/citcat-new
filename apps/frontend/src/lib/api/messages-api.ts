@@ -1,6 +1,78 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
 
-interface SendMessageRequest {
+export interface InteractiveHeader {
+    type: 'text' | 'image' | 'video'
+    text?: string
+    image?: { link?: string; id?: string }
+    video?: { link?: string; id?: string }
+}
+
+export interface InteractiveReplyButton {
+    type: 'reply'
+    reply: {
+        id: string
+        title: string
+    }
+}
+
+export interface InteractiveQuickReplyButton {
+    type: 'quick_reply'
+    quick_reply: {
+        id: string
+        title: string
+    }
+}
+
+export interface InteractiveSection {
+    title?: string
+    rows: Array<{
+        id: string
+        title: string
+        description?: string
+    }>
+}
+
+export interface InteractiveCarouselCard {
+    card_index: number
+    type: 'cta_url'
+    header: {
+        type: 'image' | 'video'
+        image?: { link?: string; id?: string }
+        video?: { link?: string; id?: string }
+    }
+    body?: { text: string }
+    action:
+        | {
+              name: 'cta_url'
+              parameters: {
+                  display_text: string
+                  url: string
+              }
+          }
+        | {
+              buttons: InteractiveQuickReplyButton[]
+          }
+}
+
+export interface InteractiveMessage {
+    type: 'cta_url' | 'button' | 'list' | 'carousel'
+    header?: InteractiveHeader
+    body?: { text: string }
+    footer?: { text: string }
+    action: {
+        name?: 'cta_url'
+        parameters?: {
+            display_text: string
+            url: string
+        }
+        buttons?: Array<InteractiveReplyButton | InteractiveQuickReplyButton>
+        button?: string
+        sections?: InteractiveSection[]
+        cards?: InteractiveCarouselCard[]
+    }
+}
+
+export interface SendMessageRequest {
     userId: string
     customerId?: string
     phoneNumber?: string
@@ -28,42 +100,7 @@ interface SendMessageRequest {
         filename?: string
         caption?: string
     }
-    interactive?: {
-        type: 'cta_url' | 'button' | 'list'
-        header?: {
-            type: 'text' | 'image'
-            text?: string
-            image?: { link?: string; id?: string }
-        }
-        body: { text: string }
-        footer?: { text: string }
-        action: {
-            // For cta_url
-            name?: 'cta_url'
-            parameters?: {
-                display_text: string
-                url: string
-            }
-            // For button (reply buttons)
-            buttons?: Array<{
-                type: 'reply'
-                reply: {
-                    id: string
-                    title: string
-                }
-            }>
-            // For list message
-            button?: string
-            sections?: Array<{
-                title?: string
-                rows: Array<{
-                    id: string
-                    title: string
-                    description?: string
-                }>
-            }>
-        }
-    }
+    interactive?: InteractiveMessage
 }
 
 /**
@@ -143,6 +180,7 @@ export interface Message {
         templateName: string
         category: string
     }
+    interactive?: InteractiveMessage
 }
 
 /**

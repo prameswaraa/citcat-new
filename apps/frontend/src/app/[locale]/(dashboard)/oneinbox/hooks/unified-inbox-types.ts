@@ -153,6 +153,20 @@ export interface WhatsAppMessagingActions {
       }>
     }>
   }) => Promise<boolean | "WINDOW_EXPIRED">
+  sendWhatsAppCarousel: (carouselForm: {
+    bodyText: string
+    cards: Array<{
+      mediaType: "image" | "video"
+      mediaUrl: string
+      bodyText?: string
+      buttonLabel?: string
+      buttonUrl?: string
+      buttons?: Array<{
+        id: string
+        title: string
+      }>
+    }>
+  }) => Promise<boolean | "WINDOW_EXPIRED">
 }
 
 /**

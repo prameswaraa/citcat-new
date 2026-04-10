@@ -66,7 +66,7 @@ interface SendMessageParams {
     caption?: string
   }
   interactive?: {
-    type: 'cta_url' | 'button' | 'list'
+    type: 'cta_url' | 'button' | 'list' | 'carousel'
     header?: {
       type: 'text' | 'image' | 'video' | 'document'
       text?: string
@@ -100,6 +100,33 @@ interface SendMessageParams {
           title: string
           description?: string
         }>
+      }>
+      cards?: Array<{
+        card_index: number
+        type: 'cta_url'
+        header: {
+          type: 'image' | 'video'
+          image?: { link: string }
+          video?: { link: string }
+        }
+        body?: { text: string }
+        action:
+          | {
+              name: 'cta_url'
+              parameters: {
+                display_text: string
+                url: string
+              }
+            }
+          | {
+              buttons: Array<{
+                type: 'quick_reply'
+                quick_reply: {
+                  id: string
+                  title: string
+                }
+              }>
+            }
       }>
     }
   }

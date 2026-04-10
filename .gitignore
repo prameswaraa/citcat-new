@@ -43,6 +43,9 @@ coverage/
 **/__tests__/
 **/*.test.ts
 **/*.spec.ts
+!apps/backend/src/**/*.test.ts
+!apps/frontend/src/**/*.test.ts
+!apps/frontend/src/**/*.test.tsx
 
 # ========================
 # Logs

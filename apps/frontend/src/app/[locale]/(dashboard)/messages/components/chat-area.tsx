@@ -16,6 +16,7 @@ interface ChatAreaProps {
     onSendCta: (data: any) => Promise<any>
     onSendReplyButtons: (data: any) => Promise<any>
     onSendListMessage: (data: any) => Promise<any>
+    onSendCarousel?: (data: any) => Promise<any>
     onSendMedia: (file: File, caption?: string) => Promise<any>
     onSendReaction?: (messageId: string, emoji: string) => Promise<any>
     sending: boolean
@@ -35,6 +36,7 @@ export function ChatArea({
     onSendCta,
     onSendReplyButtons,
     onSendListMessage,
+    onSendCarousel,
     onSendMedia,
     onSendReaction,
     sending,
@@ -109,6 +111,7 @@ export function ChatArea({
                     onSendCta={onSendCta}
                     onSendReplyButtons={onSendReplyButtons}
                     onSendListMessage={onSendListMessage}
+                    onSendCarousel={onSendCarousel}
                     onSendMedia={onSendMedia}
                     sending={sending}
                     uploading={uploading}

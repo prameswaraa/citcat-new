@@ -107,7 +107,234 @@ function dbTemplateToWhatsAppTemplate(dbTemplate: {
 // WhatsApp Business API limit for text messages
 const WHATSAPP_TEXT_MAX_LENGTH = 4096
 
-const sendMessageSchema = z.object({
+const ctaUrlInteractiveSchema = z.object({
+  type: z.literal('cta_url'),
+  header: z.any().optional(),
+  body: z.object({ text: z.string() }).optional(),
+  footer: z.object({ text: z.string() }).optional(),
+  action: z.object({
+    name: z.string(),
+    parameters: z.object({
+      display_text: z.string(),
+      url: z.string(),
+    }),
+  }),
+})
+
+const buttonInteractiveSchema = z.object({
+  type: z.literal('button'),
+  header: z.any().optional(),
+  body: z.object({ text: z.string() }).optional(),
+  footer: z.object({ text: z.string() }).optional(),
+  action: z.object({
+    buttons: z.array(z.object({
+      type: z.literal('reply'),
+      reply: z.object({
+        id: z.string(),
+        title: z.string(),
+      }),
+    })).max(3),
+  }),
+})
+
+const listInteractiveSchema = z.object({
+  type: z.literal('list'),
+  header: z.any().optional(),
+  body: z.object({ text: z.string() }).optional(),
+  footer: z.object({ text: z.string() }).optional(),
+  action: z.object({
+    button: z.string().max(20),
+    sections: z.array(z.object({
+      title: z.string().max(24).optional(),
+      rows: z.array(z.object({
+        id: z.string().max(200),
+        title: z.string().max(24),
+        description: z.string().max(72).optional(),
+      })).min(1).max(10),
+    })).min(1).max(10),
+  }),
+})
+
+const carouselCardUrlActionSchema = z.object({
+  name: z.literal('cta_url'),
+  parameters: z.object({
+    display_text: z.string().max(20),
+    url: z.string().url(),
+  }),
+})
+
+const carouselCardQuickReplyActionSchema = z.object({
+  buttons: z.array(z.object({
+    type: z.literal('quick_reply'),
+    quick_reply: z.object({
+      id: z.string().max(256),
+      title: z.string().max(20),
+    }),
+  })).min(1).max(3),
+})
+
+const carouselCardSchema = z.object({
+  card_index: z.number().int().min(0),
+  type: z.literal('cta_url'),
+  header: z.object({
+    type: z.enum(['image', 'video']),
+    image: z.object({ link: z.string().url() }).optional(),
+    video: z.object({ link: z.string().url() }).optional(),
+  }).superRefine((header, ctx) => {
+    if (header.type === 'image') {
+      if (!header.image) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'image header requires image media',
+          path: ['image'],
+        })
+      }
+
+      if (header.video) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'image header cannot include video media',
+          path: ['video'],
+        })
+      }
+    }
+
+    if (header.type === 'video') {
+      if (!header.video) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'video header requires video media',
+          path: ['video'],
+        })
+      }
+
+      if (header.image) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'video header cannot include image media',
+          path: ['image'],
+        })
+      }
+    }
+  }),
+  body: z.object({ text: z.string().max(160) }).optional(),
+  action: z.union([carouselCardUrlActionSchema, carouselCardQuickReplyActionSchema]),
+})
+
+const carouselInteractiveSchema = z.object({
+  type: z.literal('carousel'),
+  body: z.object({ text: z.string().max(1024) }),
+  action: z.object({
+    cards: z.array(carouselCardSchema).min(2).max(10),
+  }),
+}).strict().superRefine((interactive, ctx) => {
+  const [firstCard, ...otherCards] = interactive.action.cards
+
+  if (!firstCard) {
+    return
+  }
+
+  const firstActionShape = 'name' in firstCard.action ? 'cta_url' : 'quick_reply'
+  const firstQuickReplyCount = 'buttons' in firstCard.action ? firstCard.action.buttons.length : null
+
+  otherCards.forEach((card, index) => {
+    const cardActionShape = 'name' in card.action ? 'cta_url' : 'quick_reply'
+    const cardPath = ['action', 'cards', index + 1, 'action']
+
+    if (cardActionShape !== firstActionShape) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'all carousel cards must use the same action shape',
+        path: cardPath,
+      })
+    }
+
+    if (
+      firstActionShape === 'quick_reply' &&
+      'buttons' in card.action &&
+      firstQuickReplyCount !== null &&
+      card.action.buttons.length !== firstQuickReplyCount
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'all quick reply carousel cards must have the same number of buttons',
+        path: [...cardPath, 'buttons'],
+      })
+    }
+  })
+})
+
+export const whatsappInteractiveSchema = z.union([
+  ctaUrlInteractiveSchema,
+  buttonInteractiveSchema,
+  listInteractiveSchema,
+  carouselInteractiveSchema,
+])
+
+export function validateWhatsAppInteractiveForSend(interactive: unknown) {
+  return whatsappInteractiveSchema.safeParse(interactive)
+}
+
+export function formatWhatsAppInteractiveForHistory(interactive: unknown): { content: string; mediaUrl: string | null } {
+  const result = validateWhatsAppInteractiveForSend(interactive)
+
+  if (!result.success) {
+    return {
+      content: 'Interactive Message',
+      mediaUrl: null,
+    }
+  }
+
+  const data = result.data
+
+  if (data.type === 'carousel') {
+    const cardsSummary = data.action.cards
+      .map((card) => `- Card ${card.card_index + 1}: ${card.body?.text || '[media only]'}`)
+      .join('\n')
+
+    const firstCard = data.action.cards[0]
+    const mediaUrl = firstCard && 'name' in firstCard.action
+      ? firstCard.action.parameters.url
+      : null
+
+    return {
+      content: `${data.body.text || 'Carousel Message'}\n🎠 Carousel\n${cardsSummary}`,
+      mediaUrl,
+    }
+  }
+
+  if (data.type === 'cta_url') {
+    const label = data.action.parameters.display_text
+    const url = data.action.parameters.url
+
+    return {
+      content: `${data.body?.text || 'Interactive Message'}\n[${label}](${url})`,
+      mediaUrl: url,
+    }
+  }
+
+  if (data.type === 'button') {
+    return {
+      content: `${data.body?.text || 'Interactive Message'}\n${data.action.buttons.map((button) => `[${button.reply.title}]`).join(' ')}`,
+      mediaUrl: null,
+    }
+  }
+
+  const sectionsSummary = data.action.sections
+    .flatMap((section) => [
+      section.title ? `• ${section.title}` : null,
+      ...section.rows.map((row) => `  - ${row.title}`),
+    ])
+    .filter((line): line is string => Boolean(line))
+    .join('\n')
+
+  return {
+    content: `${data.body?.text || 'Interactive Message'}\n📋 [${data.action.button || 'View Options'}]${sectionsSummary ? `\n${sectionsSummary}` : ''}`,
+    mediaUrl: null,
+  }
+}
+
+export const sendMessageSchema = z.object({
   userId: z.string().optional(), // Optional - will use effectiveUserId if not provided
   customerId: z.string().optional(),
   phoneNumber: z.string().optional(),
@@ -138,38 +365,7 @@ const sendMessageSchema = z.object({
     filename: z.string().optional(),
     caption: z.string().optional()
   }).optional(),
-  interactive: z.object({
-    type: z.enum(['cta_url', 'button', 'list']),
-    header: z.any().optional(),
-    body: z.object({ text: z.string() }).optional(),
-    footer: z.object({ text: z.string() }).optional(),
-    action: z.object({
-      // For cta_url
-      name: z.string().optional(),
-      parameters: z.object({
-        display_text: z.string(),
-        url: z.string()
-      }).optional(),
-      // For button (reply buttons)
-      buttons: z.array(z.object({
-        type: z.literal('reply'),
-        reply: z.object({
-          id: z.string(),
-          title: z.string()
-        })
-      })).max(3).optional(),
-      // For list message
-      button: z.string().max(20).optional(), // Button text to open list
-      sections: z.array(z.object({
-        title: z.string().max(24).optional(),
-        rows: z.array(z.object({
-          id: z.string().max(200),
-          title: z.string().max(24),
-          description: z.string().max(72).optional()
-        })).min(1).max(10)
-      })).max(10).optional()
-    })
-  }).optional()
+  interactive: whatsappInteractiveSchema.optional()
 })
 
 // POST /api/v1/messages/send - Send message
@@ -540,30 +736,23 @@ app.post('/send', async (c: Context) => {
     } else if (whatsappData.type === 'document' && whatsappData.document?.id) {
       delete whatsappData.document.link
     } else if (whatsappData.type === 'interactive' && whatsappData.interactive) {
+      const interactiveValidation = validateWhatsAppInteractiveForSend(whatsappData.interactive)
+
+      if (!interactiveValidation.success) {
+        return c.json({
+          error: {
+            code: 'ValidationError',
+            message: interactiveValidation.error.issues[0]?.message || 'Invalid interactive payload',
+            details: interactiveValidation.error.issues,
+          }
+        }, 400)
+      }
+
+      whatsappData.interactive = interactiveValidation.data
+
       // Debug: Log interactive payload for list messages
       if (whatsappData.interactive.type === 'list') {
         console.log('📋 List Message Payload:', JSON.stringify(whatsappData.interactive, null, 2))
-        
-        // Validate list message requirements
-        if (!whatsappData.interactive.action?.button) {
-          return c.json({
-            error: {
-              code: 'ValidationError',
-              message: 'Button text is required for list messages',
-              recoveryAction: 'Please provide a button text (max 20 characters)'
-            }
-          }, 400)
-        }
-        
-        if (!whatsappData.interactive.action?.sections?.length) {
-          return c.json({
-            error: {
-              code: 'ValidationError',
-              message: 'At least one section is required for list messages',
-              recoveryAction: 'Please add at least one section with rows'
-            }
-          }, 400)
-        }
       }
     }
 
@@ -586,10 +775,7 @@ app.post('/send', async (c: Context) => {
     } else if (data.type === 'document') {
       mediaUrl = data.document?.link || data.document?.id
     } else if (data.type === 'interactive') {
-      // Maybe store button link?
-      if (data.interactive?.action?.parameters?.url) {
-        mediaUrl = data.interactive.action.parameters.url;
-      }
+      mediaUrl = formatWhatsAppInteractiveForHistory(data.interactive).mediaUrl
     }
 
     // Extract content
@@ -601,36 +787,7 @@ app.post('/send', async (c: Context) => {
     } else if (data.document?.caption) {
       content = data.document.caption
     } else if (data.type === 'interactive') {
-      const bodyText = data.interactive?.body?.text || 'Interactive Message';
-
-      // Append button info for visibility in chat history
-      let buttonsText = '';
-      if (data.interactive?.type === 'cta_url') {
-        const label = data.interactive.action?.parameters?.display_text;
-        const url = data.interactive.action?.parameters?.url;
-        if (label) buttonsText += `\n[${label}](${url})`;
-      } else if (data.interactive?.type === 'button' && data.interactive.action?.buttons) {
-        buttonsText = '\n' + data.interactive.action.buttons
-          .map((b: any) => `[${b.reply.title}]`)
-          .join(' ');
-      } else if (data.interactive?.type === 'list' && data.interactive.action?.sections) {
-        // Format list message for chat history
-        const buttonLabel = data.interactive.action?.button || 'View Options';
-        buttonsText = `\n📋 [${buttonLabel}]`;
-        
-        // Add sections summary
-        const sections = data.interactive.action.sections;
-        sections.forEach((section: any) => {
-          if (section.title) {
-            buttonsText += `\n• ${section.title}`;
-          }
-          section.rows?.forEach((row: any) => {
-            buttonsText += `\n  - ${row.title}`;
-          });
-        });
-      }
-
-      content = bodyText + buttonsText;
+      content = formatWhatsAppInteractiveForHistory(data.interactive).content
     } else if (data.type === 'template' && renderedContent) {
       // Use rendered content for template messages with variables (Requirement 4.4)
       content = renderedContent

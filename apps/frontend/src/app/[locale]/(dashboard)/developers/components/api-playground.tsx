@@ -236,6 +236,160 @@ const endpoints: Endpoint[] = [
     ),
   },
   {
+    id: "send-carousel-url",
+    method: "POST",
+    path: "/api/v1/public/messages/send",
+    label: "Send WhatsApp Carousel URL",
+    defaultBody: JSON.stringify(
+      {
+        phone_number: "628123456789",
+        channel: "whatsapp",
+        message_type: "interactive",
+        whatsapp_phone_number_id: "",
+        interactive: {
+          type: "carousel",
+          body: {
+            text: "Featured products",
+          },
+          action: {
+            cards: [
+              {
+                card_index: 0,
+                type: "cta_url",
+                header: {
+                  type: "image",
+                  image: {
+                    link: "https://example.com/card-1.jpg",
+                  },
+                },
+                body: {
+                  text: "Card 1 description",
+                },
+                action: {
+                  name: "cta_url",
+                  parameters: {
+                    display_text: "Open Card 1",
+                    url: "https://example.com/card-1",
+                  },
+                },
+              },
+              {
+                card_index: 1,
+                type: "cta_url",
+                header: {
+                  type: "video",
+                  video: {
+                    link: "https://example.com/card-2.mp4",
+                  },
+                },
+                body: {
+                  text: "Card 2 description",
+                },
+                action: {
+                  name: "cta_url",
+                  parameters: {
+                    display_text: "Open Card 2",
+                    url: "https://example.com/card-2",
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    id: "send-carousel-quick-reply",
+    method: "POST",
+    path: "/api/v1/public/messages/send",
+    label: "Send WhatsApp Carousel Quick Reply",
+    defaultBody: JSON.stringify(
+      {
+        phone_number: "628123456789",
+        channel: "whatsapp",
+        message_type: "interactive",
+        whatsapp_phone_number_id: "",
+        interactive: {
+          type: "carousel",
+          body: {
+            text: "Choose a product",
+          },
+          action: {
+            cards: [
+              {
+                card_index: 0,
+                type: "cta_url",
+                header: {
+                  type: "image",
+                  image: {
+                    link: "https://example.com/card-a.jpg",
+                  },
+                },
+                body: {
+                  text: "Card A",
+                },
+                action: {
+                  buttons: [
+                    {
+                      type: "quick_reply",
+                      quick_reply: {
+                        id: "card-a-buy",
+                        title: "Buy",
+                      },
+                    },
+                    {
+                      type: "quick_reply",
+                      quick_reply: {
+                        id: "card-a-later",
+                        title: "Later",
+                      },
+                    },
+                  ],
+                },
+              },
+              {
+                card_index: 1,
+                type: "cta_url",
+                header: {
+                  type: "video",
+                  video: {
+                    link: "https://example.com/card-b.mp4",
+                  },
+                },
+                body: {
+                  text: "Card B",
+                },
+                action: {
+                  buttons: [
+                    {
+                      type: "quick_reply",
+                      quick_reply: {
+                        id: "card-b-buy",
+                        title: "Buy",
+                      },
+                    },
+                    {
+                      type: "quick_reply",
+                      quick_reply: {
+                        id: "card-b-later",
+                        title: "Later",
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
     id: "typing-indicator",
     method: "POST",
     path: "/api/v1/public/conversations/628123456789/typing",

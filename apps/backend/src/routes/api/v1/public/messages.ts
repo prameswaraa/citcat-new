@@ -168,7 +168,118 @@ const listActionSchema = z.object({
   }),
 });
 
-const interactiveSchema = z.union([ctaUrlActionSchema, buttonActionSchema, listActionSchema]);
+const carouselCardUrlActionSchema = z.object({
+  name: z.literal('cta_url'),
+  parameters: z.object({
+    display_text: z.string().max(20),
+    url: z.string().url(),
+  }),
+});
+
+const carouselCardQuickReplyButtonSchema = z.object({
+  type: z.literal('quick_reply'),
+  quick_reply: z.object({
+    id: z.string().max(256),
+    title: z.string().max(20),
+  }),
+});
+
+const carouselCardQuickReplyActionSchema = z.object({
+  buttons: z.array(carouselCardQuickReplyButtonSchema).min(1).max(3),
+});
+
+const carouselCardSchema = z.object({
+  card_index: z.number().int().min(0),
+  type: z.literal('cta_url'),
+  header: z.object({
+    type: z.enum(['image', 'video']),
+    image: z.object({ link: z.string().url() }).optional(),
+    video: z.object({ link: z.string().url() }).optional(),
+  }).superRefine((header, ctx) => {
+    if (header.type === 'image') {
+      if (!header.image) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'image header requires image media',
+          path: ['image'],
+        });
+      }
+
+      if (header.video) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'image header cannot include video media',
+          path: ['video'],
+        });
+      }
+    }
+
+    if (header.type === 'video') {
+      if (!header.video) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'video header requires video media',
+          path: ['video'],
+        });
+      }
+
+      if (header.image) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'video header cannot include image media',
+          path: ['image'],
+        });
+      }
+    }
+  }),
+  body: z.object({ text: z.string().max(160) }).optional(),
+  action: z.union([carouselCardUrlActionSchema, carouselCardQuickReplyActionSchema]),
+});
+
+const carouselActionSchema = z.object({
+  type: z.literal('carousel'),
+  body: z.object({ text: z.string().max(1024) }),
+  action: z.object({
+    cards: z.array(carouselCardSchema).min(2).max(10),
+  }),
+}).superRefine((interactive, ctx) => {
+  const [firstCard, ...otherCards] = interactive.action.cards;
+
+  if (!firstCard) {
+    return;
+  }
+
+  const firstActionShape = 'name' in firstCard.action ? 'cta_url' : 'quick_reply';
+  const firstQuickReplyCount = 'buttons' in firstCard.action ? firstCard.action.buttons.length : null;
+
+  otherCards.forEach((card, index) => {
+    const cardActionShape = 'name' in card.action ? 'cta_url' : 'quick_reply';
+    const cardPath = ['action', 'cards', index + 1, 'action'];
+
+    if (cardActionShape !== firstActionShape) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'all carousel cards must use the same action shape',
+        path: cardPath,
+      });
+    }
+
+    if (
+      firstActionShape === 'quick_reply' &&
+      'buttons' in card.action &&
+      firstQuickReplyCount !== null &&
+      card.action.buttons.length !== firstQuickReplyCount
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'all quick reply carousel cards must have the same number of buttons',
+        path: [...cardPath, 'buttons'],
+      });
+    }
+  });
+});
+
+export const interactiveSchema = z.union([ctaUrlActionSchema, buttonActionSchema, listActionSchema, carouselActionSchema]);
 
 // Validation schema for send message
 const sendMessageSchema = z.object({

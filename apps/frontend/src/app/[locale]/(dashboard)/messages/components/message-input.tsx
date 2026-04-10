@@ -11,6 +11,7 @@ import {
     Link,
     List,
     ListOrdered,
+    PanelsTopLeft,
     X,
     FileIcon,
     AlertCircle,
@@ -35,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import type { WindowStatus } from "@/lib/window-utils"
 
 // WhatsApp Business API limit for text messages
@@ -47,6 +49,51 @@ interface VariableInfo {
     label: string
     type: 'body' | 'header_media' | 'button' | 'copy_code'
     placeholder: string
+}
+
+type CarouselMode = "url" | "quick_reply"
+
+type CarouselCardForm = {
+    mediaType: "image" | "video"
+    mediaUrl: string
+    bodyText: string
+    buttonLabel: string
+    buttonUrl: string
+}
+
+type CarouselSharedButtonForm = {
+    title: string
+}
+
+type CarouselSubmitCard = {
+    mediaType: "image" | "video"
+    mediaUrl: string
+    bodyText?: string
+    buttonLabel?: string
+    buttonUrl?: string
+    buttons?: Array<{
+        id: string
+        title: string
+    }>
+}
+
+function createEmptyCarouselCard(): CarouselCardForm {
+    return {
+        mediaType: "image",
+        mediaUrl: "",
+        bodyText: "",
+        buttonLabel: "",
+        buttonUrl: "",
+    }
+}
+
+function createDefaultCarouselForm() {
+    return {
+        bodyText: "",
+        mode: "url" as CarouselMode,
+        cards: [createEmptyCarouselCard(), createEmptyCarouselCard()],
+        sharedButtons: [{ title: "" }, { title: "" }] as CarouselSharedButtonForm[],
+    }
 }
 
 function extractTemplateVariables(template: any): VariableInfo[] {
@@ -219,6 +266,7 @@ interface MessageInputProps {
     onSendCta: (data: any) => Promise<any>
     onSendReplyButtons: (data: any) => Promise<any>
     onSendListMessage: (data: any) => Promise<any>
+    onSendCarousel?: (data: { bodyText: string; cards: CarouselSubmitCard[] }) => Promise<any>
     onSendMedia: (file: File, caption?: string) => Promise<any>
     sending: boolean
     uploading: boolean
@@ -237,6 +285,7 @@ export function MessageInput({
     onSendCta,
     onSendReplyButtons,
     onSendListMessage,
+    onSendCarousel,
     onSendMedia,
     sending,
     uploading,
@@ -252,6 +301,7 @@ export function MessageInput({
     const [showCtaDialog, setShowCtaDialog] = useState(false)
     const [showReplyDialog, setShowReplyDialog] = useState(false)
     const [showListDialog, setShowListDialog] = useState(false)
+    const [showCarouselDialog, setShowCarouselDialog] = useState(false)
     const [showVariableDialog, setShowVariableDialog] = useState(false)
     const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
     const [variableValues, setVariableValues] = useState<Record<string, string>>({})
@@ -332,6 +382,8 @@ export function MessageInput({
         }]
     })
 
+    const [carouselForm, setCarouselForm] = useState(createDefaultCarouselForm())
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault()
         if (selectedFile) {
@@ -381,6 +433,82 @@ export function MessageInput({
         setFilePreview(null)
         if (fileInputRef.current) {
             fileInputRef.current.value = ""
+        }
+    }
+
+    const resetCarouselForm = () => {
+        setCarouselForm(createDefaultCarouselForm())
+    }
+
+    const trimmedSharedButtons = carouselForm.sharedButtons
+        .map(button => button.title.trim())
+        .filter(Boolean)
+
+    const isCarouselValid = Boolean(
+        carouselForm.bodyText.trim() &&
+        carouselForm.cards.length >= 2 &&
+        carouselForm.cards.length <= 10 &&
+        carouselForm.cards.every(card => {
+            if (!card.mediaUrl.trim()) {
+                return false
+            }
+
+            if (carouselForm.mode === "quick_reply") {
+                return trimmedSharedButtons.length >= 1 && trimmedSharedButtons.length <= 3
+            }
+
+            return Boolean(card.buttonLabel.trim() && card.buttonUrl.trim())
+        })
+    )
+
+    const handleCarouselDialogChange = (open: boolean) => {
+        setShowCarouselDialog(open)
+
+        if (!open) {
+            resetCarouselForm()
+        }
+    }
+
+    const handleCarouselSubmit = async () => {
+        if (!isCarouselValid) {
+            return
+        }
+
+        const cards: CarouselSubmitCard[] = carouselForm.cards.map((card, cardIndex) => {
+            const baseCard: CarouselSubmitCard = {
+                mediaType: card.mediaType,
+                mediaUrl: card.mediaUrl.trim(),
+                bodyText: card.bodyText.trim(),
+            }
+
+            if (carouselForm.mode === "quick_reply") {
+                return {
+                    ...baseCard,
+                    buttons: trimmedSharedButtons.map((title, buttonIndex) => ({
+                        id: `card-${cardIndex + 1}-button-${buttonIndex + 1}`,
+                        title,
+                    })),
+                }
+            }
+
+            return {
+                ...baseCard,
+                buttonLabel: card.buttonLabel.trim(),
+                buttonUrl: card.buttonUrl.trim(),
+            }
+        })
+
+        if (!onSendCarousel) {
+            return
+        }
+
+        const result = await onSendCarousel({
+            bodyText: carouselForm.bodyText.trim(),
+            cards,
+        })
+
+        if (result === true) {
+            handleCarouselDialogChange(false)
         }
     }
 
@@ -471,6 +599,7 @@ export function MessageInput({
                             type="button"
                             variant="ghost"
                             size="icon"
+                            aria-label="Attachments"
                             className="flex-shrink-0 text-muted-foreground hover:text-foreground"
                             disabled={!windowStatus?.isActive && windowStatus !== null}
                         >
@@ -498,6 +627,12 @@ export function MessageInput({
                                     <ListOrdered className="mr-2 h-4 w-4" />
                                     <span>List Message</span>
                                 </DropdownMenuItem>
+                                {onSendCarousel && (
+                                    <DropdownMenuItem onClick={() => setShowCarouselDialog(true)}>
+                                        <PanelsTopLeft className="mr-2 h-4 w-4" />
+                                        <span>Carousel Message</span>
+                                    </DropdownMenuItem>
+                                )}
                                 <DropdownMenuSeparator />
                             </>
                         )}
@@ -912,6 +1047,229 @@ export function MessageInput({
                             onSendReplyButtons(replyForm)
                             setShowReplyDialog(false)
                         }} disabled={sending}>Send Message</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Carousel Dialog */}
+            <Dialog open={showCarouselDialog} onOpenChange={handleCarouselDialogChange}>
+                <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Send Carousel Message</DialogTitle>
+                        <DialogDescription>
+                            Build a WhatsApp carousel with 2 to 10 cards.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-5 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="carousel-body-text">Carousel Body Text</Label>
+                            <Textarea
+                                id="carousel-body-text"
+                                placeholder="Enter carousel body text..."
+                                value={carouselForm.bodyText}
+                                onChange={e => setCarouselForm({ ...carouselForm, bodyText: e.target.value })}
+                            />
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label>Button Mode</Label>
+                            <RadioGroup
+                                value={carouselForm.mode}
+                                onValueChange={(value) => setCarouselForm({
+                                    ...carouselForm,
+                                    mode: value as CarouselMode,
+                                })}
+                                className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+                            >
+                                <Label htmlFor="carousel-mode-url" className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
+                                    <RadioGroupItem value="url" id="carousel-mode-url" />
+                                    <div>
+                                        <div className="font-medium">URL</div>
+                                        <div className="text-sm text-muted-foreground">Each card gets its own link button.</div>
+                                    </div>
+                                </Label>
+                                <Label htmlFor="carousel-mode-quick-reply" className="flex items-center gap-3 rounded-lg border p-3 cursor-pointer">
+                                    <RadioGroupItem value="quick_reply" id="carousel-mode-quick-reply" />
+                                    <div>
+                                        <div className="font-medium">Quick Reply</div>
+                                        <div className="text-sm text-muted-foreground">All cards share the same quick reply buttons.</div>
+                                    </div>
+                                </Label>
+                            </RadioGroup>
+                        </div>
+
+                        {carouselForm.mode === "quick_reply" && (
+                            <div className="space-y-3 rounded-lg border bg-muted/20 p-4">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-base font-semibold">Shared Quick Reply Buttons</Label>
+                                    {carouselForm.sharedButtons.length < 3 && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setCarouselForm({
+                                                ...carouselForm,
+                                                sharedButtons: [...carouselForm.sharedButtons, { title: "" }],
+                                            })}
+                                        >
+                                            <Plus className="mr-2 h-4 w-4" /> Add Button
+                                        </Button>
+                                    )}
+                                </div>
+                                {carouselForm.sharedButtons.map((button, buttonIndex) => (
+                                    <div key={buttonIndex} className="flex items-center gap-2">
+                                        <div className="flex-1 space-y-2">
+                                            <Label htmlFor={`carousel-shared-button-${buttonIndex}`}>Shared Button {buttonIndex + 1} Title</Label>
+                                            <Input
+                                                id={`carousel-shared-button-${buttonIndex}`}
+                                                placeholder={`Button ${buttonIndex + 1}`}
+                                                value={button.title}
+                                                onChange={e => {
+                                                    const sharedButtons = [...carouselForm.sharedButtons]
+                                                    sharedButtons[buttonIndex].title = e.target.value
+                                                    setCarouselForm({ ...carouselForm, sharedButtons })
+                                                }}
+                                            />
+                                        </div>
+                                        {carouselForm.sharedButtons.length > 1 && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => setCarouselForm({
+                                                    ...carouselForm,
+                                                    sharedButtons: carouselForm.sharedButtons.filter((_, index) => index !== buttonIndex),
+                                                })}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <Label className="text-base font-semibold">Cards</Label>
+                                {carouselForm.cards.length < 10 && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCarouselForm({
+                                            ...carouselForm,
+                                            cards: [...carouselForm.cards, createEmptyCarouselCard()],
+                                        })}
+                                    >
+                                        <Plus className="mr-2 h-4 w-4" /> Add Card
+                                    </Button>
+                                )}
+                            </div>
+
+                            {carouselForm.cards.map((card, cardIndex) => (
+                                <div key={cardIndex} className="space-y-4 rounded-lg border bg-muted/20 p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="font-medium">Card {cardIndex + 1}</div>
+                                        {carouselForm.cards.length > 2 && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-destructive hover:text-destructive"
+                                                onClick={() => setCarouselForm({
+                                                    ...carouselForm,
+                                                    cards: carouselForm.cards.filter((_, index) => index !== cardIndex),
+                                                })}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" /> Remove
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`carousel-card-${cardIndex}-media-type`}>Card {cardIndex + 1} Media Type</Label>
+                                            <select
+                                                id={`carousel-card-${cardIndex}-media-type`}
+                                                className="border-input bg-background flex h-9 w-full rounded-md border px-3 py-2 text-sm shadow-xs"
+                                                value={card.mediaType}
+                                                onChange={e => {
+                                                    const cards = [...carouselForm.cards]
+                                                    cards[cardIndex].mediaType = e.target.value as "image" | "video"
+                                                    setCarouselForm({ ...carouselForm, cards })
+                                                }}
+                                            >
+                                                <option value="image">image</option>
+                                                <option value="video">video</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor={`carousel-card-${cardIndex}-media-url`}>Card {cardIndex + 1} Media URL</Label>
+                                            <Input
+                                                id={`carousel-card-${cardIndex}-media-url`}
+                                                placeholder="https://example.com/media.jpg"
+                                                value={card.mediaUrl}
+                                                onChange={e => {
+                                                    const cards = [...carouselForm.cards]
+                                                    cards[cardIndex].mediaUrl = e.target.value
+                                                    setCarouselForm({ ...carouselForm, cards })
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor={`carousel-card-${cardIndex}-body-text`}>Card {cardIndex + 1} Body Text</Label>
+                                        <Textarea
+                                            id={`carousel-card-${cardIndex}-body-text`}
+                                            placeholder="Optional card body"
+                                            value={card.bodyText}
+                                            onChange={e => {
+                                                const cards = [...carouselForm.cards]
+                                                cards[cardIndex].bodyText = e.target.value
+                                                setCarouselForm({ ...carouselForm, cards })
+                                            }}
+                                        />
+                                    </div>
+
+                                    {carouselForm.mode === "url" && (
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`carousel-card-${cardIndex}-button-label`}>Card {cardIndex + 1} Button Label</Label>
+                                                <Input
+                                                    id={`carousel-card-${cardIndex}-button-label`}
+                                                    placeholder="Open card"
+                                                    value={card.buttonLabel}
+                                                    onChange={e => {
+                                                        const cards = [...carouselForm.cards]
+                                                        cards[cardIndex].buttonLabel = e.target.value
+                                                        setCarouselForm({ ...carouselForm, cards })
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor={`carousel-card-${cardIndex}-button-url`}>Card {cardIndex + 1} Button URL</Label>
+                                                <Input
+                                                    id={`carousel-card-${cardIndex}-button-url`}
+                                                    placeholder="https://example.com/card"
+                                                    value={card.buttonUrl}
+                                                    onChange={e => {
+                                                        const cards = [...carouselForm.cards]
+                                                        cards[cardIndex].buttonUrl = e.target.value
+                                                        setCarouselForm({ ...carouselForm, cards })
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => handleCarouselDialogChange(false)}>{t('cancel')}</Button>
+                        <Button onClick={handleCarouselSubmit} disabled={sending || !isCarouselValid}>Send Carousel Message</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -417,6 +417,89 @@ export function MessageList({
                                             </div>
                                         </div>
                                     )}
+                                    {msg.interactive?.type === "carousel" && msg.interactive?.action?.cards && (
+                                        <div className="space-y-3 pt-1 border-t border-white/20">
+                                            {msg.interactive.action.cards.map((card: any, index: number) => {
+                                                const cardMediaUrl = card.header?.type === "image"
+                                                    ? card.header?.image?.link || card.header?.image?.id
+                                                    : card.header?.video?.link || card.header?.video?.id
+                                                const hasUrlAction = card.action?.name === "cta_url" && card.action?.parameters
+                                                const quickReplyButtons = Array.isArray(card.action?.buttons) ? card.action.buttons : []
+
+                                                return (
+                                                    <div
+                                                        key={card.card_index ?? index}
+                                                        className={cn(
+                                                            "space-y-2 rounded-xl border p-3",
+                                                            isOutbound
+                                                                ? "border-white/20 bg-white/10"
+                                                                : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40"
+                                                        )}
+                                                    >
+                                                        <div className={cn(
+                                                            "text-[11px] font-semibold uppercase tracking-wide",
+                                                            isOutbound ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                                        )}>
+                                                            Card {(card.card_index ?? index) + 1}
+                                                        </div>
+
+                                                        {cardMediaUrl && (
+                                                            <MediaPreview
+                                                                mediaUrl={cardMediaUrl}
+                                                                mediaType={(card.header?.type === "video" ? "video" : "image") as MediaType}
+                                                                isOutbound={isOutbound}
+                                                            />
+                                                        )}
+
+                                                        {card.body?.text && (
+                                                            <p className="text-sm whitespace-pre-wrap break-words break-all leading-relaxed">
+                                                                {card.body.text}
+                                                            </p>
+                                                        )}
+
+                                                        {hasUrlAction && (
+                                                            <div>
+                                                                <a
+                                                                    href={card.action.parameters.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className={cn(
+                                                                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium",
+                                                                        isOutbound
+                                                                            ? "bg-white/20 text-white border border-white/30 hover:bg-white/30"
+                                                                            : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800 hover:bg-blue-100"
+                                                                    )}
+                                                                >
+                                                                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                                                    </svg>
+                                                                    {card.action.parameters.display_text}
+                                                                </a>
+                                                            </div>
+                                                        )}
+
+                                                        {quickReplyButtons.length > 0 && (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {quickReplyButtons.map((button: any, buttonIndex: number) => (
+                                                                    <div
+                                                                        key={button.quick_reply?.id || buttonIndex}
+                                                                        className={cn(
+                                                                            "px-3 py-1.5 rounded-lg text-xs font-medium",
+                                                                            isOutbound
+                                                                                ? "bg-white/20 text-white border border-white/30"
+                                                                                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-600"
+                                                                        )}
+                                                                    >
+                                                                        {button.quick_reply?.title}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

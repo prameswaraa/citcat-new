@@ -4,7 +4,13 @@
  */
 
 import { useState, useCallback } from "react"
-import { messagesApi, type Message, type APIError } from "@/lib/api/messages-api"
+import {
+  messagesApi,
+  type Message,
+  type APIError,
+  type InteractiveCarouselCard,
+  type InteractiveMessage,
+} from "@/lib/api/messages-api"
 // Note: APIError is already imported above for error handling
 import { useToast } from "@/hooks/use-toast"
 import type { WindowStatus } from "@/lib/window-utils"
@@ -15,6 +21,102 @@ interface UseWhatsAppMessagingOptions {
   selectedConversation: UnifiedConversation | null
   waWindowStatus: WindowStatus | null
   loadConversations: () => Promise<void>
+}
+
+type CarouselFormCard = {
+  mediaType: "image" | "video"
+  mediaUrl: string
+  bodyText?: string
+  buttonLabel?: string
+  buttonUrl?: string
+  buttons?: Array<{
+    id: string
+    title: string
+  }>
+}
+
+type CarouselForm = {
+  bodyText: string
+  cards: CarouselFormCard[]
+}
+
+function buildCarouselCards(cards: CarouselFormCard[]): InteractiveCarouselCard[] {
+  const usesQuickReplies = Boolean(cards[0]?.buttons?.length)
+
+  return cards.map((card, index) => {
+    const baseCard: Omit<InteractiveCarouselCard, "action"> = {
+      card_index: index,
+      type: "cta_url",
+      header: {
+        type: card.mediaType,
+        ...(card.mediaType === "image"
+          ? { image: { link: card.mediaUrl } }
+          : { video: { link: card.mediaUrl } }),
+      },
+      body: card.bodyText?.trim() ? { text: card.bodyText.trim() } : undefined,
+    }
+
+    if (usesQuickReplies) {
+      return {
+        ...baseCard,
+        action: {
+          buttons: (card.buttons || []).map(button => ({
+            type: "quick_reply",
+            quick_reply: {
+              id: button.id,
+              title: button.title,
+            },
+          })),
+        },
+      }
+    }
+
+    return {
+      ...baseCard,
+      action: {
+        name: "cta_url",
+        parameters: {
+          display_text: card.buttonLabel!.trim(),
+          url: card.buttonUrl!.trim(),
+        },
+      },
+    }
+  })
+}
+
+function buildCarouselInteractive(form: CarouselForm): InteractiveMessage | null {
+  const bodyText = form.bodyText.trim()
+  const cards = form.cards || []
+
+  if (!bodyText || cards.length < 2) {
+    return null
+  }
+
+  const usesQuickReplies = Boolean(cards[0]?.buttons?.length)
+
+  const isValid = cards.every(card => {
+    if (!card.mediaUrl?.trim()) {
+      return false
+    }
+
+    if (usesQuickReplies) {
+      return Boolean(card.buttons?.length && card.buttons.every(button => button.id?.trim() && button.title?.trim()))
+    }
+
+    return Boolean(card.buttonLabel?.trim() && card.buttonUrl?.trim())
+  })
+
+  if (!isValid) {
+    return null
+  }
+
+  return {
+    type: "carousel",
+    body: { text: bodyText },
+    action: {
+      cards: buildCarouselCards(cards),
+    },
+  }
 }
 
 export function useWhatsAppMessaging({
@@ -919,6 +1021,110 @@ export function useWhatsAppMessaging({
     }
   }, [selectedConversation, waWindowStatus, userId, toast])
 
+  const sendWhatsAppCarousel = useCallback(async (carouselForm: CarouselForm) => {
+    if (!selectedConversation || selectedConversation.channel !== "whatsapp") return false
+
+    if (!waWindowStatus?.isActive) {
+      toast({
+        variant: "destructive",
+        title: "Window Expired",
+        description: "24-hour window expired. Please use a message template.",
+      })
+      return "WINDOW_EXPIRED"
+    }
+
+    const interactivePayload = buildCarouselInteractive(carouselForm)
+
+    if (!interactivePayload) {
+      return false
+    }
+
+    const customer = selectedConversation.originalData as Customer
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+    const optimisticMessage: Message = {
+      id: tempId,
+      waMessageId: undefined,
+      userId: userId!,
+      customerId: customer.id,
+      direction: "OUTBOUND",
+      type: "interactive",
+      content: interactivePayload.body?.text || "Carousel Message",
+      status: "PENDING",
+      timestamp: new Date().toISOString(),
+      customer: {
+        id: customer.id,
+        phoneNumber: customer.phoneNumber,
+        name: customer.name,
+      },
+      interactive: interactivePayload,
+    }
+
+    setWaMessages(prev => [...prev, optimisticMessage])
+
+    try {
+      setSending(true)
+
+      const response = await messagesApi.sendMessage({
+        userId: userId!,
+        customerId: customer.id,
+        phoneNumber: customer.phoneNumber,
+        type: "interactive",
+        interactive: interactivePayload,
+      })
+
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              id: response.id || tempId,
+              waMessageId: response.waMessageId,
+              status: "SENT",
+            }
+          : msg
+      ))
+
+      return true
+    } catch (error: any) {
+      console.error("Failed to send carousel:", error)
+      const apiError = error as APIError
+      const errorMessage = apiError.message || "Failed to send carousel"
+
+      setWaMessages(prev => prev.map(msg =>
+        msg.id === tempId
+          ? {
+              ...msg,
+              status: "FAILED",
+              errorMessage,
+              errorCode: apiError.code,
+            }
+          : msg
+      ))
+
+      if (error.message?.toLowerCase().includes("window") || apiError.code === "WindowExpired") {
+        toast({
+          variant: "destructive",
+          title: "Window Expired",
+          description: "24-hour window expired. Use a template instead.",
+        })
+        return "WINDOW_EXPIRED"
+      }
+
+      const toastDescription = apiError.recoveryAction
+        ? `${errorMessage}\n\n💡 ${apiError.recoveryAction}`
+        : errorMessage
+
+      toast({
+        variant: "destructive",
+        title: apiError.code || "Error",
+        description: toastDescription,
+      })
+      return false
+    } finally {
+      setSending(false)
+    }
+  }, [selectedConversation, waWindowStatus, userId, toast])
+
   // Retry failed message
   const retryWhatsAppMessage = useCallback(async (failedMessage: Message) => {
     if (!failedMessage || failedMessage.status !== "FAILED") return false
@@ -978,6 +1184,7 @@ export function useWhatsAppMessaging({
     sendWhatsAppCta,
     sendWhatsAppReplyButtons,
     sendWhatsAppListMessage,
+    sendWhatsAppCarousel,
     retryWhatsAppMessage,
     sendWhatsAppReaction,
   }
