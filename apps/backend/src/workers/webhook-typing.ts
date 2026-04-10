@@ -21,6 +21,12 @@ export async function runAfterWhatsAppTypingDelay<T>(
   callback: () => Promise<T>,
   delayMs = 2000
 ): Promise<T> {
+  const result = await callback()
+
+  if (!result) {
+    return result
+  }
+
   try {
     await sendWhatsAppTypingIndicator(whatsapp, phoneNumberId, messageId)
   } catch {
@@ -29,5 +35,5 @@ export async function runAfterWhatsAppTypingDelay<T>(
 
   await new Promise((resolve) => setTimeout(resolve, delayMs))
 
-  return callback()
+  return result
 }
