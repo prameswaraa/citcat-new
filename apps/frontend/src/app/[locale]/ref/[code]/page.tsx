@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: Props) {
   const { code } = await params
 
   return {
-    title: "Join via Referral - KirimChat",
-    description: `You've been invited to join KirimChat with referral code ${code}`,
+    title: "Join via Referral - Messaging Platform",
+    description: `You've been invited to join Messaging Platform with referral code ${code}`,
   }
 }

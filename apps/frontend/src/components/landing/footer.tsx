@@ -9,11 +9,11 @@ export function Footer() {
             <div className="flex aspect-square size-8 items-center justify-center rounded-lg">
               <IconMessage className="size-6 text-primary" />
             </div>
-            <span className="text-lg font-bold">{process.env.NEXT_PUBLIC_APP_NAME || "Kirim.Chat"}</span>
+            <span className="text-lg font-bold">{process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"}</span>
           </div>
 
           <p className="text-center text-sm text-muted-foreground md:text-left">
-            &copy; {new Date().getFullYear()} {process.env.NEXT_PUBLIC_APP_NAME || "Kirim.Chat"}. All rights reserved.
+            &copy; {new Date().getFullYear()} {process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"}. All rights reserved.
           </p>
 
           <div className="flex gap-4 text-sm text-muted-foreground">

@@ -24,7 +24,7 @@ import { useTranslations } from "next-intl"
 import Image from "next/image"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
-const DEFAULT_APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "KirimChat"
+const DEFAULT_APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"
 
 interface BrandingSettings {
   websiteName: string
@@ -39,10 +39,10 @@ interface BrandingSettings {
 const defaultSettings: BrandingSettings = {
   websiteName: DEFAULT_APP_NAME,
   logoUrl: "",
-  supportEmail: "support@kirim.chat",
+  supportEmail: "support@yourdomain.com",
   supportWhatsapp: "+6281295648580",
-  termsUrl: "https://kirim.chat/terms",
-  privacyUrl: "https://kirim.chat/privacy",
+  termsUrl: "https://yourdomain.com/terms",
+  privacyUrl: "https://yourdomain.com/privacy",
   n8nPackageName: "@kichat/n8n-nodes-kirimchat",
 }
 
@@ -455,11 +455,11 @@ export default function BrandingSettingsPage() {
             </Label>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href={`mailto:${settings.supportEmail || "support@kirim.chat"}`}
+                href={`mailto:${settings.supportEmail || "support@yourdomain.com"}`}
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"
               >
                 <IconMail className="h-4 w-4 text-primary" />
-                <span className="text-sm">{settings.supportEmail || "support@kirim.chat"}</span>
+                <span className="text-sm">{settings.supportEmail || "support@yourdomain.com"}</span>
               </a>
               <a
                 href={`https://wa.me/${(settings.supportWhatsapp || "+6281295648580").replace(/[^0-9]/g, "")}`}
@@ -536,7 +536,7 @@ export default function BrandingSettingsPage() {
             </Label>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href={settings.termsUrl || "https://kirim.chat/terms"}
+                href={settings.termsUrl || "https://yourdomain.com/terms"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"
@@ -545,7 +545,7 @@ export default function BrandingSettingsPage() {
                 <span className="text-sm">{t("branding.termsOfService") || "Terms of Service"}</span>
               </a>
               <a
-                href={settings.privacyUrl || "https://kirim.chat/privacy"}
+                href={settings.privacyUrl || "https://yourdomain.com/privacy"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"

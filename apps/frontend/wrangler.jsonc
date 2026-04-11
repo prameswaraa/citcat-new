@@ -16,7 +16,7 @@
 
   // Environment variables
   "vars": {
-    "NEXT_PUBLIC_API_URL": "https://api-prod.kirim.chat",
-    "NEXT_PUBLIC_APP_URL": "https://app.kirim.chat"
+    "NEXT_PUBLIC_API_URL": "https://api.yourdomain.com",
+    "NEXT_PUBLIC_APP_URL": "https://app.yourdomain.com"
   }
 }

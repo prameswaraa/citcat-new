@@ -107,7 +107,7 @@ export function AntiBannedTips() {
                   <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="font-medium text-foreground">Dokumentasikan Opt-In</p>
-                    <p className="text-sm text-muted-foreground">Simpan bukti consent di database (Kirim.Chat sudah menyediakan fitur ConsentLog untuk ini).</p>
+                    <p className="text-sm text-muted-foreground">Simpan bukti consent di database (platform ini sudah menyediakan fitur ConsentLog untuk ini).</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -158,7 +158,7 @@ export function AntiBannedTips() {
                     <p className="font-medium text-foreground">Jika Status RED</p>
                     <ul className="text-sm text-muted-foreground list-disc pl-5 space-y-1 mt-1">
                       <li>HENTIKAN SEMUA aktivitas pengiriman pesan</li>
-                      <li>Hubungi support Kirim.Chat untuk assistance</li>
+                      <li>Hubungi tim support untuk assistance</li>
                       <li>Review seluruh campaign dan konten pesan</li>
                       <li>Siapkan rencana perbaikan sebelum melanjutkan</li>
                     </ul>
@@ -247,7 +247,7 @@ export function AntiBannedTips() {
                     <p>Jika appeal ditolak, Anda mungkin perlu menggunakan nomor WhatsApp baru dengan Business Account yang berbeda.</p>
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">5. Konsultasi dengan Kirim.Chat</p>
+                    <p className="font-medium text-foreground">5. Konsultasi dengan Tim Support</p>
                     <p>Tim kami dapat membantu menganalisa masalah dan memberikan guidance untuk recovery atau setup akun baru dengan benar.</p>
                   </div>
                 </div>

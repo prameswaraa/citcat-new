@@ -220,12 +220,12 @@ export const BRANDING_SETTINGS_KEYS: SettingKeyConfig[] = [
  * Requirements: 1.5, 2.4, 2.5
  */
 export const DEFAULT_BRANDING: BrandingSettings = {
-  websiteName: 'KirimChat',
+  websiteName: 'Messaging Platform',
   logoUrl: '',
-  supportEmail: 'support@kirim.chat',
+  supportEmail: 'support@yourdomain.com',
   supportWhatsapp: '+6281295648580',
-  termsUrl: 'https://kirim.chat/terms',
-  privacyUrl: 'https://kirim.chat/privacy',
+  termsUrl: 'https://yourdomain.com/terms',
+  privacyUrl: 'https://yourdomain.com/privacy',
   n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 };
 

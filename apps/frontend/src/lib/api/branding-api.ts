@@ -17,7 +17,7 @@ export interface BrandingSettings {
 /**
  * Get default app name from environment
  */
-const getDefaultAppName = () => process.env.NEXT_PUBLIC_APP_NAME || 'KirimChat'
+const getDefaultAppName = () => process.env.NEXT_PUBLIC_APP_NAME || 'Messaging Platform'
 
 /**
  * Default branding values (uses env for app name)
@@ -25,10 +25,10 @@ const getDefaultAppName = () => process.env.NEXT_PUBLIC_APP_NAME || 'KirimChat'
 export const DEFAULT_BRANDING: BrandingSettings = {
   websiteName: getDefaultAppName(),
   logoUrl: '',
-  supportEmail: 'support@kirim.chat',
+  supportEmail: 'support@yourdomain.com',
   supportWhatsapp: '+6281295648580',
-  termsUrl: 'https://kirim.chat/terms',
-  privacyUrl: 'https://kirim.chat/privacy',
+  termsUrl: 'https://yourdomain.com/terms',
+  privacyUrl: 'https://yourdomain.com/privacy',
   n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 }
 

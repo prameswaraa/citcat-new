@@ -8,8 +8,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME || "Kirim Chat",
-  description: `${process.env.NEXT_PUBLIC_APP_NAME || "Kirim Chat"} - kelola whatsapp dan instagram mudah`,
+  title: process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform",
+  description: `${process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"} - kelola whatsapp dan instagram mudah`,
   icons: {
     icon: "/favicon.svg",
   },

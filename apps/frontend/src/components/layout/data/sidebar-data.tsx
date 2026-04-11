@@ -19,12 +19,12 @@ import { type SidebarData } from "../types"
 export const sidebarData: SidebarData = {
   user: {
     name: "User",
-    email: "user@kirim.chat",
+    email: "user@yourdomain.com",
     avatar: "/favicon.svg",
   },
   teams: [
     {
-      name: process.env.NEXT_PUBLIC_APP_NAME || "Kirim.Chat",
+      name: process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform",
       logo: ({ className }: { className: string }) => (
         <IconMessage className={className} />
       ),

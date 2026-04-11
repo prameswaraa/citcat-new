@@ -33,8 +33,8 @@ export function Header() {
 				href="/"
 			>
 				<Logo className="h-4" />
-				<span className="ml-2 font-semibold">KirimChat</span>
-				<span className="sr-only">KirimChat</span>
+				<span className="ml-2 font-semibold">{process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"}</span>
+				<span className="sr-only">{process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"}</span>
 			</a>
 
 			<NavigationMenu className="hidden md:block">

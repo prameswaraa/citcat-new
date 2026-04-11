@@ -223,7 +223,7 @@ const Hero203 = () => {
         <div className="container flex w-full flex-col justify-between px-4 md:px-10 lg:flex-row">
           <div className="flex w-full flex-col gap-8">
             <a href="#" className="text-2xl font-semibold tracking-tighter">
-              {process.env.NEXT_PUBLIC_APP_NAME || "Kirim.Chat"}
+              {process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"}
             </a>
             <h1 className="bg-re relative z-20 text-4xl font-semibold tracking-tighter md:text-6xl lg:text-8xl">
               Kelola WhatsApp Mudah.

@@ -204,7 +204,7 @@ export function useSidebarData(): SidebarData {
   return {
     user: {
       name: "User",
-      email: "user@kirim.chat",
+      email: "user@yourdomain.com",
       avatar: "/favicon.svg",
     },
     teams: [

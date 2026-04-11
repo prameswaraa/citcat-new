@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { BadgeCheck } from "lucide-react"
 // Dropdown imports preserved for future use
 // import { ChevronsUpDown, Plus } from "lucide-react"
 // import { cn } from "@/lib/utils"
@@ -43,8 +44,8 @@ export function TeamSwitcher({ teams }: Props) {
           <div className="grid flex-1 text-left text-xs leading-tight">
             <span className="truncate font-semibold flex items-center gap-1.5">
               {activeTeam.name}
-              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-violet-500 to-purple-500 px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm">
-                Beta
+              <span aria-label="Verified" className="inline-flex items-center justify-center">
+                <BadgeCheck className="size-4 text-sky-500 fill-sky-500 stroke-white stroke-[2.25]" />
               </span>
             </span>
             <span className="truncate text-xs">{activeTeam.plan}</span>

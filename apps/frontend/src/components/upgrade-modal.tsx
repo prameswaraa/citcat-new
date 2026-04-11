@@ -72,10 +72,10 @@ export function UpgradeModal({ trigger, open, onOpenChange }: UpgradeModalProps)
             Currently we accept manual bank transfers. Please transfer the amount to:
           </p>
           <div className="font-mono bg-background p-2 rounded border">
-            BCA 1234567890 a/n PT KirimChat Indonesia
+            BCA 1234567890 a/n Messaging Platform
           </div>
           <p className="text-muted-foreground text-xs">
-            After transfer, please send the proof to our support WhatsApp or email support@kirimchat.com to activate your account.
+            After transfer, please send the proof to our support WhatsApp or support email to activate your account.
           </p>
         </div>
 

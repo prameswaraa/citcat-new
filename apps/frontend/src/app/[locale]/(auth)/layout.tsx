@@ -12,7 +12,7 @@ export default async function AuthLayout({ children, params }: Props) {
 
   const t = await getTranslations({ locale, namespace: "common" })
   const subtitle = t("appSubtitle")
-  const appName = process.env.NEXT_PUBLIC_APP_NAME || "Kirim.Chat"
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"
 
   return (
     <AuthContent appName={appName} subtitle={subtitle}>
