@@ -1,6 +1,7 @@
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../utils/database.js';
+import { invalidateUserCache } from '../utils/cache.js';
 import { emailService } from './email/EmailService.js';
 import { teamService } from './team-service.js';
 import { invitationEmailTemplate } from './email/templates/index.js';
@@ -439,6 +440,10 @@ export class InvitationService {
         acceptedAt: new Date(),
       },
     });
+
+    if (!isNewUser) {
+      await invalidateUserCache(userId);
+    }
 
     return { userId, isNewUser };
   }
