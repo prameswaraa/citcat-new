@@ -118,6 +118,8 @@ export function ChatArea({
                     templates={templates}
                     windowStatus={windowStatus}
                     customerId={selectedCustomer.id}
+                    customerName={selectedCustomer.name}
+                    customerPhone={selectedCustomer.phoneNumber}
                     replyToMessage={replyToMessage}
                     onCancelReply={handleCancelReply}
                 />
