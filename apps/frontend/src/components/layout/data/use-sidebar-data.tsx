@@ -20,6 +20,7 @@ import {
   IconChartLine,
   IconTags,
   IconHeartHandshake,
+  IconBolt,
 } from "@tabler/icons-react"
 import { BrainCircuit, HelpCircle } from "lucide-react"
 import { type SidebarData, type NavItem } from "../types"
@@ -102,9 +103,10 @@ export function useSidebarData(): SidebarData {
           roles: ["BUSINESS_OWNER", "ADMIN", "AGENT"],
         },
         {
-          title: t("autoTagging"),
-          url: "/crm/auto-tagging",
-          icon: IconTags,
+          title: t("automation"),
+          url: "/automation",
+          icon: IconBolt,
+          badge: "New",
           roles: ["BUSINESS_OWNER", "ADMIN", "AGENT"],
         },
       ]),

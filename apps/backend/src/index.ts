@@ -55,6 +55,7 @@ import assignmentRoutes from './routes/assignments/index.js'
 import notificationRoutes from './routes/notifications.js'
 import conversationRoutes from './routes/conversations.js'
 import affiliateRoutes from './routes/affiliate.js'
+import quickReplyRoutes from './routes/quick-replies/index.js'
 
 // Import middleware
 import { authMiddleware } from './middleware/auth.js'
@@ -277,6 +278,10 @@ app.use('/api/v1/affiliate/referrals', authMiddleware)
 app.use('/api/v1/affiliate/earnings', authMiddleware)
 // Note: /api/v1/affiliate/validate/:code is public (no auth required)
 
+// Quick replies routes - protected
+app.use('/api/v1/quick-replies/*', authMiddleware)
+app.use('/api/v1/quick-replies', authMiddleware)
+
 // Admin routes - require both auth and admin role
 app.use('/api/v1/admin/*', authMiddleware)
 app.use('/api/v1/admin/*', adminAuthMiddleware)
@@ -308,6 +313,7 @@ app.route('/api/v1/assignments', assignmentRoutes)
 app.route('/api/v1/notifications', notificationRoutes)
 app.route('/api/v1/conversations', conversationRoutes)
 app.route('/api/v1/affiliate', affiliateRoutes)
+app.route('/api/v1/quick-replies', quickReplyRoutes)
 
 // Public branding route (no auth required - used by auth pages)
 app.route('/api/v1/branding', brandingRoutes)

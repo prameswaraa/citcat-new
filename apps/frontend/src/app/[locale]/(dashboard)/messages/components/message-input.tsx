@@ -1,8 +1,13 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useTypingIndicator } from "@/hooks/use-typing-indicator"
+import { useCachedSession } from "@/hooks/use-cached-session"
+import { useQuickReplyAutocomplete, replaceShortcutWithContent } from "@/hooks/use-quick-reply-autocomplete"
+import { QuickReplyPopover } from "@/components/messages/quick-reply-popover"
+import { QuickReplyAutocomplete } from "@/components/messages/quick-reply-autocomplete"
+import type { QuickReply } from "@/lib/api/quick-replies-api"
 import {
     Paperclip,
     Send,
@@ -273,6 +278,10 @@ interface MessageInputProps {
     templates: any[]
     windowStatus?: WindowStatus | null
     customerId?: string
+    /** Customer name for variable substitution */
+    customerName?: string
+    /** Customer phone for variable substitution */
+    customerPhone?: string
     /** Message being replied to (for quoted reply) */
     replyToMessage?: import("@/lib/api/messages-api").Message | null
     /** Cancel reply action */
@@ -292,10 +301,13 @@ export function MessageInput({
     templates,
     windowStatus,
     customerId,
+    customerName,
+    customerPhone,
     replyToMessage,
     onCancelReply
 }: MessageInputProps) {
     const t = useTranslations('common')
+    const { data: sessionData } = useCachedSession()
     const [messageText, setMessageText] = useState("")
     const [showTemplateMenu, setShowTemplateMenu] = useState(false)
     const [showCtaDialog, setShowCtaDialog] = useState(false)
@@ -312,6 +324,58 @@ export function MessageInput({
 
     // Typing indicator - sends to customer when agent types
     const { sendTyping } = useTypingIndicator(customerId, "whatsapp")
+
+    // Quick reply autocomplete - detects /shortcut pattern
+    const quickReplyAutocomplete = useQuickReplyAutocomplete({
+        inputValue: messageText,
+        enabled: windowStatus?.isActive !== false || windowStatus === null,
+    })
+
+    /**
+     * Resolve quick reply variables in content
+     * Supports: {{customer_name}}, {{customer_phone}}, {{agent_name}}
+     */
+    const resolveQuickReplyVariables = useCallback((content: string): string => {
+        let resolved = content
+        
+        // Customer variables
+        if (customerName) {
+            resolved = resolved.replace(/\{\{customer_name\}\}/g, customerName)
+        }
+        if (customerPhone) {
+            resolved = resolved.replace(/\{\{customer_phone\}\}/g, customerPhone)
+        }
+        
+        // Agent variables
+        if (sessionData?.user?.name) {
+            resolved = resolved.replace(/\{\{agent_name\}\}/g, sessionData.user.name)
+        }
+        
+        return resolved
+    }, [customerName, customerPhone, sessionData?.user?.name])
+
+    /**
+     * Handle quick reply selection from popover or autocomplete
+     */
+    const handleQuickReplySelect = useCallback((content: string) => {
+        const resolvedContent = resolveQuickReplyVariables(content)
+        setMessageText(resolvedContent)
+        quickReplyAutocomplete.reset()
+        // Focus textarea after selection
+        setTimeout(() => textareaRef.current?.focus(), 0)
+    }, [resolveQuickReplyVariables, quickReplyAutocomplete])
+
+    /**
+     * Handle quick reply selection from autocomplete dropdown
+     */
+    const handleAutocompleteSelect = useCallback((quickReply: QuickReply) => {
+        const resolvedContent = resolveQuickReplyVariables(quickReply.content)
+        const newText = replaceShortcutWithContent(messageText, resolvedContent)
+        setMessageText(newText)
+        quickReplyAutocomplete.reset()
+        // Focus textarea after selection
+        setTimeout(() => textareaRef.current?.focus(), 0)
+    }, [messageText, resolveQuickReplyVariables, quickReplyAutocomplete])
 
     // Auto-focus on textarea when conversation changes or component mounts
     useEffect(() => {
@@ -650,39 +714,87 @@ export function MessageInput({
                     onChange={handleFileSelect}
                 />
 
-                <Textarea
-                    ref={textareaRef}
-                    value={messageText}
-                    onChange={(e) => {
-                        setMessageText(e.target.value)
-                        // Send typing indicator to customer (debounced, fire-and-forget)
-                        if (e.target.value.trim()) {
-                            sendTyping()
-                        }
-                    }}
-                    onKeyDown={(e) => {
-                        // Enter without Shift sends the message
-                        if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault()
-                            if ((messageText.trim() || selectedFile) && !sending && !uploading) {
-                                handleSendMessage(e)
-                            }
-                        }
-                        // Shift+Enter allows new line (default behavior)
-                    }}
-                    placeholder={
-                        !windowStatus?.isActive && windowStatus !== null
-                            ? "Use a template to message..."
-                            : selectedFile
-                                ? "Add a caption..."
-                                : "Type a message..."
-                    }
-                    className="flex-1 min-h-[44px] max-h-[120px] resize-none py-3"
-                    rows={1}
-                    maxLength={WHATSAPP_TEXT_MAX_LENGTH}
+                {/* Quick Reply Popover Button */}
+                <QuickReplyPopover
+                    onSelect={handleQuickReplySelect}
                     disabled={sending || uploading || (!windowStatus?.isActive && windowStatus !== null)}
-                    autoFocus
                 />
+
+                {/* Textarea with Quick Reply Autocomplete */}
+                <div className="relative flex-1">
+                    {/* Quick Reply Autocomplete Dropdown */}
+                    <QuickReplyAutocomplete
+                        isOpen={quickReplyAutocomplete.isOpen}
+                        results={quickReplyAutocomplete.results}
+                        selectedIndex={quickReplyAutocomplete.selectedIndex}
+                        onSelect={handleAutocompleteSelect}
+                        isLoading={quickReplyAutocomplete.isLoading}
+                        query={quickReplyAutocomplete.query}
+                    />
+
+                    <Textarea
+                        ref={textareaRef}
+                        value={messageText}
+                        onChange={(e) => {
+                            setMessageText(e.target.value)
+                            // Send typing indicator to customer (debounced, fire-and-forget)
+                            if (e.target.value.trim()) {
+                                sendTyping()
+                            }
+                        }}
+                        onKeyDown={(e) => {
+                            // Handle quick reply autocomplete navigation
+                            if (quickReplyAutocomplete.isOpen && quickReplyAutocomplete.results.length > 0) {
+                                if (e.key === "ArrowUp") {
+                                    e.preventDefault()
+                                    quickReplyAutocomplete.moveUp()
+                                    return
+                                }
+                                if (e.key === "ArrowDown") {
+                                    e.preventDefault()
+                                    quickReplyAutocomplete.moveDown()
+                                    return
+                                }
+                                if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+                                    e.preventDefault()
+                                    const selectedReply = quickReplyAutocomplete.results[quickReplyAutocomplete.selectedIndex]
+                                    if (selectedReply) {
+                                        handleAutocompleteSelect(selectedReply)
+                                    }
+                                    return
+                                }
+                                if (e.key === "Escape") {
+                                    e.preventDefault()
+                                    quickReplyAutocomplete.reset()
+                                    // Clear the /shortcut from input
+                                    setMessageText(messageText.replace(/\/\w*$/, ""))
+                                    return
+                                }
+                            }
+
+                            // Enter without Shift sends the message (when autocomplete is closed)
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault()
+                                if ((messageText.trim() || selectedFile) && !sending && !uploading) {
+                                    handleSendMessage(e)
+                                }
+                            }
+                            // Shift+Enter allows new line (default behavior)
+                        }}
+                        placeholder={
+                            !windowStatus?.isActive && windowStatus !== null
+                                ? "Use a template to message..."
+                                : selectedFile
+                                    ? "Add a caption..."
+                                    : "Type a message... (use / for quick replies)"
+                        }
+                        className="flex-1 min-h-[44px] max-h-[120px] resize-none py-3 w-full"
+                        rows={1}
+                        maxLength={WHATSAPP_TEXT_MAX_LENGTH}
+                        disabled={sending || uploading || (!windowStatus?.isActive && windowStatus !== null)}
+                        autoFocus
+                    />
+                </div>
 
                 <Button
                     type="submit"

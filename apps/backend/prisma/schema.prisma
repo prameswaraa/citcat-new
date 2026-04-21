@@ -593,6 +593,11 @@ model User {
   // Escalation Keyword Group Relations
   escalationAssignments EscalationKeywordGroup[] @relation("EscalationAssignedAgent")
 
+  // Quick Reply Relations
+  quickReplyCategories QuickReplyCategory[]
+  quickReplies         QuickReply[]
+  quickRepliesCreated  QuickReply[]         @relation("QuickReplyCreator")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2133,6 +2138,52 @@ model AutoTagRule {
   @@index([userId])
   @@index([isActive])
   @@index([priority])
+}
+
+// =============================================================================
+// Quick Replies System Models
+// =============================================================================
+
+model QuickReplyCategory {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  order Int    @default(0)
+
+  quickReplies QuickReply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([order])
+}
+
+model QuickReply {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  categoryId String?
+  category   QuickReplyCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  shortcut String // Unique shortcut without "/" prefix
+  title    String // Display name
+  content  String @db.Text // Message content with variables
+
+  createdById String
+  createdBy   User   @relation("QuickReplyCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, shortcut])
+  @@index([userId])
+  @@index([categoryId])
+  @@index([createdById])
 }
 
 // =============================================================================

@@ -12,6 +12,7 @@ import {
   IconTemplate,
   IconCreditCard,
   IconUsersGroup,
+  IconBolt,
 } from "@tabler/icons-react"
 import { BrainCircuit, HelpCircle } from "lucide-react"
 import { type SidebarData } from "../types"
@@ -75,7 +76,7 @@ export const sidebarData: SidebarData = {
           url: "/waba",
           icon: IconBrandWhatsapp,
         },
-{
+        {
           title: "Instagram",
           url: "/instagram",
           icon: IconBrandInstagram,
@@ -94,6 +95,12 @@ export const sidebarData: SidebarData = {
           title: "AI Chatbot",
           url: "/ai",
           icon: BrainCircuit,
+        },
+        {
+          title: "Automation",
+          url: "/automation",
+          icon: IconBolt,
+          badge: "New",
         },
         {
           title: "Developers",
