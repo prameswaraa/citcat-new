@@ -4,15 +4,13 @@
 
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
-import { PrismaClient } from '@prisma/client';
 import { WABAServiceError, WABAErrorCode } from './errors.js';
 import { wabaSettings, WABASettings } from './settings.js';
 import { metaApiQueue, criticalQueue } from '../../utils/requestQueue.js';
 import { parseMetaError, getRetryDelay } from '../../utils/wabaErrors.js';
 import { logger } from '../../utils/logger.js';
+import { prisma } from '../../utils/database.js';
 import type { CoexistenceStatus, SyncStatus, SyncDetail, MetaAPIError, QueueOptions } from './types.js';
-
-const prisma = new PrismaClient();
 
 // Create HTTPS agent that forces IPv4
 const httpsAgent = new https.Agent({

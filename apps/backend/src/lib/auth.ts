@@ -1,13 +1,11 @@
 import { betterAuth } from "better-auth"
 import { createAuthMiddleware } from "better-auth/api"
 import { prismaAdapter } from "better-auth/adapters/prisma"
-import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { emailService } from "../services/email/EmailService.js"
 import { affiliateService } from "../services/affiliate-service.js"
 import { verifySignedReferralToken } from "../routes/affiliate.js"
-
-const prisma = new PrismaClient()
+import { prisma } from "../utils/database.js"
 
 // Helper to check if user was just created (within last 60 seconds)
 function isNewUser(createdAt: Date | string | null | undefined): boolean {

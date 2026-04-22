@@ -12,16 +12,14 @@
 
 import axios from "axios"
 import https from "https"
-import { PrismaClient } from "@prisma/client"
+import type { Prisma } from "@prisma/client"
 import { wabaSettings } from "./settings.js"
 import { logger } from "../../utils/logger.js"
+import { prisma } from "../../utils/database.js"
 
 // NOTE: Run `pnpm prisma:generate` after schema changes to generate types
 // WABAHealthStatus type will be available after generation
 type WABAHealthStatus = "ACTIVE" | "RESTRICTED" | "UNDER_REVIEW" | "FLAGGED" | "DISABLED"
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prisma = new PrismaClient() as any
 
 // Create HTTPS agent that forces IPv4 (fixes ETIMEDOUT on some servers)
 const httpsAgent = new https.Agent({
@@ -244,7 +242,7 @@ export class WABAHealthService {
         errorCode,
         errorMessage,
         detectedFrom: "ERROR_RESPONSE",
-        rawResponse: rawResponse || null,
+        rawResponse: (rawResponse || null) as Prisma.InputJsonValue | null,
       },
     })
 
@@ -294,7 +292,7 @@ export class WABAHealthService {
         restrictionType: healthResult.restrictionType || null,
         errorMessage: healthResult.errorMessage || null,
         detectedFrom: "API_POLLING",
-        rawResponse: healthResult.rawResponse || null,
+        rawResponse: (healthResult.rawResponse || null) as Prisma.InputJsonValue | null,
       },
     })
 

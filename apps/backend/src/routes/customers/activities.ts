@@ -1,12 +1,10 @@
 import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { z } from 'zod'
-import { PrismaClient } from '@prisma/client'
 import { ActivityService, ActivityType } from '../../services/activity-service.js'
 import { getEffectiveUserId } from '../../middleware/resolveContext.js'
 import { handleValidationError, logDetailedError } from '../../middleware/errorHandler.js'
-
-const prisma = new PrismaClient()
+import { prisma } from '../../utils/database.js'
 const app = new Hono()
 
 // Validation schemas
