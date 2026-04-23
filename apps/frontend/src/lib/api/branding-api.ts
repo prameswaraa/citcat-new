@@ -26,7 +26,7 @@ export const DEFAULT_BRANDING: BrandingSettings = {
   websiteName: getDefaultAppName(),
   logoUrl: '',
   supportEmail: 'support@yourdomain.com',
-  supportWhatsapp: '+6281295648580',
+  supportWhatsapp: '+6281234567890',
   termsUrl: 'https://yourdomain.com/terms',
   privacyUrl: 'https://yourdomain.com/privacy',
   n8nPackageName: '@kichat/n8n-nodes-kirimchat',

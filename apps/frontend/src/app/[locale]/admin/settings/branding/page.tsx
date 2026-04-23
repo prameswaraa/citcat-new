@@ -40,7 +40,7 @@ const defaultSettings: BrandingSettings = {
   websiteName: DEFAULT_APP_NAME,
   logoUrl: "",
   supportEmail: "support@yourdomain.com",
-  supportWhatsapp: "+6281295648580",
+  supportWhatsapp: "+6281234567890",
   termsUrl: "https://yourdomain.com/terms",
   privacyUrl: "https://yourdomain.com/privacy",
   n8nPackageName: "@kichat/n8n-nodes-kirimchat",
@@ -462,13 +462,13 @@ export default function BrandingSettingsPage() {
                 <span className="text-sm">{settings.supportEmail || "support@yourdomain.com"}</span>
               </a>
               <a
-                href={`https://wa.me/${(settings.supportWhatsapp || "+6281295648580").replace(/[^0-9]/g, "")}`}
+                href={`https://wa.me/${(settings.supportWhatsapp || "+6281234567890").replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"
               >
                 <IconBrandWhatsapp className="h-4 w-4 text-green-600" />
-                <span className="text-sm">{settings.supportWhatsapp || "+6281295648580"}</span>
+                <span className="text-sm">{settings.supportWhatsapp || "+6281234567890"}</span>
               </a>
             </div>
           </div>
