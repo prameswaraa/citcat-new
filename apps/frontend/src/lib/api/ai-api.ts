@@ -1,5 +1,35 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005';
 
+// Helper to extract error message from API response
+// Supports both old format { error: string } and new format { error: { code, message, details } }
+function extractErrorMessage(errorData: unknown, fallback: string): string {
+  if (!errorData || typeof errorData !== 'object') {
+    return fallback;
+  }
+  
+  const err = errorData as Record<string, unknown>;
+  
+  // New format: { error: { code, message, details } }
+  if (err.error && typeof err.error === 'object') {
+    const errorObj = err.error as Record<string, unknown>;
+    if (typeof errorObj.message === 'string') {
+      // Include details if available
+      if (errorObj.details && typeof errorObj.details === 'string') {
+        return `${errorObj.message} (${errorObj.details})`;
+      }
+      return errorObj.message;
+    }
+  }
+  
+  // Old format: { error: string }
+  if (typeof err.error === 'string') {
+    return err.error;
+  }
+  
+  // Fallback
+  return fallback;
+}
+
 export interface AIConfig {
   id?: string; // Config ID (for WhatsAppAccountAIConfig)
   enabled: boolean;
@@ -86,7 +116,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch AI config');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch AI config'));
     }
 
     const json = await response.json();
@@ -106,7 +136,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to update AI config');
+      throw new Error(extractErrorMessage(error, 'Failed to update AI config'));
     }
 
     const json = await response.json();
@@ -121,7 +151,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to reset config');
+      throw new Error(extractErrorMessage(error, 'Failed to reset config'));
     }
 
     return response.json();
@@ -137,7 +167,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch documents');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch documents'));
     }
 
     const json = await response.json();
@@ -156,7 +186,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to upload document');
+      throw new Error(extractErrorMessage(error, 'Gagal upload dokumen'));
     }
 
     return response.json();
@@ -173,7 +203,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to delete document');
+      throw new Error(extractErrorMessage(error, 'Gagal menghapus dokumen'));
     }
 
     return response.json();
@@ -189,7 +219,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch agents');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch agents'));
     }
 
     const json = await response.json();
@@ -206,7 +236,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch agent');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch agent'));
     }
 
     const json = await response.json();
@@ -225,7 +255,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to create agent');
+      throw new Error(extractErrorMessage(error, 'Failed to create agent'));
     }
 
     const json = await response.json();
@@ -244,7 +274,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to update agent');
+      throw new Error(extractErrorMessage(error, 'Failed to update agent'));
     }
 
     const json = await response.json();
@@ -262,7 +292,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to delete agent');
+      throw new Error(extractErrorMessage(error, 'Failed to delete agent'));
     }
 
     return true;
@@ -280,7 +310,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to send message');
+      throw new Error(extractErrorMessage(error, 'Failed to send message'));
     }
 
     const json = await response.json();
@@ -297,7 +327,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch models');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch models'));
     }
 
     const json = await response.json();
@@ -314,7 +344,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch memory count');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch memory count'));
     }
 
     const json = await response.json();
@@ -332,7 +362,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to delete memory');
+      throw new Error(extractErrorMessage(error, 'Failed to delete memory'));
     }
 
     const json = await response.json();
@@ -371,7 +401,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch customers');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch customers'));
     }
 
     const json = await response.json();
@@ -389,7 +419,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to delete customer memory');
+      throw new Error(extractErrorMessage(error, 'Failed to delete customer memory'));
     }
 
     const json = await response.json();
@@ -410,7 +440,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch escalation groups');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch escalation groups'));
     }
 
     const json = await response.json();
@@ -434,7 +464,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to create escalation group');
+      throw new Error(extractErrorMessage(error, 'Failed to create escalation group'));
     }
 
     const json = await response.json();
@@ -456,7 +486,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to update escalation group');
+      throw new Error(extractErrorMessage(error, 'Failed to update escalation group'));
     }
 
     const json = await response.json();
@@ -474,7 +504,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to delete escalation group');
+      throw new Error(extractErrorMessage(error, 'Failed to delete escalation group'));
     }
   },
 
@@ -488,7 +518,7 @@ export const aiApi = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || 'Failed to fetch team agents');
+      throw new Error(extractErrorMessage(error, 'Failed to fetch team agents'));
     }
 
     const json = await response.json();

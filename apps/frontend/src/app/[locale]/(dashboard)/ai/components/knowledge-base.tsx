@@ -206,7 +206,9 @@ export function KnowledgeBase({ documents }: KnowledgeBaseProps) {
                       {doc.status === "FAILED" && "Failed"}
                     </Badge>
                     {doc.status === "FAILED" && doc.errorMessage && (
-                      <p className="text-xs text-red-500 mt-1">{doc.errorMessage}</p>
+                      <p className="text-xs text-red-500 mt-1 max-w-[200px] truncate" title={doc.errorMessage}>
+                        {doc.errorMessage}
+                      </p>
                     )}
                   </TableCell>
                   <TableCell>
