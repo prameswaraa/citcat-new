@@ -10,7 +10,6 @@ import { Link, useRouter } from "@/i18n/routing"
 import { authClient } from "@/lib/auth-client"
 import { SESSION_QUERY_KEY } from "@/hooks/use-cached-session"
 import { cn } from "@/lib/utils"
-import { getSafeErrorMessage } from "@/lib/error-utils"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -25,6 +24,21 @@ import { PasswordInput } from "@/components/password-input"
 import { useToast } from "@/hooks/use-toast"
 import { GoogleSignInButton } from "@/components/auth/google-signin-button"
 import { useMascot } from "@/components/auth/mascot-context"
+
+// Map error codes from better-auth to translation keys
+const LOGIN_ERROR_MAP: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: "invalidCredentials",
+  USER_NOT_FOUND: "invalidCredentials",
+  INVALID_PASSWORD: "invalidCredentials",
+  ACCOUNT_NOT_FOUND: "invalidCredentials",
+  // Account status errors  
+  USER_SUSPENDED: "accountDeactivated",
+  USER_BANNED: "accountDeactivated",
+  USER_DISABLED: "accountDeactivated",
+  // 2FA errors
+  TWO_FACTOR_NOT_ENABLED: "twoFactorRequired",
+  INVALID_TWO_FACTOR_CODE: "invalidTwoFactorCode",
+}
 
 function useFormSchema() {
   const t = useTranslations("validation")
@@ -79,10 +93,14 @@ export function UserAuthForm({
       })
 
       if (result.error) {
+        // Get appropriate error message based on error code
+        const errorCode = (result.error as any)?.code || ""
+        const translationKey = LOGIN_ERROR_MAP[errorCode] || "invalidCredentials"
+        
         toast({
           variant: "destructive",
           title: t("loginError"),
-          description: tErrors("invalidCredentials"),
+          description: tErrors(translationKey as any),
         })
         setIsLoading(false)
       } else {
@@ -92,11 +110,11 @@ export function UserAuthForm({
         router.replace("/dashboard")
         // Keep isLoading true to prevent double-click during navigation
       }
-    } catch (error: unknown) {
+    } catch {
       toast({
         variant: "destructive",
         title: tErrors("generic"),
-        description: getSafeErrorMessage(error, tErrors("errorOccurred")),
+        description: tErrors("networkError"),
       })
       setIsLoading(false)
     }

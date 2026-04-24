@@ -13,6 +13,7 @@ interface RegistrationState {
   step: RegistrationStep
   loading: boolean
   error: string | null
+  errorCode: string | null
   email: string
   expiresAt: Date | null
   resendCooldown: number
@@ -75,6 +76,7 @@ export function useRegister() {
     step: "form",
     loading: false,
     error: null,
+    errorCode: null,
     email: "",
     expiresAt: null,
     resendCooldown: 0,
@@ -154,7 +156,8 @@ export function useRegister() {
           setState((prev) => ({
             ...prev,
             loading: false,
-            error: result.error?.message || "Gagal mengirim kode OTP",
+            error: result.error?.message || null,
+            errorCode: result.error?.code || "UnknownError",
           }))
           return { success: false, error: result.error }
         }
@@ -171,9 +174,9 @@ export function useRegister() {
 
         return { success: true }
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Terjadi kesalahan"
-        setState((prev) => ({ ...prev, loading: false, error: message }))
-        return { success: false, error: { code: "NetworkError", message } }
+        const message = error instanceof Error ? error.message : null
+        setState((prev) => ({ ...prev, loading: false, error: message, errorCode: "NetworkError" }))
+        return { success: false, error: { code: "NetworkError", message: message || "Network error" } }
       }
     },
     []
@@ -197,7 +200,8 @@ export function useRegister() {
           setState((prev) => ({
             ...prev,
             loading: false,
-            error: result.error?.message || "Kode OTP tidak valid",
+            error: result.error?.message || null,
+            errorCode: result.error?.code || "InvalidOTP",
             attemptsRemaining: result.error?.attemptsRemaining ?? prev.attemptsRemaining,
           }))
           return { success: false, error: result.error }
@@ -214,9 +218,9 @@ export function useRegister() {
         
         return { success: true, data: result.data }
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Terjadi kesalahan"
-        setState((prev) => ({ ...prev, loading: false, error: message }))
-        return { success: false, error: { code: "NetworkError", message } }
+        const message = error instanceof Error ? error.message : null
+        setState((prev) => ({ ...prev, loading: false, error: message, errorCode: "NetworkError" }))
+        return { success: false, error: { code: "NetworkError", message: message || "Network error" } }
       }
     },
     [state.email, router, queryClient]
@@ -224,7 +228,7 @@ export function useRegister() {
 
   const resendOTP = useCallback(async () => {
     if (state.resendCooldown > 0) {
-      return { success: false, error: { code: "CooldownActive", message: "Tunggu sebelum mengirim ulang" } }
+      return { success: false, error: { code: "CooldownActive", message: "Cooldown active" } }
     }
 
     setState((prev) => ({ ...prev, loading: true, error: null }))
@@ -243,7 +247,8 @@ export function useRegister() {
         setState((prev) => ({
           ...prev,
           loading: false,
-          error: result.error?.message || "Gagal mengirim ulang kode OTP",
+          error: result.error?.message || null,
+          errorCode: result.error?.code || "ResendFailed",
           resendCooldown: result.error?.retryAfter || 0,
         }))
         return { success: false, error: result.error }
@@ -260,9 +265,9 @@ export function useRegister() {
 
       return { success: true }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Terjadi kesalahan"
-      setState((prev) => ({ ...prev, loading: false, error: message }))
-      return { success: false, error: { code: "NetworkError", message } }
+      const message = error instanceof Error ? error.message : null
+      setState((prev) => ({ ...prev, loading: false, error: message, errorCode: "NetworkError" }))
+      return { success: false, error: { code: "NetworkError", message: message || "Network error" } }
     }
   }, [state.email, state.resendCooldown])
 
@@ -271,13 +276,14 @@ export function useRegister() {
       ...prev,
       step: "form",
       error: null,
+      errorCode: null,
       expiresAt: null,
       resendCooldown: 0,
     }))
   }, [])
 
   const clearError = useCallback(() => {
-    setState((prev) => ({ ...prev, error: null }))
+    setState((prev) => ({ ...prev, error: null, errorCode: null }))
   }, [])
 
   return {

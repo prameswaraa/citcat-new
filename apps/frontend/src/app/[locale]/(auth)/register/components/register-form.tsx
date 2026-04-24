@@ -1,6 +1,6 @@
 "use client"
 
-import { HTMLAttributes, useState, useEffect } from "react"
+import { HTMLAttributes, useState, useEffect, useMemo } from "react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -23,6 +23,22 @@ import { OTPInput } from "@/components/ui/otp-input"
 import { useRegister } from "@/hooks/use-register"
 import { IconArrowLeft, IconMail, IconRefresh } from "@tabler/icons-react"
 import { useMascot } from "@/components/auth/mascot-context"
+
+// Map backend error codes to translation keys
+const ERROR_CODE_MAP: Record<string, string> = {
+  InvalidCredentials: "invalidCredentials",
+  UserExists: "userAlreadyExists",
+  InvalidOTP: "invalidOtp",
+  OTPExpired: "otpExpired",
+  RateLimitExceeded: "tooManyAttempts",
+  CooldownActive: "cooldownActive",
+  ResendFailed: "failedToResendOtp",
+  NetworkError: "networkError",
+  UserNotFound: "userNotFound",
+  AccountDeactivated: "accountDeactivated",
+  TwoFactorRequired: "twoFactorRequired",
+  InvalidTwoFactorCode: "invalidTwoFactorCode",
+}
 
 function useFormSchema() {
   const t = useTranslations("validation")
@@ -57,6 +73,7 @@ export function RegisterForm({
   const [referralCode, setReferralCode] = useState<string | null>(null)
   const t = useTranslations("auth")
   const tCommon = useTranslations("common")
+  const tErrors = useTranslations("errors")
   const searchParams = useSearchParams()
   const formSchema = useFormSchema()
 
@@ -81,6 +98,7 @@ export function RegisterForm({
     step,
     loading,
     error,
+    errorCode,
     email,
     timeRemaining,
     resendCooldown,
@@ -92,6 +110,24 @@ export function RegisterForm({
     goBackToForm,
     clearError,
   } = useRegister()
+
+  // Get translated error message
+  const errorMessage = useMemo(() => {
+    if (!errorCode && !error) return null
+    
+    // Try to get translation for error code
+    if (errorCode && ERROR_CODE_MAP[errorCode]) {
+      const translationKey = ERROR_CODE_MAP[errorCode]
+      try {
+        return tErrors(translationKey as any)
+      } catch {
+        // Fallback to backend message
+      }
+    }
+    
+    // Fallback to backend error message or generic error
+    return error || tErrors("errorOccurred")
+  }, [errorCode, error, tErrors])
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -174,9 +210,9 @@ export function RegisterForm({
           )}
 
           {/* Error message */}
-          {error && (
+          {errorMessage && (
             <div className="rounded-lg bg-destructive/10 p-3 text-center text-sm text-destructive">
-              {error}
+              {errorMessage}
               {attemptsRemaining < 5 && attemptsRemaining > 0 && (
                 <span className="block mt-1 text-xs">
                   {t("remainingAttempts", { count: attemptsRemaining })}
@@ -322,9 +358,9 @@ export function RegisterForm({
             />
 
             {/* Error message */}
-            {error && (
+            {errorMessage && (
               <div className="rounded-lg bg-destructive/10 p-3 text-center text-sm text-destructive">
-                {error}
+                {errorMessage}
               </div>
             )}
 
