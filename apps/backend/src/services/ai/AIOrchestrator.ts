@@ -287,6 +287,9 @@ Response was: ${m.memory.responseMessage}`)
    * @param aiAgentIdOverride - Optional AI Agent ID to use instead of default active agent
    *                           When provided, uses this specific AI Agent's configuration
    *                           (system prompt, knowledge documents) for response generation
+   * @param whatsappAccountId - Optional WhatsApp account ID for per-account config
+   * @param isTestMode - Optional flag to bypass enabled/working hours/escalation checks
+   *                     Used by test-chat endpoint to allow testing without enabling AI
    * Requirements: 3.3, 3.4
    */
   async handleMessage(
@@ -294,12 +297,14 @@ Response was: ${m.memory.responseMessage}`)
     userMessage: string,
     customerId?: string,
     aiAgentIdOverride?: string,
-    whatsappAccountId?: string
+    whatsappAccountId?: string,
+    isTestMode?: boolean
   ): Promise<string | null> {
     console.log(`🤖 AI Orchestrator: Handling message for user ${userId}`, {
       hasAiAgentOverride: !!aiAgentIdOverride,
       aiAgentIdOverride,
       whatsappAccountId,
+      isTestMode,
     });
 
     // 1. Check Config (per-account config takes priority, falls back to user default)
@@ -310,53 +315,59 @@ Response was: ${m.memory.responseMessage}`)
       return null
     }
 
-    if (!config.enabled) {
-      console.log('🤖 AI Orchestrator: AI disabled');
-      return null
-    }
-
-    // 1.1 Check Working Hours
-    console.log('🤖 AI Orchestrator: Working hours config:', {
-      timezone: config.timezone,
-      workingHours: config.workingHours,
-      hasWorkingHours: !!config.workingHours,
-    });
-    if (!isWithinWorkingHours(config.workingHours as WorkingHours | null, config.timezone || 'Asia/Jakarta')) {
-      console.log('🤖 AI Orchestrator: Outside working hours, AI will not respond');
-      return null;
-    }
-
-    // 1.2 Check Escalation Keywords (with keyword groups support)
-    // First check keyword groups (assigns to specific agent), then general keywords
-    const escalationResult = whatsappAccountId
-      ? await checkEscalationWithGroups(userMessage, config.escalationKeywords as string[] | null, whatsappAccountId, userId)
-      : checkEscalation(userMessage, config.escalationKeywords as string[] | null);
-    
-    if (escalationResult.shouldEscalate) {
-      console.log('🤖 AI Orchestrator: Escalation keyword detected:', escalationResult.matchedKeyword);
-      
-      if (customerId && whatsappAccountId) {
-        try {
-          // Check if this matched a keyword group (assigns to specific agent)
-          if (escalationResult.matchedGroup && escalationResult.matchedKeyword) {
-            console.log('🤖 AI Orchestrator: Assigning to specific agent:', escalationResult.matchedGroup.assignedAgent?.name);
-            await handleEscalationAssignToAgent(
-              customerId,
-              'WHATSAPP',
-              userId,
-              escalationResult.matchedGroup,
-              escalationResult.matchedKeyword
-            );
-          } else if (config.escalationAutoAssign) {
-            // General escalation keyword - move to unassigned queue
-            await handleEscalationAssign(customerId, 'WHATSAPP', userId);
-          }
-        } catch (error) {
-          logger.warn('Failed to handle escalation assignment', { error });
-        }
+    // Skip enabled/working hours/escalation checks in test mode
+    // This allows users to test their AI Agent before enabling it
+    if (!isTestMode) {
+      if (!config.enabled) {
+        console.log('🤖 AI Orchestrator: AI disabled');
+        return null
       }
+
+      // 1.1 Check Working Hours
+      console.log('🤖 AI Orchestrator: Working hours config:', {
+        timezone: config.timezone,
+        workingHours: config.workingHours,
+        hasWorkingHours: !!config.workingHours,
+      });
+      if (!isWithinWorkingHours(config.workingHours as WorkingHours | null, config.timezone || 'Asia/Jakarta')) {
+        console.log('🤖 AI Orchestrator: Outside working hours, AI will not respond');
+        return null;
+      }
+
+      // 1.2 Check Escalation Keywords (with keyword groups support)
+      // First check keyword groups (assigns to specific agent), then general keywords
+      const escalationResult = whatsappAccountId
+        ? await checkEscalationWithGroups(userMessage, config.escalationKeywords as string[] | null, whatsappAccountId, userId)
+        : checkEscalation(userMessage, config.escalationKeywords as string[] | null);
       
-      return null;
+      if (escalationResult.shouldEscalate) {
+        console.log('🤖 AI Orchestrator: Escalation keyword detected:', escalationResult.matchedKeyword);
+        
+        if (customerId && whatsappAccountId) {
+          try {
+            // Check if this matched a keyword group (assigns to specific agent)
+            if (escalationResult.matchedGroup && escalationResult.matchedKeyword) {
+              console.log('🤖 AI Orchestrator: Assigning to specific agent:', escalationResult.matchedGroup.assignedAgent?.name);
+              await handleEscalationAssignToAgent(
+                customerId,
+                'WHATSAPP',
+                userId,
+                escalationResult.matchedGroup,
+                escalationResult.matchedKeyword
+              );
+            } else if (config.escalationAutoAssign) {
+              // General escalation keyword - move to unassigned queue
+              await handleEscalationAssign(customerId, 'WHATSAPP', userId);
+            }
+          } catch (error) {
+            logger.warn('Failed to handle escalation assignment', { error });
+          }
+        }
+        
+        return null;
+      }
+    } else {
+      console.log('🤖 AI Orchestrator: Test mode - skipping enabled/working hours/escalation checks');
     }
 
     // 1.4 Determine which AI Agent to use (Requirement 3.3, 3.4)

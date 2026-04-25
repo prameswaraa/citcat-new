@@ -401,18 +401,21 @@ app.post('/test-chat', aiTestChatRateLimiter, requireRole(['ADMIN', 'BUSINESS_OW
     }
 
     // Use the orchestrator to generate a response
+    // Pass isTestMode=true to bypass enabled/working hours/escalation checks
     const response = await orchestrator.handleMessage(
       c.user.id,
       message,
       undefined, // No customer ID for test
-      agentId    // Use specific agent
+      agentId,   // Use specific agent
+      undefined, // No WhatsApp account ID for test
+      true       // isTestMode - allows testing without enabling AI
     )
 
     if (!response) {
       return c.json({
         success: true,
         data: {
-          response: 'AI tidak dapat merespons. Pastikan AI sudah diaktifkan dan agent memiliki knowledge base.',
+          response: 'AI tidak dapat merespons. Pastikan agent memiliki knowledge base yang sudah selesai diproses.',
           isError: true,
         },
       })
