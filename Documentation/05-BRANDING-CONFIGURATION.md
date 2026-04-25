@@ -22,17 +22,17 @@ Aplikasi ini mendukung white-label branding yang memungkinkan Anda mengubah:
 # Ubah sesuai brand Anda (e.g., "otk" untuk Otika, "myapp" untuk MyApp)
 API_KEY_PREFIX=kc
 
-# Webhook header prefix untuk white-label (default: KirimChat)
+# Webhook header prefix untuk white-label (default: Citcat)
 # Mengubah header webhook: X-{PREFIX}-Signature, X-{PREFIX}-Event, dll
 # Contoh: WEBHOOK_HEADER_PREFIX=MyBrand -> X-MyBrand-Signature
-WEBHOOK_HEADER_PREFIX=KirimChat
+WEBHOOK_HEADER_PREFIX=Citcat
 ```
 
 ### Frontend (.env)
 
 ```env
 # Nama aplikasi yang ditampilkan di UI, page title, dll
-NEXT_PUBLIC_APP_NAME=KirimChat
+NEXT_PUBLIC_APP_NAME=Citcat
 
 # API key prefix untuk placeholder di dokumentasi
 # Harus sama dengan backend API_KEY_PREFIX
@@ -43,7 +43,7 @@ NEXT_PUBLIC_API_KEY_PREFIX=kc
 
 ```env
 # Nama aplikasi
-APP_NAME=KirimChat
+APP_NAME=Citcat
 
 # API key prefix
 API_KEY_PREFIX=kc

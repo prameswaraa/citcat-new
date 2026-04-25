@@ -34,9 +34,9 @@ const WEBHOOK_TIMEOUT_MS = 30000;
 // Max consecutive failures before auto-disable (Requirement 3.4)
 const MAX_CONSECUTIVE_FAILURES = 10;
 
-// Webhook header prefix - configurable for white-label (default: KirimChat)
-// Example: X-KirimChat-Signature, X-KirimChat-Event, etc.
-const WEBHOOK_HEADER_PREFIX = process.env.WEBHOOK_HEADER_PREFIX || 'KirimChat';
+// Webhook header prefix - configurable for white-label (default: Citcat)
+// Example: X-Citcat-Signature, X-Citcat-Event, etc.
+const WEBHOOK_HEADER_PREFIX = process.env.WEBHOOK_HEADER_PREFIX || 'Citcat';
 
 /**
  * Calculate HMAC-SHA256 signature for webhook payload

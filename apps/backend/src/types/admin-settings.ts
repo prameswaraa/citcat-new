@@ -222,10 +222,10 @@ export const BRANDING_SETTINGS_KEYS: SettingKeyConfig[] = [
 export const DEFAULT_BRANDING: BrandingSettings = {
   websiteName: 'Messaging Platform',
   logoUrl: '',
-  supportEmail: 'support@yourdomain.com',
+  supportEmail: 'support@citcat.id',
   supportWhatsapp: '+6281234567890',
-  termsUrl: 'https://yourdomain.com/terms',
-  privacyUrl: 'https://yourdomain.com/privacy',
+  termsUrl: 'https://citcat.id/terms',
+  privacyUrl: 'https://citcat.id/privacy',
   n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 };
 

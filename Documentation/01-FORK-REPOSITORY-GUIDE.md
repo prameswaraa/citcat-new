@@ -10,7 +10,7 @@
 
 ---
 
-Panduan lengkap cara download/fork source code KirimChat dari repository utama, lalu push ke GitHub pribadi Anda.
+Panduan lengkap cara download/fork source code Citcat dari repository utama, lalu push ke GitHub pribadi Anda.
 
 ## Table of Contents
 

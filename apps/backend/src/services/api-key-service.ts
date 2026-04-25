@@ -36,7 +36,7 @@ export interface ValidatedApiKey {
 const API_KEY_CACHE_TTL = 300;
 
 // API key prefix - configurable via environment variable
-// Default: 'kc' for KirimChat, can be changed to match branding (e.g., 'otk' for Otika)
+// Default: 'kc' for Citcat, can be changed to match branding (e.g., 'otk' for Otika)
 const API_KEY_PREFIX = `${process.env.API_KEY_PREFIX || 'kc'}_live_`;
 
 // Legacy prefix for backward compatibility with existing keys

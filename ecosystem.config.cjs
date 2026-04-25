@@ -1,5 +1,5 @@
 /**
- * PM2 Ecosystem Configuration for KirimChat
+ * PM2 Ecosystem Configuration for Citcat
  * 
  * Usage:
  *   Development: pm2 start ecosystem.config.cjs

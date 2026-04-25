@@ -7,9 +7,9 @@ async function main() {
   console.log('🌱 Starting seed...\n')
 
   // Admin user seed data
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@kirimchat.com'
+  const adminEmail = process.env.ADMIN_EMAIL || 'admin@citcat.id'
   const adminPassword = process.env.ADMIN_PASSWORD || 'Admin123!'
-  const adminName = process.env.ADMIN_NAME || 'Admin KirimChat'
+  const adminName = process.env.ADMIN_NAME || 'Admin Citcat'
 
   // Check if admin already exists
   const existingAdmin = await prisma.user.findUnique({

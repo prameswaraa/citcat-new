@@ -24,7 +24,7 @@ Set sebelum build:
 Edit langsung default values di `config/brand.config.ts`:
 
 ```typescript
-const displayName = process.env.N8N_NODE_BRAND_NAME || 'YourBrand';      // ← ganti
+const displayName = process.env.N8N_NODE_BRAND_NAME || 'Citcat';      // ← ganti
 const brandId = process.env.N8N_NODE_BRAND_ID || 'yourBrand';            // ← ganti
 const apiKeyPrefix = process.env.N8N_NODE_API_KEY_PREFIX || 'yb_live_';  // ← ganti
 ```
@@ -38,7 +38,7 @@ npm run build
 
 Set di server n8n (tidak perlu rebuild):
 ```bash
-export N8N_NODE_BRAND_NAME="YourBrand"
+export N8N_NODE_BRAND_NAME="Citcat"
 export N8N_NODE_BRAND_ID="yourBrand"
 export N8N_NODE_API_BASE_URL="https://api.yourbrand.com/api/v1/public"
 # restart n8n
@@ -54,7 +54,7 @@ Jangan lupa update juga:
   "description": "Your description",
   "homepage": "https://yourbrand.com",
   "author": {
-    "name": "YourBrand",
+    "name": "Citcat",
     "email": "support@yourbrand.com"
   },
   "repository": {

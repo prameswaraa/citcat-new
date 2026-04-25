@@ -1,4 +1,4 @@
-# KirimChat - Configuration Guide
+# Citcat - Configuration Guide
 
 Panduan konfigurasi untuk mengaktifkan fitur-fitur tambahan.
 
@@ -29,14 +29,14 @@ cd docker && docker compose up -d
 
 1. Klik **+ CREATE CREDENTIALS** → **OAuth client ID**
 2. Application type: **Web application**
-3. Name: `KirimChat`
+3. Name: `Citcat`
 4. Authorized JavaScript origins:
    ```
-   https://yourdomain.com
+   https://citcat.id
    ```
 5. Authorized redirect URIs:
    ```
-   https://yourdomain.com/api/auth/callback/google
+   https://citcat.id/api/auth/callback/google
    ```
 6. Klik **Create**
 7. Copy **Client ID** dan **Client Secret**
@@ -72,7 +72,7 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
-SMTP_FROM_NAME=KirimChat
+SMTP_FROM_NAME=Citcat
 SMTP_SECURE=false
 ```
 > ⚠️ Untuk Gmail, gunakan [App Password](https://support.google.com/accounts/answer/185833)
@@ -83,8 +83,8 @@ SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
 SMTP_USER=your-brevo-email
 SMTP_PASSWORD=your-smtp-key
-SMTP_FROM_EMAIL=noreply@yourdomain.com
-SMTP_FROM_NAME=KirimChat
+SMTP_FROM_EMAIL=noreply@citcat.id
+SMTP_FROM_NAME=Citcat
 SMTP_SECURE=false
 ```
 
@@ -92,10 +92,10 @@ SMTP_SECURE=false
 ```env
 SMTP_HOST=smtp.mailgun.org
 SMTP_PORT=587
-SMTP_USER=postmaster@yourdomain.com
+SMTP_USER=postmaster@citcat.id
 SMTP_PASSWORD=your-mailgun-password
-SMTP_FROM_EMAIL=noreply@yourdomain.com
-SMTP_FROM_NAME=KirimChat
+SMTP_FROM_EMAIL=noreply@citcat.id
+SMTP_FROM_NAME=Citcat
 SMTP_SECURE=false
 ```
 
@@ -105,8 +105,8 @@ SMTP_HOST=email-smtp.us-east-1.amazonaws.com
 SMTP_PORT=587
 SMTP_USER=your-ses-smtp-user
 SMTP_PASSWORD=your-ses-smtp-password
-SMTP_FROM_EMAIL=noreply@yourdomain.com
-SMTP_FROM_NAME=KirimChat
+SMTP_FROM_EMAIL=noreply@citcat.id
+SMTP_FROM_NAME=Citcat
 SMTP_SECURE=false
 ```
 
@@ -122,7 +122,7 @@ SMTP_SECURE=false
 ```env
 DUITKU_MERCHANT_CODE=your-merchant-code
 DUITKU_API_KEY=your-api-key
-DUITKU_CALLBACK_URL=https://yourdomain.com/api/v1/webhooks/duitku/callback
+DUITKU_CALLBACK_URL=https://citcat.id/api/v1/webhooks/duitku/callback
 ```
 
 ### Xendit
@@ -133,7 +133,7 @@ DUITKU_CALLBACK_URL=https://yourdomain.com/api/v1/webhooks/duitku/callback
 ```env
 XENDIT_API_KEY=your-xendit-api-key
 XENDIT_CALLBACK_TOKEN=your-callback-verification-token
-XENDIT_CALLBACK_URL=https://yourdomain.com/api/v1/webhooks/xendit/callback
+XENDIT_CALLBACK_URL=https://citcat.id/api/v1/webhooks/xendit/callback
 ```
 
 ---
@@ -194,7 +194,7 @@ Coba klik "Login with Google" di halaman login.
 **Error: redirect_uri_mismatch**
 - Pastikan Authorized redirect URI di Google Console sama persis:
   ```
-  https://yourdomain.com/api/auth/callback/google
+  https://citcat.id/api/auth/callback/google
   ```
 
 **Error: invalid_client**

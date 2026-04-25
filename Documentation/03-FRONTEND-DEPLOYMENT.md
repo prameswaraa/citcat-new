@@ -1,4 +1,4 @@
-# ☁️ Frontend Deployment Guide - KirimChat
+# ☁️ Frontend Deployment Guide - Citcat
 
 > **⚠️ CONFIDENTIAL - PRIVATE SOURCE CODE**
 >
@@ -14,7 +14,7 @@
 
 ---
 
-Panduan deployment frontend KirimChat ke Cloudflare Workers.
+Panduan deployment frontend Citcat ke Cloudflare Workers.
 
 ## 📋 Table of Contents
 
@@ -28,7 +28,7 @@ Panduan deployment frontend KirimChat ke Cloudflare Workers.
 
 ## Fork Repository
 
-1. Fork repository KirimChat ke GitHub account Anda
+1. Fork repository Citcat ke GitHub account Anda
 2. Pastikan repository tetap **PRIVATE**
 
 ---
@@ -53,8 +53,8 @@ Root directory: /apps/frontend
 
 **Environment Variables:**
 ```
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-NEXT_PUBLIC_APP_URL=https://yourdomain.com
+NEXT_PUBLIC_API_URL=https://api.citcat.id
+NEXT_PUBLIC_APP_URL=https://citcat.id
 NEXT_PUBLIC_APP_NAME=Chat.Kirim
 ```
 
@@ -82,8 +82,8 @@ NEXT_PUBLIC_APP_NAME=Chat.Kirim
 ### Verify Frontend Deployment
 
 **Visit in browser:**
-- https://yourdomain.com
-- https://www.yourdomain.com
+- https://citcat.id
+- https://www.citcat.id
 
 **Check these:**
 - [ ] Homepage loads correctly
@@ -116,7 +116,7 @@ NEXT_PUBLIC_APP_NAME=Chat.Kirim
 ### API connection fails
 
 **Check:**
-1. Backend is running: `curl https://api.yourdomain.com/health`
+1. Backend is running: `curl https://api.citcat.id/health`
 2. CORS configured correctly in backend
 3. Frontend env variables correct
 

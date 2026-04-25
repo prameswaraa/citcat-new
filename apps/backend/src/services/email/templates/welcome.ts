@@ -14,7 +14,7 @@ export interface WelcomeEmailParams {
   userName: string;
   /** User's email address */
   userEmail: string;
-  /** Application name (defaults to KirimChat) */
+  /** Application name (defaults to Citcat) */
   appName?: string;
   /** WhatsApp Community link */
   whatsappCommunityLink?: string;
@@ -36,7 +36,7 @@ export function welcomeEmailTemplate(params: WelcomeEmailParams): WelcomeEmailTe
   const {
     userName,
     userEmail,
-    appName = 'KirimChat',
+    appName = 'Citcat',
     whatsappCommunityLink = 'https://chat.whatsapp.com/Dg7yMgjRzva2ADZ5g96uHq',
     dashboardUrl = 'https://app.kirim.chat',
   } = params;

@@ -16,7 +16,7 @@ export interface SubscriptionExpiryReminderParams {
   expiryDate: Date;
   /** Days until expiry (7 or 1) */
   daysUntilExpiry: number;
-  /** Application name (defaults to KirimChat) */
+  /** Application name (defaults to Citcat) */
   appName?: string;
 }
 
@@ -50,7 +50,7 @@ export function subscriptionExpiryReminderTemplate(
     tierName,
     expiryDate,
     daysUntilExpiry,
-    appName = 'KirimChat',
+    appName = 'Citcat',
   } = params;
 
   // Sanitize inputs

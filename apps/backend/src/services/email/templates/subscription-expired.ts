@@ -14,7 +14,7 @@ export interface SubscriptionExpiredParams {
   tierName: string;
   /** Date when subscription expired */
   expiredDate: Date;
-  /** Application name (defaults to KirimChat) */
+  /** Application name (defaults to Citcat) */
   appName?: string;
 }
 
@@ -47,7 +47,7 @@ export function subscriptionExpiredTemplate(
     userName,
     tierName,
     expiredDate,
-    appName = 'KirimChat',
+    appName = 'Citcat',
   } = params;
 
   // Sanitize inputs

@@ -2,7 +2,7 @@
   "name": "kirimchat-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "KirimChat Monorepo",
+  "description": "Citcat Monorepo",
   "scripts": {
     "dev": "concurrently --raw -n \"backend,frontend\" -c \"blue,magenta\" \"pnpm dev:backend\" \"pnpm dev:frontend\"",
     "dev:pnpm": "pnpm --stream --filter \"./apps/*\" dev",

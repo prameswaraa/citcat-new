@@ -15,7 +15,7 @@ import { prisma } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 
 // Default branding fallback
-const DEFAULT_BRAND_NAME = 'KirimChat';
+const DEFAULT_BRAND_NAME = 'Citcat';
 
 const app = new Hono();
 

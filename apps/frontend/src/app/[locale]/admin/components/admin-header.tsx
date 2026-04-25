@@ -12,7 +12,7 @@ export function AdminHeader() {
 
   const user = {
     name: userName || "Admin",
-    email: userEmail || "admin@yourdomain.com",
+    email: userEmail || "admin@citcat.id",
     avatar: "/favicon.svg",
   }
 

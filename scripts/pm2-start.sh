@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================
-# PM2 Production Start Script for KirimChat
+# PM2 Production Start Script for Citcat
 # ============================================
 
 set -e
@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  KirimChat PM2 Production Deployment  ${NC}"
+echo -e "${GREEN}  Citcat PM2 Production Deployment  ${NC}"
 echo -e "${GREEN}========================================${NC}"
 
 # Navigate to project root

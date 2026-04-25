@@ -39,10 +39,10 @@ interface BrandingSettings {
 const defaultSettings: BrandingSettings = {
   websiteName: DEFAULT_APP_NAME,
   logoUrl: "",
-  supportEmail: "support@yourdomain.com",
+  supportEmail: "support@citcat.id",
   supportWhatsapp: "+6281234567890",
-  termsUrl: "https://yourdomain.com/terms",
-  privacyUrl: "https://yourdomain.com/privacy",
+  termsUrl: "https://citcat.id/terms",
+  privacyUrl: "https://citcat.id/privacy",
   n8nPackageName: "@kichat/n8n-nodes-kirimchat",
 }
 
@@ -455,11 +455,11 @@ export default function BrandingSettingsPage() {
             </Label>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href={`mailto:${settings.supportEmail || "support@yourdomain.com"}`}
+                href={`mailto:${settings.supportEmail || "support@citcat.id"}`}
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"
               >
                 <IconMail className="h-4 w-4 text-primary" />
-                <span className="text-sm">{settings.supportEmail || "support@yourdomain.com"}</span>
+                <span className="text-sm">{settings.supportEmail || "support@citcat.id"}</span>
               </a>
               <a
                 href={`https://wa.me/${(settings.supportWhatsapp || "+6281234567890").replace(/[^0-9]/g, "")}`}
@@ -536,7 +536,7 @@ export default function BrandingSettingsPage() {
             </Label>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href={settings.termsUrl || "https://yourdomain.com/terms"}
+                href={settings.termsUrl || "https://citcat.id/terms"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"
@@ -545,7 +545,7 @@ export default function BrandingSettingsPage() {
                 <span className="text-sm">{t("branding.termsOfService") || "Terms of Service"}</span>
               </a>
               <a
-                href={settings.privacyUrl || "https://yourdomain.com/privacy"}
+                href={settings.privacyUrl || "https://citcat.id/privacy"}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-4 py-2 bg-background rounded-md border hover:bg-muted transition-colors"

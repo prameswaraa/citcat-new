@@ -1,4 +1,4 @@
-# KirimChat Documentation
+# Citcat Documentation
 
 > **CONFIDENTIAL - PRIVATE SOURCE CODE**
 >
@@ -11,7 +11,7 @@
 
 ---
 
-Dokumentasi lengkap untuk deployment dan maintenance KirimChat.
+Dokumentasi lengkap untuk deployment dan maintenance Citcat.
 
 ## Documentation Index
 

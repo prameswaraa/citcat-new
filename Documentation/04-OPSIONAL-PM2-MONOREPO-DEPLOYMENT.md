@@ -1,4 +1,4 @@
-# PM2 Monorepo Deployment Guide - KirimChat
+# PM2 Monorepo Deployment Guide - Citcat
 
 > **CONFIDENTIAL - PRIVATE SOURCE CODE**
 >
@@ -11,7 +11,7 @@
 
 ---
 
-Panduan deployment KirimChat menggunakan **PM2** dari root folder monorepo. Metode ini menjalankan **backend dan frontend** sekaligus dengan satu konfigurasi.
+Panduan deployment Citcat menggunakan **PM2** dari root folder monorepo. Metode ini menjalankan **backend dan frontend** sekaligus dengan satu konfigurasi.
 
 ## Kapan Menggunakan Metode Ini?
 

@@ -1,6 +1,6 @@
-# KirimChat Changelog
+# Citcat Changelog
 
-Semua perubahan penting pada KirimChat akan didokumentasikan di file ini.
+Semua perubahan penting pada Citcat akan didokumentasikan di file ini.
 
 Format: [Semantic Versioning](https://semver.org/)
 

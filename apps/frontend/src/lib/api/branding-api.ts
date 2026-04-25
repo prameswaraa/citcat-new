@@ -25,10 +25,10 @@ const getDefaultAppName = () => process.env.NEXT_PUBLIC_APP_NAME || 'Messaging P
 export const DEFAULT_BRANDING: BrandingSettings = {
   websiteName: getDefaultAppName(),
   logoUrl: '',
-  supportEmail: 'support@yourdomain.com',
+  supportEmail: 'support@citcat.id',
   supportWhatsapp: '+6281234567890',
-  termsUrl: 'https://yourdomain.com/terms',
-  privacyUrl: 'https://yourdomain.com/privacy',
+  termsUrl: 'https://citcat.id/terms',
+  privacyUrl: 'https://citcat.id/privacy',
   n8nPackageName: '@kichat/n8n-nodes-kirimchat',
 }
 

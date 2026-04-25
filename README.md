@@ -1,4 +1,4 @@
-# KirimChat - Syarat dan Ketentuan Penggunaan Source Code
+# Citcat - Syarat dan Ketentuan Penggunaan Source Code
 
 **Terakhir diperbarui:** 8 Januari 2026
 
@@ -6,15 +6,15 @@
 
 ## 1. Definisi
 
-- **"Source Code"** merujuk pada seluruh kode sumber KirimChat yang disediakan dalam paket ini.
+- **"Source Code"** merujuk pada seluruh kode sumber Citcat yang disediakan dalam paket ini.
 - **"Pembeli"** merujuk pada individu atau entitas yang telah menyelesaikan kelas "Lolos Tech Provider" dan menerima Source Code sebagai bonus.
-- **"Penyedia"** merujuk pada pemilik dan pengembang asli KirimChat.
+- **"Penyedia"** merujuk pada pemilik dan pengembang asli Citcat.
 
 ---
 
 ## 2. Status Source Code
 
-Source Code KirimChat ini diberikan sebagai **BONUS** dari kelas "Lolos Tech Provider". Dengan menerima Source Code ini, Pembeli memahami dan menyetujui bahwa:
+Source Code Citcat ini diberikan sebagai **BONUS** dari kelas "Lolos Tech Provider". Dengan menerima Source Code ini, Pembeli memahami dan menyetujui bahwa:
 
 ### 2.1 Bukan Produk Utama
 - Source Code ini adalah **bonus tambahan**, bukan produk utama yang dibeli.
@@ -171,4 +171,4 @@ Dengan menggunakan Source Code ini, Anda menyatakan bahwa:
 
 ---
 
-**© 2026 KirimChat. All Rights Reserved.**
+**© 2026 Citcat. All Rights Reserved.**

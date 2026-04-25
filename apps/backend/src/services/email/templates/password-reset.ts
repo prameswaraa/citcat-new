@@ -17,7 +17,7 @@ export interface PasswordResetTemplate {
 }
 
 export function passwordResetTemplate(params: PasswordResetParams): PasswordResetTemplate {
-  const { otp, expiresInMinutes, appName = 'KirimChat' } = params;
+  const { otp, expiresInMinutes, appName = 'Citcat' } = params;
   
   const sanitizedOTP = sanitizeOTP(otp) || escapeHtml(otp);
   const sanitizedAppName = escapeHtml(appName);

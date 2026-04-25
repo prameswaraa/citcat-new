@@ -127,7 +127,7 @@ export class EmailService {
       user: settings.user || '',
       password: settings.password || '',
       fromEmail: settings.fromEmail || '',
-      fromName: settings.fromName || 'KirimChat',
+      fromName: settings.fromName || 'Citcat',
       secure: settings.secure ?? false,
     };
   }
@@ -214,7 +214,7 @@ export class EmailService {
     const dbTemplate = await emailTemplateService.resolveTemplate('otp-verification', {
       otp: params.otp,
       expiresInMinutes: String(params.expiresInMinutes),
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
     });
     if (dbTemplate) {
       return this.send({ to: params.to, ...dbTemplate });
@@ -246,7 +246,7 @@ export class EmailService {
     const dbTemplate = await emailTemplateService.resolveTemplate('password-reset', {
       otp: params.otp,
       expiresInMinutes: String(params.expiresInMinutes),
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
     });
     if (dbTemplate) {
       return this.send({ to: params.to, ...dbTemplate });
@@ -566,7 +566,7 @@ export class EmailService {
       orderId: params.orderId,
       amount: formatCurrency(params.amount),
       durationLabel: params.durationLabel || '1 Bulan',
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
     });
     if (dbTemplate) {
       return this.send({ to: params.to, ...dbTemplate });
@@ -609,7 +609,7 @@ export class EmailService {
       tierName: params.tierName,
       expiryDate: params.expiryDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
       daysUntilExpiry: String(params.daysUntilExpiry),
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
     });
     if (dbTemplate) {
       return this.send({ to: params.to, ...dbTemplate });
@@ -646,7 +646,7 @@ export class EmailService {
       userName: params.userName,
       tierName: params.tierName,
       expiredDate: params.expiredDate.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
     });
     if (dbTemplate) {
       return this.send({ to: params.to, ...dbTemplate });
@@ -681,7 +681,7 @@ export class EmailService {
     const dbTemplate = await emailTemplateService.resolveTemplate('welcome', {
       userName: params.userName,
       userEmail: params.to,
-      appName: params.appName || 'KirimChat',
+      appName: params.appName || 'Citcat',
       dashboardUrl: params.dashboardUrl || 'https://app.kirim.chat',
       whatsappCommunityLink: params.whatsappCommunityLink || 'https://chat.whatsapp.com/Dg7yMgjRzva2ADZ5g96uHq',
     });

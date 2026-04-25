@@ -165,7 +165,7 @@ export function createSMTPProviderFromEnv(): SMTPProvider {
     user: process.env.SMTP_USER || '',
     password: process.env.SMTP_PASSWORD || '',
     fromEmail: process.env.SMTP_FROM_EMAIL || '',
-    fromName: process.env.SMTP_FROM_NAME || 'KirimChat',
+    fromName: process.env.SMTP_FROM_NAME || 'Citcat',
     secure: process.env.SMTP_SECURE === 'true',
   });
 }

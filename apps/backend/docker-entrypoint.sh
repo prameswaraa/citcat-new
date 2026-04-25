@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-echo "🚀 Starting KirimChat Backend..."
+echo "🚀 Starting Citcat Backend..."
 
 # Wait for database to be ready
 echo "⏳ Waiting for PostgreSQL..."

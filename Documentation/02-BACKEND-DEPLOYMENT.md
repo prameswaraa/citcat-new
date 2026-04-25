@@ -1,4 +1,4 @@
-# 🚀 Backend Deployment Guide - KirimChat
+# 🚀 Backend Deployment Guide - Citcat
 
 > **⚠️ CONFIDENTIAL - PRIVATE SOURCE CODE**
 >
@@ -13,7 +13,7 @@
 
 ---
 
-Panduan lengkap deployment backend KirimChat menggunakan **PM2** untuk aplikasi dan **Docker** untuk database (PostgreSQL + Redis).
+Panduan lengkap deployment backend Citcat menggunakan **PM2** untuk aplikasi dan **Docker** untuk database (PostgreSQL + Redis).
 
 ## 📋 Table of Contents
 
@@ -259,16 +259,16 @@ JWT_SECRET="your-super-secret-jwt-key-change-in-production"
 
 API_KEY_PREFIX="kc"
 
-# Webhook header prefix for white-label (default: KirimChat)
+# Webhook header prefix for white-label (default: Citcat)
 # Changes webhook headers: X-{PREFIX}-Signature, X-{PREFIX}-Event, etc.
-WEBHOOK_HEADER_PREFIX="YourBrand"
+WEBHOOK_HEADER_PREFIX="Citcat"
 
 # Server Configuration
 NODE_ENV="production"
 PORT=3005
 
 # CORS Configuration (comma-separated list of allowed origins)
-CORS_ALLOWED_ORIGINS="https://yourdomain.com,https://www.yourdomain.com,https://api.yourdomain.com"
+CORS_ALLOWED_ORIGINS="https://citcat.id,https://www.citcat.id,https://api.citcat.id"
 
 # Meta/WhatsApp Configuration (Opsional bisa setting nanti)
 META_APP_ID="your-meta-app-id"
@@ -278,8 +278,8 @@ META_CONFIG_ID="your-meta-embedded-signup-config-id"
 
 # WABA Embedded Signup Configuration
 # Note: This should point to FRONTEND URL, not backend. Meta redirects here after OAuth.
-OAUTH_REDIRECT_URI="https://yourdomain.com/waba/callback"
-WEBHOOK_BASE_URL="https://api.yourdomain.com"
+OAUTH_REDIRECT_URI="https://citcat.id/waba/callback"
+WEBHOOK_BASE_URL="https://api.citcat.id"
 WABA_TOKEN_ENCRYPTION_KEY="base64-encoded-32-byte-key"
 
 # Rate Limiting
@@ -292,7 +292,7 @@ SMTP_PORT=587
 SMTP_USER="your-smtp-login"
 SMTP_PASSWORD="your-smtp-password"
 SMTP_FROM_EMAIL="noreply@yourdomain.com"
-SMTP_FROM_NAME="YourAppName"
+SMTP_FROM_NAME="Citcat"
 SMTP_SECURE=false
 
 # Email Notifications
@@ -318,18 +318,18 @@ REDIS_PASSWORD="YOUR_STRONG_REDIS_PASSWORD"
 # Security
 BCRYPT_ROUNDS=12
 JWT_EXPIRES_IN="24h"
-TWO_FACTOR_ISSUER="YourAppName"
+TWO_FACTOR_ISSUER="Citcat"
 
 # Better Auth (generate dengan: openssl rand -base64 32)
 BETTER_AUTH_SECRET="your-super-secret-better-auth-key-change-in-production"
-BETTER_AUTH_URL="https://yourdomain.com"
+BETTER_AUTH_URL="https://citcat.id"
 
 # Google OAuth (wajib)
 GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="your-google-client-secret"
 
 # Public URL (for media links - MUST match frontend API URL)
-PUBLIC_URL="https://api.yourdomain.com"
+PUBLIC_URL="https://api.citcat.id"
 
 # AI Configuration (optional)
 # OPENAI_API_KEY="your-key"
@@ -337,12 +337,12 @@ PUBLIC_URL="https://api.yourdomain.com"
 # Instagram API Configuration (optional bisa dari admin panel)
 # INSTAGRAM_APP_ID="your-instagram-app-id"
 # INSTAGRAM_APP_SECRET="your-instagram-app-secret"
-# INSTAGRAM_REDIRECT_URI="https://api.yourdomain.com/api/v1/ig/auth/callback"
+# INSTAGRAM_REDIRECT_URI="https://api.citcat.id/api/v1/ig/auth/callback"
 # INSTAGRAM_WEBHOOK_VERIFY_TOKEN="your-instagram-webhook-verify-token"
 
 # Frontend URL (for OAuth redirects)
-FRONTEND_URL="https://yourdomain.com"
-BACKEND_URL="https://api.yourdomain.com
+FRONTEND_URL="https://citcat.id"
+BACKEND_URL="https://api.citcat.id
 COOKIE_DOMAIN=".yourdomain.com"
 ```
 
@@ -596,7 +596,7 @@ pm2 status
 pm2 logs backend --lines 50
 
 # Test API
-curl https://api.yourdomain.com/health
+curl https://api.citcat.id/health
 ```
 
 ### Setup Monitoring

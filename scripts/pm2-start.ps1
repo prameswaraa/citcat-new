@@ -1,12 +1,12 @@
 # ============================================
-# PM2 Production Start Script for KirimChat
+# PM2 Production Start Script for Citcat
 # Windows PowerShell Version
 # ============================================
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "========================================" -ForegroundColor Green
-Write-Host "  KirimChat PM2 Production Deployment  " -ForegroundColor Green
+Write-Host "  Citcat PM2 Production Deployment  " -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 
 # Navigate to project root

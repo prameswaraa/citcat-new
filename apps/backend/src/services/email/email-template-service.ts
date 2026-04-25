@@ -575,12 +575,12 @@ class EmailTemplateService {
    */
   private getSampleVariables(slug: string): Record<string, string> {
     const samples: Record<string, Record<string, string>> = {
-      'otp-verification': { otp: '123456', expiresInMinutes: '10', appName: 'KirimChat' },
-      'password-reset': { otp: '654321', expiresInMinutes: '10', appName: 'KirimChat' },
+      'otp-verification': { otp: '123456', expiresInMinutes: '10', appName: 'Citcat' },
+      'password-reset': { otp: '654321', expiresInMinutes: '10', appName: 'Citcat' },
       'welcome': {
         userName: 'John Doe',
         userEmail: 'john@example.com',
-        appName: 'KirimChat',
+        appName: 'Citcat',
         dashboardUrl: 'https://app.kirim.chat',
         whatsappCommunityLink: 'https://chat.whatsapp.com/example',
       },
@@ -592,27 +592,27 @@ class EmailTemplateService {
         orderId: 'ORD-12345',
         amount: 'Rp 100.000',
         durationLabel: '1 Bulan',
-        appName: 'KirimChat',
+        appName: 'Citcat',
       },
       'subscription-expiry-reminder': {
         userName: 'John Doe',
         tierName: 'PRO',
         expiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('id-ID'),
         daysUntilExpiry: '7',
-        appName: 'KirimChat',
+        appName: 'Citcat',
       },
       'subscription-expired': {
         userName: 'John Doe',
         tierName: 'PRO',
         expiredDate: new Date().toLocaleDateString('id-ID'),
-        appName: 'KirimChat',
+        appName: 'Citcat',
       },
       'invitation': {
         businessOwnerName: 'Jane Smith',
         inviteeEmail: 'agent@example.com',
         invitationLink: 'https://app.kirim.chat/invite/sample-token',
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US'),
-        appName: 'KirimChat',
+        appName: 'Citcat',
       },
       'token-refresh-failed': {
         wabaId: 'WABA-12345',

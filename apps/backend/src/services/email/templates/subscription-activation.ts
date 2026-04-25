@@ -20,7 +20,7 @@ export interface SubscriptionActivationParams {
   orderId: string;
   /** Amount paid in IDR */
   amount: number;
-  /** Application name (defaults to KirimChat) */
+  /** Application name (defaults to Citcat) */
   appName?: string;
   /** Duration in days (30, 90, 180, or 365) */
   durationDays?: number;
@@ -72,7 +72,7 @@ export function subscriptionActivationTemplate(
     endDate,
     orderId,
     amount,
-    appName = 'KirimChat',
+    appName = 'Citcat',
     durationDays = 30,
     durationLabel = '1 Bulan',
   } = params;

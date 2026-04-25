@@ -15,9 +15,9 @@ const ipv4Agent = new Agent({
 const DEDUP_KEY_PREFIX = 'webhook:dedup:';
 const DEDUP_TTL_SECONDS = 86400; // 24 hours - prevents re-emit for same message
 
-// Webhook header prefix - configurable for white-label (default: KirimChat)
-// Example: X-KirimChat-Signature, X-KirimChat-Event, etc.
-const WEBHOOK_HEADER_PREFIX = process.env.WEBHOOK_HEADER_PREFIX || 'KirimChat';
+// Webhook header prefix - configurable for white-label (default: Citcat)
+// Example: X-Citcat-Signature, X-Citcat-Event, etc.
+const WEBHOOK_HEADER_PREFIX = process.env.WEBHOOK_HEADER_PREFIX || 'Citcat';
 
 /**
  * Webhook event types supported by the system
