@@ -103,7 +103,7 @@ export default function CustomersPage() {
             {t("description")}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
           <WhatsAppPhoneSelector
             phoneNumbers={phoneNumbers}
             selectedId={selectedPhoneNumberId}
