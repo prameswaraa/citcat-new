@@ -89,24 +89,30 @@ export function MutateWebhook({ open, setOpen, currentWebhook }: Props) {
     },
   })
 
-  // Reset form when dialog opens with new webhook data
+  // Reset form and state when dialog opens
   useEffect(() => {
-    if (open && currentWebhook) {
-      // Edit mode: populate with current webhook data
-      form.reset({
-        name: currentWebhook.name,
-        url: currentWebhook.url,
-        events: currentWebhook.events,
-        channels: currentWebhook.channels,
-      })
-    } else if (open && !currentWebhook) {
-      // Create mode: reset to empty
-      form.reset({
-        name: "",
-        url: "",
-        events: [],
-        channels: [],
-      })
+    if (open) {
+      // Always reset secret state when sheet opens
+      setCreatedSecret(null)
+      setIsCopied(false)
+      
+      if (currentWebhook) {
+        // Edit mode: populate with current webhook data
+        form.reset({
+          name: currentWebhook.name,
+          url: currentWebhook.url,
+          events: currentWebhook.events,
+          channels: currentWebhook.channels,
+        })
+      } else {
+        // Create mode: reset to empty
+        form.reset({
+          name: "",
+          url: "",
+          events: [],
+          channels: [],
+        })
+      }
     }
   }, [open, currentWebhook, form])
 

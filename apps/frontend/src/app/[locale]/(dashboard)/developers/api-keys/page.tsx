@@ -7,14 +7,6 @@ import { Terminal, Loader2 } from "lucide-react"
 import { Link } from "@/i18n/routing"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -113,52 +105,30 @@ export default function ApiKeysPage() {
   }
 
   return (
-    <>
-      <div className="flex w-full flex-col gap-2">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/">Home</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link href="/developers">Developers</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>API Keys</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="text-2xl font-bold">API Keys</h2>
-            <p className="text-muted-foreground text-sm">
-              Secure, manage, and monitor your API keys for external integrations.
-            </p>
-          </div>
-          {hasApiAccess && (
-            <div className="flex items-center gap-3">
-              <span className="text-muted-foreground text-sm">{usageText}</span>
-              {canCreateApiKey ? (
-                <CreateApiKeyDialog onKeyCreated={handleKeyCreated} />
-              ) : (
-                <Button variant="default" size="sm" disabled>
-                  <IconKey className="mr-2 h-4 w-4" />
-                  Limit Reached
-                </Button>
-              )}
-            </div>
-          )}
+    <div className="flex w-full flex-1 flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h2 className="text-lg font-semibold">API Keys</h2>
+          <p className="text-muted-foreground text-sm">
+            Secure, manage, and monitor your API keys for external integrations.
+          </p>
         </div>
+        {hasApiAccess && (
+          <div className="flex items-center gap-3">
+            <span className="text-muted-foreground text-sm">{usageText}</span>
+            {canCreateApiKey ? (
+              <CreateApiKeyDialog onKeyCreated={handleKeyCreated} />
+            ) : (
+              <Button variant="default" size="sm" disabled>
+                <IconKey className="mr-2 h-4 w-4" />
+                Limit Reached
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="my-8 w-full max-w-4xl">
+      <div className="w-full max-w-4xl">
         <Alert className="mb-6">
           <Terminal className="h-4 w-4" />
           <AlertTitle>API Authentication</AlertTitle>
@@ -298,6 +268,6 @@ export default function ApiKeysPage() {
         isLoading={isRevoking}
         handleConfirm={handleRevokeConfirm}
       />
-    </>
+    </div>
   )
 }

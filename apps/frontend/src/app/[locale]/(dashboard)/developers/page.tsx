@@ -7,13 +7,13 @@ export default function DevelopersPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace("/developers/docs")
+    router.replace("/developers/api-keys")
   }, [router])
 
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
       <div className="animate-pulse text-muted-foreground">
-        Redirecting to documentation...
+        Redirecting...
       </div>
     </div>
   )

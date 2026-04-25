@@ -30,18 +30,28 @@ export const columns: ColumnDef<WebhookEndpoint>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="URL Endpoint" />
     ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <LongText className="min-w-40 text-sky-700 dark:text-sky-400">
-          {row.getValue("url")}
-        </LongText>
-        <CopyButton
-          className="size-6 scale-100 rounded-full"
-          text={row.getValue("url")}
-        />
-      </div>
-    ),
-    meta: { className: cn("min-w-48") },
+    cell: ({ row }) => {
+      const url = row.getValue("url") as string
+      const maxLength = 50
+      const truncatedUrl = url.length > maxLength 
+        ? url.substring(0, maxLength) + "..." 
+        : url
+      
+      return (
+        <div className="flex items-center gap-2">
+          <span 
+            className="text-sky-700 dark:text-sky-400 font-mono text-sm"
+            title={url}
+          >
+            {truncatedUrl}
+          </span>
+          <CopyButton
+            className="size-6 scale-100 rounded-full shrink-0"
+            text={url}
+          />
+        </div>
+      )
+    },
     enableSorting: false,
     enableHiding: false,
   },
