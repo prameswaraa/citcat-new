@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kirimchat-frontend",
+  "main": "apps/frontend/.open-next/worker.js",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_names": false,
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "apps/frontend/.open-next/assets"
+  },
+  "routes": [
+    { "pattern": "citcat.id/*", "zone_name": "citcat.id" },
+    { "pattern": "www.citcat.id/*", "zone_name": "citcat.id" }
+  ],
+  "vars": {
+    "NEXT_PUBLIC_API_URL": "https://api.citcat.id",
+    "NEXT_PUBLIC_APP_URL": "https://citcat.id",
+    "NEXT_PUBLIC_APP_NAME": "Citcat"
+  }
+}
