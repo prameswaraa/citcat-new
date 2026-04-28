@@ -261,7 +261,7 @@ export function VariableFormDialog({
 
     setLoading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
       const response = await fetch(`${apiUrl}/api/v1/template-variables`, {
         method: "POST",

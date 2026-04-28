@@ -67,7 +67,7 @@ export function ActivityTimeline({ customerId }: ActivityTimelineProps) {
                 setLoading(true)
             }
 
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
             const currentOffset = isLoadMore ? offset : 0
 
             const response = await fetch(
@@ -108,7 +108,7 @@ export function ActivityTimeline({ customerId }: ActivityTimelineProps) {
 
         try {
             setAddingNote(true)
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
             const response = await fetch(
                 `${apiUrl}/api/v1/customers/${customerId}/activities`,

@@ -100,7 +100,7 @@ export default function WABAPage() {
 
     try {
       setDisconnecting(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/waba/${selectedWabaId}/disconnect`, {
         method: "POST",
         credentials: "include",

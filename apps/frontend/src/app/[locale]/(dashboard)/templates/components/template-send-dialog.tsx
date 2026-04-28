@@ -283,7 +283,7 @@ export function TemplateSendDialog({
 
     setLoading(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/template-variables/mappings/${encodeURIComponent(template.templateName)}`,
         { credentials: "include" }
@@ -319,7 +319,7 @@ export function TemplateSendDialog({
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/templates/render-preview`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -486,7 +486,7 @@ export function TemplateSendDialog({
 
     setSending(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/templates/send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

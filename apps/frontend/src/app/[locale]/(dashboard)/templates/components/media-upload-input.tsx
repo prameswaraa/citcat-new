@@ -153,7 +153,7 @@ export function MediaUploadInput({
       formData.append("file", file)
       formData.append("type", type)
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       
       // Use XMLHttpRequest for progress tracking
       const xhr = new XMLHttpRequest()

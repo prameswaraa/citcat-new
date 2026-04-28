@@ -47,7 +47,7 @@ export function WABAStatusBanner({ wabaId }: WABAStatusBannerProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["waba-health", wabaId],
     queryFn: async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/waba/${wabaId}/health`, {
         credentials: "include",
       })

@@ -23,7 +23,7 @@ import {
 import { useTranslations } from "next-intl"
 import Image from "next/image"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 const DEFAULT_APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || "Messaging Platform"
 
 interface BrandingSettings {

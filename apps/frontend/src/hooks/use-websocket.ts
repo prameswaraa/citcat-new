@@ -396,7 +396,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     clearReconnectTimeout()
 
-    const wsUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const wsUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
     // Create socket connection
     const socket = io(wsUrl, {

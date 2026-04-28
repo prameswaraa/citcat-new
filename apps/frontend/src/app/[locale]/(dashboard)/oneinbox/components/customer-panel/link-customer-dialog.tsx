@@ -45,7 +45,7 @@ export function LinkCustomerDialog({
       return
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     setLoading(true)
     try {
       const response = await fetch(

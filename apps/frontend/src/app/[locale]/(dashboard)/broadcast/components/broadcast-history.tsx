@@ -134,7 +134,7 @@ export function BroadcastHistory() {
     try {
       setError(null)
       setLoading(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs?page=${page}&limit=10`,
         { credentials: "include" }
@@ -174,7 +174,7 @@ export function BroadcastHistory() {
   const loadJobDetail = async (jobId: string) => {
     try {
       setLoadingDetail(true)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs/${jobId}`,
         { credentials: "include" }

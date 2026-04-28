@@ -211,7 +211,7 @@ export function useUnifiedInbox() {
 
     // Helper function to fetch fresh CRM data for enrichment
     const fetchCrmData = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       try {
         const response = await fetch(`${apiUrl}/api/v1/customers`, { credentials: "include" })
         if (!response.ok) return { customerMap: new Map(), customerByIgsidMap: new Map(), customerByPsidMap: new Map() }

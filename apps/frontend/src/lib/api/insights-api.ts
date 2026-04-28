@@ -7,7 +7,7 @@
  * Requirements: 1.1, 2.1, 3.1
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 // =============================================================================
 // Types

@@ -509,7 +509,7 @@ export function ApiPlayground({ activeSection }: ApiPlaygroundProps) {
     setResponseStatus(null)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const res = await fetch(`${apiUrl}${currentEndpoint.path}`, {
         method: currentEndpoint.method,
         headers: {

@@ -216,7 +216,7 @@ export function TemplatesMutateDrawer({
   const loadVariables = useCallback(async () => {
     setLoadingVariables(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/template-variables`, {
         credentials: "include",
       })
@@ -313,7 +313,7 @@ export function TemplatesMutateDrawer({
 
     setSubmitting(true)
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
       // Extract variable example values in order for Meta API
       const variableExamples: string[] = []

@@ -41,7 +41,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
   const loadCrmData = useCallback(async () => {
     if (!userId) return
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
     // Try to load cached pipeline stages first for instant display
     try {
@@ -168,7 +168,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
 
   // Load customer detail for panel display
   const loadCustomerDetail = useCallback(async (customerId: string) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     setCustomerLoading(true)
     try {
       const response = await fetch(`${apiUrl}/api/v1/customers/${customerId}`, {
@@ -211,7 +211,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
 
   // Update customer tags with optimistic UI
   const updateCustomerTags = useCallback(async (customerId: string, tags: string[]) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     
     // Store previous state for rollback
     const previousCustomerDetail = selectedCustomerDetail
@@ -261,7 +261,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
 
   // Update customer pipeline stage with optimistic UI
   const updateCustomerStage = useCallback(async (customerId: string, pipelineStageId: string) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     
     // Find the new stage from pipelineStages
     const newStage = pipelineStages.find(s => s.id === pipelineStageId)
@@ -307,7 +307,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
 
   // Add customer note with optimistic UI
   const addCustomerNote = useCallback(async (customerId: string, content: string) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     
     // Store previous state for rollback
     const previousCustomerDetail = selectedCustomerDetail
@@ -378,7 +378,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
     customerId: string,
     updates: { name?: string; email?: string; customFields?: Record<string, string> }
   ) => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
     try {
       const response = await fetch(`${apiUrl}/api/v1/customers/${customerId}`, {
         method: "PATCH",
@@ -407,7 +407,7 @@ export function useCRMData({ userId, selectedConversation, loadConversations }: 
   const linkCustomerToConversation = useCallback(async (customerId: string) => {
     if (!selectedConversation) return false
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
     // For Instagram conversations, use the link-customer endpoint
     if (selectedConversation.channel === "instagram") {

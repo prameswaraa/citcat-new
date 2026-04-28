@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 export interface DurationConfig {
   months: number        // 1, 3, 6, or 12

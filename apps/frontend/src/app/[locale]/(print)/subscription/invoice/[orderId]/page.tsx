@@ -12,7 +12,7 @@ import { Printer, X, Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 interface InvoiceData {
   orderId: string

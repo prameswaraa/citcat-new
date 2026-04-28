@@ -5,7 +5,7 @@ import { useRouter } from "@/i18n/routing"
 import { useQueryClient } from "@tanstack/react-query"
 import { SESSION_QUERY_KEY } from "@/hooks/use-cached-session"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 type RegistrationStep = "form" | "otp"
 

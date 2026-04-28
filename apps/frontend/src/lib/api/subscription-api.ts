@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 export type SubscriptionTier = 'FREE' | 'BASIC' | 'LITE' | 'PRO'
 export type SubscriptionStatus = 'ACTIVE' | 'PENDING_PAYMENT' | 'EXPIRED' | 'CANCELLED'

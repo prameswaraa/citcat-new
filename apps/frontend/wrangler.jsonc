@@ -14,9 +14,16 @@
     "directory": ".open-next/assets"
   },
 
+  // Custom domains
+  "routes": [
+    { "pattern": "citcat.id/*", "zone_name": "citcat.id" },
+    { "pattern": "www.citcat.id/*", "zone_name": "citcat.id" }
+  ],
+
   // Environment variables
   "vars": {
     "NEXT_PUBLIC_API_URL": "https://api.citcat.id",
-    "NEXT_PUBLIC_APP_URL": "https://citcat.id"
+    "NEXT_PUBLIC_APP_URL": "https://citcat.id",
+    "NEXT_PUBLIC_APP_NAME": "Citcat"
   }
 }

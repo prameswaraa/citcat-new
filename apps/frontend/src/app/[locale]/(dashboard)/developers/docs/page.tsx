@@ -21,7 +21,7 @@ export default function DocsPage() {
   const isScrollingRef = useRef(false)
   const { websiteName, n8nPackageName } = useBranding()
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
   // Handle scroll-based active section using Intersection Observer
   useEffect(() => {

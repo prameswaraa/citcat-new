@@ -20,7 +20,7 @@ import { IconUserCheck, IconBrandGoogle } from "@tabler/icons-react"
 import { authClient } from "@/lib/auth-client"
 import { useRouter } from "@/i18n/routing"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 interface InvitationData {
   id: string

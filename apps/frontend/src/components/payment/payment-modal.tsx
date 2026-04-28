@@ -30,7 +30,7 @@ import { invalidateSubscriptionCache } from '@/hooks/use-subscription-query'
 import { useCreditBalance, invalidateCreditBalance } from '@/hooks/use-credit'
 import { subscriptionApi, type ProrateInfo } from '@/lib/api/subscription-api'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 // Types
 export type SubscriptionTier = 'BASIC' | 'LITE' | 'PRO'

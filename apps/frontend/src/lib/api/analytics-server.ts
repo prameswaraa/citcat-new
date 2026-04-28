@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { AnalyticsData } from './analytics-api'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 export async function getAnalyticsServer(timeRange: string = '7d'): Promise<AnalyticsData | null> {
     try {

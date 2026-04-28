@@ -3,7 +3,7 @@
  * Handles all Instagram DM integration API calls
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 export interface InstagramAccount {
   id: string

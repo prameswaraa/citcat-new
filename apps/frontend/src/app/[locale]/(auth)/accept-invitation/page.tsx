@@ -10,7 +10,7 @@ import { IconAlertCircle, IconLoader2, IconUserPlus } from "@tabler/icons-react"
 import { AcceptInvitationForm } from "./components/accept-invitation-form"
 import { ExistingUserPrompt } from "./components/existing-user-prompt"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 interface InvitationData {
   id: string

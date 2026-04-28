@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 // Types for WABA Health Status
 export type WABAHealthStatus =

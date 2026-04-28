@@ -16,7 +16,7 @@ import {
   IconHeartbeat,
 } from "@tabler/icons-react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 type PaymentProvider = "duitku" | "xendit"
 

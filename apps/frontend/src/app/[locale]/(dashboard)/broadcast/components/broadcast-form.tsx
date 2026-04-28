@@ -156,7 +156,7 @@ export function BroadcastForm({ onSuccess, selectedPhoneNumberId: propPhoneNumbe
     setIsSubmitting(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
       // Use templateName from API response (backend uses templateName)
       const templateName = selectedTemplate.templateName

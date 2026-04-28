@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { IconLoader2, IconAlertCircle, IconUserPlus } from "@tabler/icons-react"
 import { Link } from "@/i18n/routing"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 export default function AcceptInvitationCallbackPage() {
     const router = useRouter()

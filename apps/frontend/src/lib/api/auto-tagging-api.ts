@@ -6,7 +6,7 @@
  * based on keywords in inbound messages.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 export interface PipelineStage {
   id: string

@@ -111,7 +111,7 @@ export function ActiveJobs({ onJobClick }: ActiveJobsProps) {
   const loadJobs = useCallback(async () => {
     try {
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs?status=PENDING&status=PROCESSING`,
         { credentials: "include" }
@@ -154,7 +154,7 @@ export function ActiveJobs({ onJobClick }: ActiveJobsProps) {
 
     try {
       setCancellingJobId(jobToCancel.id)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs/${jobToCancel.id}/cancel`,
         {
@@ -186,7 +186,7 @@ export function ActiveJobs({ onJobClick }: ActiveJobsProps) {
     setJobDetail(null)
     
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs/${job.id}`,
         { credentials: "include" }
@@ -209,7 +209,7 @@ export function ActiveJobs({ onJobClick }: ActiveJobsProps) {
 
     try {
       setResumingJobId(jobToResume.id)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(
         `${apiUrl}/api/v1/broadcast/jobs/${jobToResume.id}/resume`,
         {

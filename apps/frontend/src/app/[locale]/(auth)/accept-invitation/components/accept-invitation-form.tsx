@@ -21,7 +21,7 @@ import { PasswordInput } from "@/components/password-input"
 import { IconUserPlus } from "@tabler/icons-react"
 import { authClient } from "@/lib/auth-client"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 interface InvitationData {
   id: string

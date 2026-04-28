@@ -15,7 +15,7 @@ import { ImportCsvDialog } from "./import-csv-dialog"
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   (typeof window !== "undefined" && window.location.origin) ||
-  "http://localhost:3005"
+  "https://api.citcat.id"
 
 interface Props<TData> {
   table: Table<TData>

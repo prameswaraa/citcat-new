@@ -141,7 +141,7 @@ export function useWhatsAppMessaging({
   const loadTemplates = useCallback(async () => {
     if (!userId) return
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/templates?userId=${userId}`, {
         credentials: "include",
       })
@@ -440,7 +440,7 @@ export function useWhatsAppMessaging({
       }
       formData.append("target", "whatsapp")
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const uploadResponse = await fetch(`${apiUrl}/api/v1/media/upload`, {
         method: "POST",
         credentials: "include",
@@ -741,7 +741,7 @@ export function useWhatsAppMessaging({
         }
         formData.append("target", "whatsapp")
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
         const uploadResponse = await fetch(`${apiUrl}/api/v1/media/upload`, {
           method: "POST",
           credentials: "include",

@@ -4,7 +4,7 @@
  * Client-side API functions for fetching and managing notifications.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 /**
  * Notification type matching backend enum

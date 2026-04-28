@@ -14,7 +14,7 @@ export interface WindowStatus {
 
 export async function fetchWindowStatus(customerId: string): Promise<WindowStatus | null> {
     try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
         const response = await fetch(`${apiUrl}/api/v1/customers/${customerId}/window-status`, {
             credentials: 'include'
         })

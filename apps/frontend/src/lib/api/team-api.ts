@@ -4,7 +4,7 @@
  * API functions for team management - members and invitations.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 export interface TeamMember {
   id: string

@@ -29,7 +29,7 @@ import {
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 interface MessageRetentionSettings {
   enabled: boolean

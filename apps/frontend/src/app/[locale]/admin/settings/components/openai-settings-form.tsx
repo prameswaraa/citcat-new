@@ -11,7 +11,7 @@ import { SensitiveInput } from "./sensitive-input"
 import { useAdminSettings } from "../../hooks/use-admin-settings"
 import { Input } from "@/components/ui/input"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 import {
   Select,
   SelectContent,

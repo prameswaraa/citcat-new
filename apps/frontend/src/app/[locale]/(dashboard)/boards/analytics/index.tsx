@@ -22,7 +22,7 @@ export default function Analytics() {
 
   const loadAnalytics = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const response = await fetch(`${apiUrl}/api/v1/dashboard/stats`, {
         credentials: "include",
       })

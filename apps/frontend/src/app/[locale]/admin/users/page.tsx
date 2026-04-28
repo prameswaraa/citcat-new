@@ -31,7 +31,7 @@ import { UsersTable } from "./components/users-table"
 import { createColumns } from "./components/users-columns"
 import { AdminUser } from "./components/data-table-row-actions"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 export default function AdminUsersPage() {
   const t = useTranslations("admin")

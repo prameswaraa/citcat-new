@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useToast } from '@/hooks/use-toast'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3005'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.citcat.id'
 
 export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'EXPIRED' | 'CANCELLED'
 export type PaymentMethod = 'QRIS' | 'SHOPEEPAY'

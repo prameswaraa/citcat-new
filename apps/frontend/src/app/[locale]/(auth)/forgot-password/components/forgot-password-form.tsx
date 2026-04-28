@@ -21,7 +21,7 @@ import { OTPInput } from "@/components/ui/otp-input"
 import { Link, useRouter } from "@/i18n/routing"
 import { IconArrowLeft, IconMail, IconRefresh, IconCheck } from "@tabler/icons-react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 function useEmailSchema() {
   const t = useTranslations("validation")

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import type { Role, SubscriptionTier } from "./use-admin-users"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
 
 export type SubscriptionStatus = "ACTIVE" | "PENDING_PAYMENT" | "EXPIRED" | "CANCELLED"
 

@@ -42,7 +42,7 @@ export function TemplateSelector({
     try {
       setLoading(true)
       setError(null)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3005"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.citcat.id"
       const params = new URLSearchParams()
       params.set("status", "APPROVED")
       if (whatsappAccountId) {
