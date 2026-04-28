@@ -320,7 +320,7 @@ export function WABAConnectionButton({
             }
 
             window.FB.login(
-                async (response) => {
+                (response) => {
                     try {
                         const code = response.authResponse?.code
                         const sessionInfo = sessionInfoRef.current
