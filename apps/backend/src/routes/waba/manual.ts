@@ -162,9 +162,9 @@ app.post('/connect', async (c: Context) => {
     const body = await c.req.json().catch(() => ({}))
     const data = manualConnectSchema.parse(body)
 
-    let accessToken = data.accessToken?.trim() || ''
+    let accessToken = ''
 
-    if (!accessToken && data.clientId && data.clientSecret && data.accessCode) {
+    if (data.clientId && data.clientSecret && data.accessCode) {
       try {
         accessToken = await exchangeAccessCodeForToken({
           clientId: data.clientId.trim(),
@@ -181,6 +181,8 @@ app.post('/connect', async (c: Context) => {
           }
         }, 400)
       }
+    } else {
+      accessToken = data.accessToken?.trim() || ''
     }
 
     // Check if this WABA is already connected

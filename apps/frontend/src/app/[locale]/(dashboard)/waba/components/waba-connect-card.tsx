@@ -370,7 +370,10 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                       type="password"
                       placeholder="Paste ES response code from Meta"
                       value={accessCode}
-                      onChange={(e) => setAccessCode(e.target.value)}
+                      onChange={(e) => {
+                        setAccessCode(e.target.value)
+                        if (e.target.value) setAccessToken("")
+                      }}
                     />
                     <p className="text-xs text-muted-foreground">
                       Temporary manual flow: this code will be exchanged to an access token on the backend.
@@ -495,7 +498,10 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                   type="password"
                   placeholder="ES response code from Meta"
                   value={accessCode}
-                  onChange={(e) => setAccessCode(e.target.value)}
+                  onChange={(e) => {
+                    setAccessCode(e.target.value)
+                    if (e.target.value) setAccessToken("")
+                  }}
                 />
                 <p className="text-xs text-muted-foreground">
                   Temporary manual flow: this code will be exchanged for an access token on the backend.
