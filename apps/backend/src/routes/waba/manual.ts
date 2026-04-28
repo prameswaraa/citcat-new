@@ -45,8 +45,6 @@ const manualConnectSchema = z.object({
   }
 })
 
-const META_CODE_EXCHANGE_REDIRECT_URI =
-  'https://developers.facebook.com/es/oauth/callback/?use_case_enum=WHATSAPP_BUSINESS_MESSAGING&business_id=1685528451562903&nonce=KLYsrdRnz5eB3ChsIkG0coxdXmrLbXqh'
 
 /**
  * Generate a random verify token for webhook verification
@@ -61,18 +59,23 @@ async function exchangeAccessCodeForToken(data: {
   accessCode: string
   redirectUri?: string
 }): Promise<string> {
+  const requestBody: Record<string, string> = {
+    client_id: data.clientId,
+    client_secret: data.clientSecret,
+    code: data.accessCode,
+    grant_type: 'authorization_code',
+  }
+
+  if (data.redirectUri?.trim()) {
+    requestBody.redirect_uri = data.redirectUri.trim()
+  }
+
   const response = await fetch('https://graph.facebook.com/v25.0/oauth/access_token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      client_id: data.clientId,
-      client_secret: data.clientSecret,
-      code: data.accessCode,
-      grant_type: 'authorization_code',
-      redirect_uri: data.redirectUri || META_CODE_EXCHANGE_REDIRECT_URI,
-    }),
+    body: JSON.stringify(requestBody),
   })
 
   const result = await response.json().catch(() => ({})) as {

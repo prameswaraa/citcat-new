@@ -389,7 +389,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                       onChange={(e) => setRedirectUri(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use the exact redirect_uri shown by Meta for this code, including nonce.
+                      Optional. If filled, it must exactly match the redirect_uri used to create this code. Leave empty if unsure.
                     </p>
                   </div>
 
@@ -517,7 +517,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                   onChange={(e) => setRedirectUri(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use the exact redirect_uri shown by Meta for this code, including nonce.
+                  Optional. If filled, it must exactly match the redirect_uri used to create this code. Leave empty if unsure.
                 </p>
               </div>
 
