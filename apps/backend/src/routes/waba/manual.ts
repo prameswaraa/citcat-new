@@ -26,6 +26,7 @@ const manualConnectSchema = z.object({
   clientId: z.string().optional(),
   clientSecret: z.string().optional(),
   accessCode: z.string().optional(),
+  redirectUri: z.string().url().optional(),
   wabaId: z.string().min(1, 'WABA ID is required'),
 }).superRefine((data, ctx) => {
   const hasToken = Boolean(data.accessToken && data.accessToken.trim().length >= 10)
@@ -58,6 +59,7 @@ async function exchangeAccessCodeForToken(data: {
   clientId: string
   clientSecret: string
   accessCode: string
+  redirectUri?: string
 }): Promise<string> {
   const response = await fetch('https://graph.facebook.com/v25.0/oauth/access_token', {
     method: 'POST',
@@ -69,7 +71,7 @@ async function exchangeAccessCodeForToken(data: {
       client_secret: data.clientSecret,
       code: data.accessCode,
       grant_type: 'authorization_code',
-      redirect_uri: META_CODE_EXCHANGE_REDIRECT_URI,
+      redirect_uri: data.redirectUri || META_CODE_EXCHANGE_REDIRECT_URI,
     }),
   })
 
@@ -168,6 +170,7 @@ app.post('/connect', async (c: Context) => {
           clientId: data.clientId.trim(),
           clientSecret: data.clientSecret.trim(),
           accessCode: data.accessCode.trim(),
+          redirectUri: data.redirectUri?.trim(),
         })
       } catch (error: any) {
         logDetailedError(error, { action: 'exchangeManualAccessCode', wabaId: data.wabaId })

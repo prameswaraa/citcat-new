@@ -365,6 +365,7 @@ export const wabaApi = {
             clientId?: string
             clientSecret?: string
             accessCode?: string
+            redirectUri?: string
         }
     ): Promise<ManualConnectResponse> {
         const response = await fetch(`${API_URL}/api/v1/waba/manual/connect`, {

@@ -49,6 +49,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
   const [clientId, setClientId] = useState("")
   const [clientSecret, setClientSecret] = useState("")
   const [accessCode, setAccessCode] = useState("")
+  const [redirectUri, setRedirectUri] = useState("")
   const [wabaId, setWabaId] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -77,6 +78,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
         clientId,
         clientSecret,
         accessCode,
+        redirectUri,
       })
       setResult(response)
       setManualTokenDialogOpen(false)
@@ -313,7 +315,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
 
             <div className="rounded-lg border bg-muted/50 p-3">
               <p className="text-muted-foreground text-xs">
-                <strong>Note:</strong> After finishing Meta login, paste WABA ID plus Client ID, Client Secret, and ES response code here. Access token input remains optional.
+                <strong>Note:</strong> After finishing Meta login, paste WABA ID plus Client ID, Client Secret, ES response code, and exact Redirect URI here. Access token input remains optional.
               </p>
             </div>
 
@@ -372,6 +374,19 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                     />
                     <p className="text-xs text-muted-foreground">
                       Temporary manual flow: this code will be exchanged to an access token on the backend.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="popupRedirectUri">Redirect URI</Label>
+                    <Input
+                      id="popupRedirectUri"
+                      placeholder="Paste OAuth redirect URI from Meta"
+                      value={redirectUri}
+                      onChange={(e) => setRedirectUri(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use the exact redirect_uri shown by Meta for this code, including nonce.
                     </p>
                   </div>
 
@@ -484,6 +499,19 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                 />
                 <p className="text-xs text-muted-foreground">
                   Temporary manual flow: this code will be exchanged for an access token on the backend.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="redirectUri">Redirect URI</Label>
+                <Input
+                  id="redirectUri"
+                  placeholder="Paste OAuth redirect URI from Meta"
+                  value={redirectUri}
+                  onChange={(e) => setRedirectUri(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use the exact redirect_uri shown by Meta for this code, including nonce.
                 </p>
               </div>
 
