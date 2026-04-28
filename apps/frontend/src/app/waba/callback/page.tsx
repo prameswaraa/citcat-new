@@ -14,6 +14,13 @@ interface EmbeddedSignupSession {
     savedAt?: string
 }
 
+function getCurrentRedirectUri(): string {
+    const url = new URL(window.location.href)
+    url.searchParams.delete("code")
+    url.searchParams.delete("state")
+    return url.toString()
+}
+
 function getStoredSession(): EmbeddedSignupSession | null {
     try {
         const raw = localStorage.getItem("wabaEmbeddedSignupSession")
@@ -33,7 +40,7 @@ function escapeHtml(value: string): string {
         .replace(/'/g, "&#039;")
 }
 
-function openResultPopup(code: string, session: EmbeddedSignupSession | null): Window | null {
+function openResultPopup(code: string, session: EmbeddedSignupSession | null, redirectUri: string): Window | null {
     const popup = window.open(
         "",
         "waba-embedded-signup-result",
@@ -46,6 +53,7 @@ function openResultPopup(code: string, session: EmbeddedSignupSession | null): W
     const phoneNumberId = escapeHtml(session?.phoneNumberId || "")
     const wabaId = escapeHtml(session?.wabaId || "")
     const businessId = escapeHtml(session?.businessId || "")
+    const escapedRedirectUri = escapeHtml(redirectUri)
 
     popup.document.open()
     popup.document.write(`<!DOCTYPE html>
@@ -94,11 +102,17 @@ function openResultPopup(code: string, session: EmbeddedSignupSession | null): W
 
     ${businessId ? `<div class="row"><div class="label">business_id</div><div class="value" id="business_id">${businessId}</div></div>` : ""}
 
+    <div class="row">
+      <div class="label">redirect_uri</div>
+      <div class="value" id="redirect_uri">${escapedRedirectUri}</div>
+    </div>
+
     <div class="actions">
       <button onclick="navigator.clipboard.writeText(document.getElementById('code').innerText)">Copy code</button>
       <button onclick="navigator.clipboard.writeText(document.getElementById('phone_number_id').innerText)">Copy phone_number_id</button>
       <button onclick="navigator.clipboard.writeText(document.getElementById('waba_id').innerText)">Copy waba_id</button>
       ${businessId ? `<button onclick="navigator.clipboard.writeText(document.getElementById('business_id').innerText)">Copy business_id</button>` : ""}
+      <button onclick="navigator.clipboard.writeText(document.getElementById('redirect_uri').innerText)">Copy redirect_uri</button>
       <button class="secondary" onclick="window.close()">Close</button>
     </div>
   </div>
@@ -114,6 +128,7 @@ function WABACallbackContent() {
     const [message, setMessage] = useState("")
     const [code, setCode] = useState("")
     const [session, setSession] = useState<EmbeddedSignupSession | null>(null)
+    const [redirectUri, setRedirectUri] = useState("")
     const hasHandled = useRef(false)
 
     useEffect(() => {
@@ -145,10 +160,12 @@ function WABACallbackContent() {
                 const storedSession = getStoredSession()
                 setCode(authCode)
                 setSession(storedSession)
+                const currentRedirectUri = getCurrentRedirectUri()
+                setRedirectUri(currentRedirectUri)
                 setStatus("success")
                 setMessage("Authorization code received from Facebook.")
 
-                openResultPopup(authCode, storedSession)
+                openResultPopup(authCode, storedSession, currentRedirectUri)
 
                 if (window.opener) {
                     window.opener.postMessage(
@@ -182,7 +199,7 @@ function WABACallbackContent() {
 
     const handleClose = () => window.close()
     const handleOpenPopupAgain = () => {
-        if (code) openResultPopup(code, session)
+        if (code) openResultPopup(code, session, redirectUri || getCurrentRedirectUri())
     }
 
     return (
@@ -236,6 +253,15 @@ function WABACallbackContent() {
                                     {session?.wabaId || "-"}
                                 </p>
                             </div>
+                        </div>
+                        <div>
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                                <p className="text-sm font-medium">redirect_uri:</p>
+                                <CopyButton text={redirectUri} />
+                            </div>
+                            <p className="text-xs break-all font-mono text-muted-foreground">
+                                {redirectUri || "-"}
+                            </p>
                         </div>
                     </div>
 

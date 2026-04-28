@@ -46,6 +46,7 @@ declare global {
 const FACEBOOK_APP_ID = "1025851416807430"
 const FACEBOOK_CONFIG_ID = "1748856626487547"
 const FACEBOOK_SDK_VERSION = "v25.0"
+const DEFAULT_REDIRECT_URI = "https://citcat.id/waba/callback"
 const ALLOWED_MESSAGE_ORIGINS = new Set([
     "https://business.facebook.com",
     "https://www.facebook.com",
@@ -54,6 +55,7 @@ const ALLOWED_MESSAGE_ORIGINS = new Set([
 interface EmbeddedSignupResult {
     code: string
     sessionInfo: EmbeddedSignupSessionData
+    redirectUri?: string
 }
 
 const ensureFacebookSdkLoaded = async (): Promise<void> => {
@@ -170,6 +172,7 @@ function writeResultPopup(popup: Window | null, result?: EmbeddedSignupResult): 
     const phoneNumberId = escapeHtml(result?.sessionInfo.phoneNumberId || "Waiting for phone_number_id...")
     const wabaId = escapeHtml(result?.sessionInfo.wabaId || "Waiting for waba_id...")
     const businessId = escapeHtml(result?.sessionInfo.businessId || "")
+    const redirectUri = escapeHtml(result?.redirectUri || DEFAULT_REDIRECT_URI)
     const isWaiting = !result
 
     targetPopup.document.open()
@@ -217,11 +220,17 @@ function writeResultPopup(popup: Window | null, result?: EmbeddedSignupResult): 
 
     ${businessId ? `<div class="row"><div class="label">business_id</div><div class="value" id="business_id">${businessId}</div></div>` : ""}
 
+    <div class="row">
+      <div class="label">redirect_uri</div>
+      <div class="value" id="redirect_uri">${redirectUri}</div>
+    </div>
+
     <div class="actions">
       <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('code').innerText)">Copy code</button>
       <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('phone_number_id').innerText)">Copy phone_number_id</button>
       <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('waba_id').innerText)">Copy waba_id</button>
       ${businessId ? `<button onclick="navigator.clipboard.writeText(document.getElementById('business_id').innerText)">Copy business_id</button>` : ""}
+      <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('redirect_uri').innerText)">Copy redirect_uri</button>
       <button class="secondary" onclick="window.close()">Close</button>
     </div>
   </div>
