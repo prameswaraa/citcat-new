@@ -2,15 +2,6 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { CopyButton } from "@/components/copy-button"
 import { Loader2 } from "lucide-react"
 import {
     wabaApi,
@@ -66,13 +57,8 @@ interface EmbeddedSignupResult {
 }
 
 const ensureFacebookSdkLoaded = async (): Promise<void> => {
-    if (typeof window === "undefined") {
-        return
-    }
-
-    if (window.FB) {
-        return
-    }
+    if (typeof window === "undefined") return
+    if (window.FB) return
 
     await new Promise<void>((resolve, reject) => {
         const existingScript = document.querySelector(
@@ -117,9 +103,7 @@ function parseEmbeddedSignupMessage(data: unknown): EmbeddedSignupSessionData | 
     const events = Array.isArray(data) ? data : [data]
 
     for (const item of events) {
-        if (!item || typeof item !== "object") {
-            continue
-        }
+        if (!item || typeof item !== "object") continue
 
         const event = item as {
             type?: string
@@ -148,6 +132,90 @@ function parseEmbeddedSignupMessage(data: unknown): EmbeddedSignupSessionData | 
     return null
 }
 
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;")
+}
+
+function openResultPopup(result: EmbeddedSignupResult): Window | null {
+    const popup = window.open(
+        "",
+        "waba-embedded-signup-result",
+        "width=760,height=720,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes"
+    )
+
+    if (!popup) {
+        return null
+    }
+
+    const code = escapeHtml(result.code)
+    const phoneNumberId = escapeHtml(result.sessionInfo.phoneNumberId)
+    const wabaId = escapeHtml(result.sessionInfo.wabaId)
+    const businessId = escapeHtml(result.sessionInfo.businessId || "")
+
+    popup.document.open()
+    popup.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WABA Embedded Signup Result</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b1020; color: #e5e7eb; margin: 0; padding: 24px; }
+    .card { max-width: 900px; margin: 0 auto; background: #111827; border: 1px solid #374151; border-radius: 12px; padding: 24px; }
+    h1 { margin-top: 0; font-size: 22px; }
+    p { color: #cbd5e1; }
+    .row { margin-top: 18px; }
+    .label { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: #f8fafc; }
+    .value { background: #020617; border: 1px solid #334155; border-radius: 8px; padding: 12px; word-break: break-all; font-family: monospace; font-size: 12px; }
+    .actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+    button { background: #2563eb; color: white; border: 0; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 700; }
+    button.secondary { background: #374151; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Embedded Signup Result</h1>
+    <p>Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan.</p>
+
+    <div class="row">
+      <div class="label">Authorization code</div>
+      <div class="value" id="code">${code}</div>
+    </div>
+
+    <div class="grid">
+      <div class="row">
+        <div class="label">phone_number_id</div>
+        <div class="value" id="phone_number_id">${phoneNumberId}</div>
+      </div>
+      <div class="row">
+        <div class="label">waba_id</div>
+        <div class="value" id="waba_id">${wabaId}</div>
+      </div>
+    </div>
+
+    ${businessId ? `<div class="row"><div class="label">business_id</div><div class="value" id="business_id">${businessId}</div></div>` : ""}
+
+    <div class="actions">
+      <button onclick="navigator.clipboard.writeText(document.getElementById('code').innerText)">Copy code</button>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('phone_number_id').innerText)">Copy phone_number_id</button>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('waba_id').innerText)">Copy waba_id</button>
+      ${businessId ? `<button onclick="navigator.clipboard.writeText(document.getElementById('business_id').innerText)">Copy business_id</button>` : ""}
+      <button class="secondary" onclick="window.close()">Close</button>
+    </div>
+  </div>
+</body>
+</html>`)
+    popup.document.close()
+    return popup
+}
+
 interface WABAConnectionButtonProps {
     onSuccess?: (waba: WABADetails) => void
     onError?: (error: Error) => void
@@ -167,9 +235,9 @@ export function WABAConnectionButton({
     onLoginComplete,
 }: WABAConnectionButtonProps) {
     const [loading, setLoading] = useState(false)
-    const [resultDialogOpen, setResultDialogOpen] = useState(false)
-    const [embeddedResult, setEmbeddedResult] = useState<EmbeddedSignupResult | null>(null)
     const sessionInfoRef = useRef<EmbeddedSignupSessionData | null>(null)
+    const resultPopupRef = useRef<Window | null>(null)
+    const latestResultRef = useRef<EmbeddedSignupResult | null>(null)
     const { toast } = useToast()
 
     useEffect(() => {
@@ -178,6 +246,13 @@ export function WABAConnectionButton({
                 const sessionInfo = parseEmbeddedSignupMessage(event.data)
                 if (sessionInfo) {
                     sessionInfoRef.current = sessionInfo
+                    localStorage.setItem(
+                        "wabaEmbeddedSignupSession",
+                        JSON.stringify({
+                            ...sessionInfo,
+                            savedAt: new Date().toISOString(),
+                        })
+                    )
                     toast({
                         title: "Signup data received",
                         description: "Phone number ID and WABA ID saved.",
@@ -194,55 +269,35 @@ export function WABAConnectionButton({
                 const embeddedCode = event.data.code
                 const sessionInfo = sessionInfoRef.current
 
-                if (!embeddedCode) {
+                if (!embeddedCode || !sessionInfo?.phoneNumberId || !sessionInfo?.wabaId) {
                     const error = new Error(
-                        "Missing authorization code. Please try connecting again."
+                        "Missing authorization code or signup data. Please try connecting again."
                     )
                     toast({
                         variant: "destructive",
                         title: "Error",
-                        description: getSafeErrorMessage(error, "Failed to receive Facebook code"),
+                        description: getSafeErrorMessage(error, "Failed to receive Facebook result"),
                     })
                     if (onError) onError(error)
                     setLoading(false)
                     return
                 }
 
-                if (!sessionInfo?.phoneNumberId || !sessionInfo?.wabaId) {
-                    const error = new Error(
-                        "Missing WhatsApp session info from Meta signup flow. Please complete the embedded signup flow again."
-                    )
-                    toast({
-                        variant: "destructive",
-                        title: "Error",
-                        description: getSafeErrorMessage(error, "Failed to receive signup data"),
-                    })
-                    if (onError) onError(error)
-                    setLoading(false)
-                    return
-                }
-
-                setEmbeddedResult({
-                    code: embeddedCode,
-                    sessionInfo,
-                })
-                setResultDialogOpen(true)
+                const result = { code: embeddedCode, sessionInfo }
+                latestResultRef.current = result
+                resultPopupRef.current = openResultPopup(result)
                 setLoading(false)
             }
 
             if (event.data.type === "waba-connection-error") {
                 setLoading(false)
                 const error = new Error(event.data.error || "Failed to connect WABA")
-
                 toast({
                     variant: "destructive",
                     title: "Error",
                     description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
                 })
-
-                if (onError) {
-                    onError(error)
-                }
+                if (onError) onError(error)
             }
         }
 
@@ -254,8 +309,9 @@ export function WABAConnectionButton({
         try {
             setLoading(true)
             sessionInfoRef.current = null
-            setEmbeddedResult(null)
-            setResultDialogOpen(false)
+            latestResultRef.current = null
+            resultPopupRef.current?.close()
+            resultPopupRef.current = null
 
             await ensureFacebookSdkLoaded()
 
@@ -267,21 +323,25 @@ export function WABAConnectionButton({
                 async (response) => {
                     try {
                         const code = response.authResponse?.code
-                        if (!code) {
-                            throw new Error(
-                                "Missing authorization code. Please try connecting again."
-                            )
-                        }
-
                         const sessionInfo = sessionInfoRef.current
-                        if (sessionInfo?.phoneNumberId && sessionInfo?.wabaId) {
-                            setEmbeddedResult({ code, sessionInfo })
-                            setResultDialogOpen(true)
+
+                        if (code && sessionInfo?.phoneNumberId && sessionInfo?.wabaId) {
+                            const result = { code, sessionInfo }
+                            latestResultRef.current = result
+                            resultPopupRef.current = openResultPopup(result)
                             setLoading(false)
                             return
                         }
 
-                        // Fallback: callback page may send the code later via postMessage.
+                        setTimeout(() => {
+                            const delayedSession = sessionInfoRef.current
+                            if (code && delayedSession?.phoneNumberId && delayedSession?.wabaId) {
+                                const result = { code, sessionInfo: delayedSession }
+                                latestResultRef.current = result
+                                resultPopupRef.current = openResultPopup(result)
+                            }
+                            setLoading(false)
+                        }, 1200)
                     } catch (error: any) {
                         setLoading(false)
                         toast({
@@ -289,10 +349,7 @@ export function WABAConnectionButton({
                             title: "Error",
                             description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
                         })
-
-                        if (onError) {
-                            onError(error)
-                        }
+                        if (onError) onError(error)
                     }
                 },
                 {
@@ -313,23 +370,27 @@ export function WABAConnectionButton({
                 title: "Error",
                 description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
             })
-
-            if (onError) {
-                onError(error)
-            }
+            if (onError) onError(error)
         }
     }
 
-    const handleSaveEmbeddedResult = async () => {
-        if (!embeddedResult) {
+    const handleSaveLatestResult = async () => {
+        if (!latestResultRef.current) {
+            const error = new Error("No Facebook result available yet.")
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: error.message,
+            })
+            if (onError) onError(error)
             return
         }
 
         try {
             setLoading(true)
             const result = await wabaApi.completeEmbeddedSignup(
-                embeddedResult.code,
-                embeddedResult.sessionInfo
+                latestResultRef.current.code,
+                latestResultRef.current.sessionInfo
             )
 
             toast({
@@ -337,30 +398,22 @@ export function WABAConnectionButton({
                 description: "WhatsApp Business Account connected successfully!",
             })
 
-            if (onSuccess) {
-                onSuccess(result.waba)
-            }
-
-            if (onLoginComplete) {
-                onLoginComplete()
-            }
+            if (onSuccess) onSuccess(result.waba)
+            if (onLoginComplete) onLoginComplete()
         } catch (error: any) {
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
+                description: getSafeErrorMessage(error, "Failed to save WhatsApp result"),
             })
-
-            if (onError) {
-                onError(error)
-            }
+            if (onError) onError(error)
         } finally {
             setLoading(false)
         }
     }
 
     return (
-        <>
+        <div className="flex items-center gap-2">
             <Button
                 onClick={handleConnect}
                 disabled={loading}
@@ -389,102 +442,14 @@ export function WABAConnectionButton({
                 )}
             </Button>
 
-            <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
-                <DialogContent className="sm:max-w-2xl">
-                    <DialogHeader>
-                        <DialogTitle>Embedded Signup Result</DialogTitle>
-                        <DialogDescription>
-                            Facebook code, phone number ID, dan WABA ID sudah diterima.
-                            Silakan copy jika diperlukan.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between gap-2">
-                                <p className="text-sm font-medium">Authorization code</p>
-                                <CopyButton
-                                    text={embeddedResult?.code || ""}
-                                    aria-label="Copy authorization code"
-                                />
-                            </div>
-                            <div className="rounded-md border bg-muted/40 p-3">
-                                <p className="break-all font-mono text-xs text-muted-foreground">
-                                    {embeddedResult?.code || "-"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium">phone_number_id</p>
-                                    <CopyButton
-                                        text={embeddedResult?.sessionInfo.phoneNumberId || ""}
-                                        aria-label="Copy phone number ID"
-                                    />
-                                </div>
-                                <div className="rounded-md border bg-muted/40 p-3">
-                                    <p className="break-all font-mono text-xs text-muted-foreground">
-                                        {embeddedResult?.sessionInfo.phoneNumberId || "-"}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium">waba_id</p>
-                                    <CopyButton
-                                        text={embeddedResult?.sessionInfo.wabaId || ""}
-                                        aria-label="Copy WABA ID"
-                                    />
-                                </div>
-                                <div className="rounded-md border bg-muted/40 p-3">
-                                    <p className="break-all font-mono text-xs text-muted-foreground">
-                                        {embeddedResult?.sessionInfo.wabaId || "-"}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        {embeddedResult?.sessionInfo.businessId && (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between gap-2">
-                                    <p className="text-sm font-medium">business_id</p>
-                                    <CopyButton
-                                        text={embeddedResult.sessionInfo.businessId}
-                                        aria-label="Copy business ID"
-                                    />
-                                </div>
-                                <div className="rounded-md border bg-muted/40 p-3">
-                                    <p className="break-all font-mono text-xs text-muted-foreground">
-                                        {embeddedResult.sessionInfo.businessId}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    <DialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => setResultDialogOpen(false)}
-                        >
-                            Close
-                        </Button>
-                        <Button onClick={handleSaveEmbeddedResult} disabled={loading}>
-                            {loading ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                "Save to backend"
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </>
+            <Button
+                type="button"
+                variant="outline"
+                onClick={handleSaveLatestResult}
+                disabled={loading || !latestResultRef.current}
+            >
+                Save latest result
+            </Button>
+        </div>
     )
 }
