@@ -47,15 +47,44 @@ const FACEBOOK_APP_ID = "1025851416807430"
 const FACEBOOK_CONFIG_ID = "1748856626487547"
 const FACEBOOK_SDK_VERSION = "v25.0"
 const DEFAULT_REDIRECT_URI = "https://citcat.id/waba/callback"
-const ALLOWED_MESSAGE_ORIGINS = new Set([
-    "https://business.facebook.com",
-    "https://www.facebook.com",
-])
+const FACEBOOK_MESSAGE_ORIGIN_PATTERN = /(^|\.)facebook\.com$/
+const SESSION_STORAGE_KEY = "wabaEmbeddedSignupSession"
+const RESULT_STORAGE_KEY = "wabaEmbeddedSignupResult"
+
+function isFacebookOrigin(origin: string): boolean {
+    try {
+        return FACEBOOK_MESSAGE_ORIGIN_PATTERN.test(new URL(origin).hostname)
+    } catch {
+        return false
+    }
+}
 
 interface EmbeddedSignupResult {
     code: string
     sessionInfo: EmbeddedSignupSessionData
     redirectUri?: string
+}
+
+function persistSessionInfo(sessionInfo: EmbeddedSignupSessionData) {
+    localStorage.setItem(
+        SESSION_STORAGE_KEY,
+        JSON.stringify({
+            ...sessionInfo,
+            savedAt: new Date().toISOString(),
+        })
+    )
+}
+
+function persistEmbeddedResult(result: EmbeddedSignupResult) {
+    localStorage.setItem(
+        RESULT_STORAGE_KEY,
+        JSON.stringify({
+            code: result.code,
+            redirectUri: result.redirectUri || DEFAULT_REDIRECT_URI,
+            ...result.sessionInfo,
+            savedAt: new Date().toISOString(),
+        })
+    )
 }
 
 const ensureFacebookSdkLoaded = async (): Promise<void> => {
@@ -200,7 +229,7 @@ function writeResultPopup(popup: Window | null, result?: EmbeddedSignupResult): 
 <body>
   <div class="card">
     <h1>Embedded Signup Result</h1>
-    <p>${isWaiting ? "Menunggu hasil login Facebook/Meta. Jangan tutup popup ini dulu." : "Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan."}</p>
+    <p id="statusText">${isWaiting ? "Menunggu hasil login Facebook/Meta. Jangan tutup popup ini dulu." : "Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan."}</p>
 
     <div class="row">
       <div class="label">Authorization code</div>
@@ -234,6 +263,38 @@ function writeResultPopup(popup: Window | null, result?: EmbeddedSignupResult): 
       <button class="secondary" onclick="window.close()">Close</button>
     </div>
   </div>
+  <script>
+    const RESULT_STORAGE_KEY = "wabaEmbeddedSignupResult";
+    const SESSION_STORAGE_KEY = "wabaEmbeddedSignupSession";
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el && value) el.innerText = value;
+    }
+    function readJson(key) {
+      try { return JSON.parse(localStorage.getItem(key) || "null"); } catch { return null; }
+    }
+    function hydrateFromStorage() {
+      const result = readJson(RESULT_STORAGE_KEY);
+      const session = readJson(SESSION_STORAGE_KEY);
+      if (session) {
+        setText("phone_number_id", session.phoneNumberId || session.phone_number_id);
+        setText("waba_id", session.wabaId || session.waba_id);
+        setText("business_id", session.businessId || session.business_id);
+      }
+      if (result) {
+        setText("code", result.code);
+        setText("phone_number_id", result.phoneNumberId || result.phone_number_id);
+        setText("waba_id", result.wabaId || result.waba_id);
+        setText("business_id", result.businessId || result.business_id);
+        setText("redirect_uri", result.redirectUri || result.redirect_uri);
+        const status = document.getElementById("statusText");
+        if (status) status.innerText = "Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan.";
+        document.querySelectorAll("button[disabled]").forEach((button) => button.removeAttribute("disabled"));
+      }
+    }
+    hydrateFromStorage();
+    setInterval(hydrateFromStorage, 500);
+  </script>
 </body>
 </html>`)
     targetPopup.document.close()
@@ -266,17 +327,11 @@ export function WABAConnectionButton({
 
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
-            if (ALLOWED_MESSAGE_ORIGINS.has(event.origin)) {
+            if (isFacebookOrigin(event.origin)) {
                 const sessionInfo = parseEmbeddedSignupMessage(event.data)
                 if (sessionInfo) {
                     sessionInfoRef.current = sessionInfo
-                    localStorage.setItem(
-                        "wabaEmbeddedSignupSession",
-                        JSON.stringify({
-                            ...sessionInfo,
-                            savedAt: new Date().toISOString(),
-                        })
-                    )
+                    persistSessionInfo(sessionInfo)
                     toast({
                         title: "Signup data received",
                         description: "Phone number ID and WABA ID saved.",
@@ -309,6 +364,7 @@ export function WABAConnectionButton({
 
                 const result = { code: embeddedCode, sessionInfo }
                 latestResultRef.current = result
+                persistEmbeddedResult(result)
                 resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                 setLoading(false)
             }
@@ -352,6 +408,7 @@ export function WABAConnectionButton({
                         if (code && sessionInfo?.phoneNumberId && sessionInfo?.wabaId) {
                             const result = { code, sessionInfo }
                             latestResultRef.current = result
+                            persistEmbeddedResult(result)
                             resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                             setLoading(false)
                             return
@@ -362,6 +419,7 @@ export function WABAConnectionButton({
                             if (code && delayedSession?.phoneNumberId && delayedSession?.wabaId) {
                                 const result = { code, sessionInfo: delayedSession }
                                 latestResultRef.current = result
+                                persistEmbeddedResult(result)
                                 resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                             }
                             setLoading(false)

@@ -21,14 +21,31 @@ function getCurrentRedirectUri(): string {
     return url.toString()
 }
 
+const SESSION_STORAGE_KEY = "wabaEmbeddedSignupSession"
+const RESULT_STORAGE_KEY = "wabaEmbeddedSignupResult"
+
 function getStoredSession(): EmbeddedSignupSession | null {
     try {
-        const raw = localStorage.getItem("wabaEmbeddedSignupSession")
+        const raw = localStorage.getItem(SESSION_STORAGE_KEY)
         if (!raw) return null
         return JSON.parse(raw) as EmbeddedSignupSession
     } catch {
         return null
     }
+}
+
+function persistResult(code: string, session: EmbeddedSignupSession | null, redirectUri: string) {
+    localStorage.setItem(
+        RESULT_STORAGE_KEY,
+        JSON.stringify({
+            code,
+            redirectUri,
+            phoneNumberId: session?.phoneNumberId,
+            wabaId: session?.wabaId,
+            businessId: session?.businessId,
+            savedAt: new Date().toISOString(),
+        })
+    )
 }
 
 function escapeHtml(value: string): string {
@@ -162,6 +179,7 @@ function WABACallbackContent() {
                 setSession(storedSession)
                 const currentRedirectUri = getCurrentRedirectUri()
                 setRedirectUri(currentRedirectUri)
+                persistResult(authCode, storedSession, currentRedirectUri)
                 setStatus("success")
                 setMessage("Authorization code received from Facebook.")
 
