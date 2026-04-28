@@ -71,6 +71,12 @@ export interface CallbackResponse {
     }>
 }
 
+export interface EmbeddedSignupSessionData {
+    phoneNumberId: string
+    wabaId: string
+    businessId?: string
+}
+
 export interface CoexistenceStatus {
     isOnBizApp: boolean
     platformType: string
@@ -124,6 +130,31 @@ export const wabaApi = {
         if (!response.ok) {
             const error = await response.json().catch(() => ({}))
             throw new Error(error.error?.message || 'Failed to initialize WABA signup')
+        }
+
+        const result = await response.json()
+        return result.data
+    },
+
+    async completeEmbeddedSignup(
+        code: string,
+        sessionInfo: EmbeddedSignupSessionData
+    ): Promise<CallbackResponse> {
+        const response = await fetch(`${API_URL}/api/v1/waba/signup/embedded/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                code,
+                phoneNumberId: sessionInfo.phoneNumberId,
+                wabaId: sessionInfo.wabaId,
+                businessId: sessionInfo.businessId,
+            }),
+        })
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}))
+            throw new Error(error.error?.message || 'Failed to complete embedded signup')
         }
 
         const result = await response.json()

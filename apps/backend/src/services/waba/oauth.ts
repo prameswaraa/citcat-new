@@ -17,6 +17,7 @@ import { WABAServiceError, WABAErrorCode } from './errors.js';
 import type {
   SignupUrlResponse,
   TokenExchangeResult,
+  EmbeddedTokenExchangeResult,
   StateData,
   MetaAPIError,
 } from './types.js';
@@ -237,6 +238,79 @@ export class WABAOAuth {
           const delay = attempt * 1000;
           console.log(`Retrying token exchange in ${delay}ms...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+    }
+
+    throw new WABAServiceError(
+      WABAErrorCode.TOKEN_EXCHANGE_FAILED,
+      `Token exchange failed after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`
+    );
+  }
+
+  /**
+   * Exchange authorization code from JS SDK embedded signup flow.
+   * This flow returns the code directly to the browser, so user ownership
+   * is taken from the authenticated session rather than encrypted state.
+   */
+  async exchangeEmbeddedSignupCodeForUser(
+    code: string,
+    userId: string
+  ): Promise<EmbeddedTokenExchangeResult> {
+    const config = await this.settings.ensureLoaded();
+
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const url = new URL(
+          `https://graph.facebook.com/${this.settings.getApiVersion()}/oauth/access_token`
+        );
+        url.searchParams.set('client_id', config.appId);
+        url.searchParams.set('client_secret', config.appSecret);
+        url.searchParams.set('code', code);
+        url.searchParams.set('redirect_uri', config.redirectUri);
+
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+          },
+          signal: AbortSignal.timeout(60000),
+        });
+
+        const responseData = await response.json();
+
+        if (responseData.error) {
+          const metaError = responseData.error as MetaAPIError;
+          throw new WABAServiceError(
+            WABAErrorCode.TOKEN_EXCHANGE_FAILED,
+            `Token exchange failed: ${metaError?.message || 'Unknown error'}`,
+            {
+              code: metaError?.code,
+              type: metaError?.type,
+              fbtrace_id: metaError?.fbtrace_id,
+            }
+          );
+        }
+
+        return {
+          accessToken: responseData.access_token,
+          tokenType: responseData.token_type || 'Bearer',
+          expiresIn: responseData.expires_in,
+          userId,
+        };
+      } catch (error) {
+        lastError = error as Error;
+
+        if (error instanceof WABAServiceError) {
+          throw error;
+        }
+
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
           continue;
         }
       }

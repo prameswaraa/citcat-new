@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
-import { wabaApi, type WABADetails } from "@/lib/api/waba-api"
+import { wabaApi, type EmbeddedSignupSessionData, type WABADetails } from "@/lib/api/waba-api"
 import { useToast } from "@/hooks/use-toast"
 import { getSafeErrorMessage } from "@/lib/error-utils"
 
@@ -16,13 +16,36 @@ declare global {
                 xfbml: boolean
                 version: string
             }) => void
+            login: (
+                callback: (response: {
+                    authResponse?: {
+                        code?: string
+                    }
+                    status?: string
+                }) => void,
+                options: {
+                    config_id: string
+                    response_type: string
+                    override_default_response_type: boolean
+                    extras: {
+                        version: string
+                        featureType: string
+                        features: Array<{ name: string }>
+                    }
+                }
+            ) => void
         }
         fbAsyncInit?: () => void
     }
 }
 
 const FACEBOOK_APP_ID = "1025851416807430"
+const FACEBOOK_CONFIG_ID = "1748856626487547"
 const FACEBOOK_SDK_VERSION = "v25.0"
+const ALLOWED_MESSAGE_ORIGINS = new Set([
+    "https://business.facebook.com",
+    "https://www.facebook.com",
+])
 
 const ensureFacebookSdkLoaded = async (): Promise<void> => {
     if (typeof window === "undefined") {
@@ -72,6 +95,41 @@ const ensureFacebookSdkLoaded = async (): Promise<void> => {
     })
 }
 
+function parseEmbeddedSignupMessage(data: unknown): EmbeddedSignupSessionData | null {
+    const events = Array.isArray(data) ? data : [data]
+
+    for (const item of events) {
+        if (!item || typeof item !== "object") {
+            continue
+        }
+
+        const event = item as {
+            type?: string
+            event?: string
+            data?: {
+                phone_number_id?: string
+                waba_id?: string
+                business_id?: string
+            }
+        }
+
+        if (
+            event.type === "WA_EMBEDDED_SIGNUP" &&
+            event.event === "FINISH" &&
+            event.data?.phone_number_id &&
+            event.data?.waba_id
+        ) {
+            return {
+                phoneNumberId: event.data.phone_number_id,
+                wabaId: event.data.waba_id,
+                businessId: event.data.business_id,
+            }
+        }
+    }
+
+    return null
+}
+
 interface WABAConnectionButtonProps {
     onSuccess?: (waba: WABADetails) => void
     onError?: (error: Error) => void
@@ -86,119 +144,103 @@ export function WABAConnectionButton({
     onSuccess,
     onError,
     className,
-    enableCoexistence = true, // Enable coexistence by default (Embedded Signup v4)
+    enableCoexistence = true,
     variant = "default",
     children,
     onLoginComplete,
 }: WABAConnectionButtonProps) {
     const [loading, setLoading] = useState(false)
+    const sessionInfoRef = useRef<EmbeddedSignupSessionData | null>(null)
     const { toast } = useToast()
+
+    useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (!ALLOWED_MESSAGE_ORIGINS.has(event.origin)) {
+                return
+            }
+
+            const sessionInfo = parseEmbeddedSignupMessage(event.data)
+            if (sessionInfo) {
+                sessionInfoRef.current = sessionInfo
+            }
+        }
+
+        window.addEventListener("message", handleMessage)
+        return () => window.removeEventListener("message", handleMessage)
+    }, [])
 
     const handleConnect = async () => {
         try {
             setLoading(true)
+            sessionInfoRef.current = null
 
             await ensureFacebookSdkLoaded()
 
-            // Initialize signup and get the Meta signup URL
-            // Business account will be auto-created after OAuth callback
-            const { signupUrl, state } = await wabaApi.initSignup(enableCoexistence)
-
-            // Open popup window for embedded signup
-            const width = 600
-            const height = 700
-            const left = window.screen.width / 2 - width / 2
-            const top = window.screen.height / 2 - height / 2
-
-            const popup = window.open(
-                signupUrl,
-                "waba-signup",
-                `width=${width},height=${height},left=${left},top=${top},toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes`
-            )
-
-            if (!popup) {
-                throw new Error("Popup blocked. Please allow popups for this site.")
+            if (!window.FB) {
+                throw new Error("Facebook SDK is not available.")
             }
 
-            // Listen for messages from the callback page
-            const handleMessage = (event: MessageEvent) => {
-                // Verify origin for security
-                if (event.origin !== window.location.origin) {
-                    return
-                }
+            await new Promise<void>((resolve, reject) => {
+                window.FB?.login(
+                    async (response) => {
+                        try {
+                            const code = response.authResponse?.code
 
-                if (event.data.type === "waba-connection-success") {
-                    setLoading(false)
-                    toast({
-                        title: "Success",
-                        description: "WhatsApp Business Account connected successfully!",
-                    })
+                            if (!code) {
+                                throw new Error("Missing authorization code. Please try connecting again.")
+                            }
 
-                    if (onSuccess && event.data.waba) {
-                        onSuccess(event.data.waba)
+                            const sessionInfo = sessionInfoRef.current
+                            if (!sessionInfo?.phoneNumberId || !sessionInfo?.wabaId) {
+                                throw new Error(
+                                    "Missing WhatsApp session info from Meta signup flow. Please complete the embedded signup flow again."
+                                )
+                            }
+
+                            const result = await wabaApi.completeEmbeddedSignup(code, sessionInfo)
+
+                            toast({
+                                title: "Success",
+                                description: "WhatsApp Business Account connected successfully!",
+                            })
+
+                            if (onSuccess) {
+                                onSuccess(result.waba)
+                            }
+
+                            if (onLoginComplete) {
+                                onLoginComplete()
+                            }
+
+                            resolve()
+                        } catch (error) {
+                            reject(error)
+                        }
+                    },
+                    {
+                        config_id: FACEBOOK_CONFIG_ID,
+                        response_type: "code",
+                        override_default_response_type: true,
+                        extras: {
+                            version: "v4",
+                            featureType: "whatsapp_business_app_onboarding",
+                            features: [{ name: "app_only_install" }],
+                        },
                     }
-
-                    // Close popup
-                    if (popup && !popup.closed) {
-                        popup.close()
-                    }
-
-                    window.removeEventListener("message", handleMessage)
-                } else if (event.data.type === "waba-connection-error") {
-                    setLoading(false)
-                    const error = new Error(event.data.error || "Failed to connect WABA")
-                    toast({
-                        variant: "destructive",
-                        title: "Error",
-                        description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
-                    })
-
-                    if (onError) {
-                        onError(error)
-                    }
-
-                    // Close popup
-                    if (popup && !popup.closed) {
-                        popup.close()
-                    }
-
-                    window.removeEventListener("message", handleMessage)
-                }
-            }
-
-            window.addEventListener("message", handleMessage)
-
-            // Check if popup was closed without completing.
-            // For Meta verification/manual token flow, closing the popup means the
-            // user may now paste the token/code into the app instead of relying on
-            // automatic OAuth callback handling.
-            const checkPopupClosed = setInterval(() => {
-                if (popup.closed) {
-                    clearInterval(checkPopupClosed)
-                    setLoading(false)
-                    window.removeEventListener("message", handleMessage)
-
-                    if (onLoginComplete) {
-                        onLoginComplete()
-                    } else {
-                        toast({
-                            title: "Info",
-                            description: "WhatsApp connection cancelled",
-                        })
-                    }
-                }
-            }, 500)
+                )
+            })
         } catch (error: any) {
-            setLoading(false)
             toast({
                 variant: "destructive",
                 title: "Error",
-                description: getSafeErrorMessage(error, "Failed to initialize WhatsApp connection"),
+                description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
             })
 
             if (onError) {
                 onError(error)
             }
+        } finally {
+            setLoading(false)
         }
     }
 

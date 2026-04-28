@@ -19,6 +19,7 @@ export type {
   SignupUrlResponse,
   TokenResponse,
   TokenExchangeResult,
+  EmbeddedTokenExchangeResult,
   TokenRefreshResult,
   StateData,
   // WABA Resource Types
@@ -76,6 +77,7 @@ import { wabaCoexistence } from './coexistence.js';
 import type {
   SignupUrlResponse,
   TokenExchangeResult,
+  EmbeddedTokenExchangeResult,
   TokenRefreshResult,
   WABAResources,
   WebhookConfig,
@@ -130,6 +132,13 @@ export class WABAService {
     state: string
   ): Promise<TokenExchangeResult> {
     return wabaOAuth.exchangeCodeForToken(code, state);
+  }
+
+  async exchangeEmbeddedSignupCodeForUser(
+    code: string,
+    userId: string
+  ): Promise<EmbeddedTokenExchangeResult> {
+    return wabaOAuth.exchangeEmbeddedSignupCodeForUser(code, userId);
   }
 
   // ==========================================================================

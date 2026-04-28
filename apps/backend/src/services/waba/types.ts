@@ -31,6 +31,10 @@ export interface TokenExchangeResult extends TokenResponse {
   userId: string;
 }
 
+export interface EmbeddedTokenExchangeResult extends TokenResponse {
+  userId: string;
+}
+
 /**
  * Token refresh result with expiration date
  */
