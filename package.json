@@ -8,7 +8,7 @@
     "dev:pnpm": "pnpm --stream --filter \"./apps/*\" dev",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter @kirimchat/backend dev",
-    "build": "pnpm --filter frontend --filter @kirimchat/backend build",
+    "build": "pnpm --filter @kirimchat/backend build && pnpm --filter frontend build:worker",
     "build:frontend": "pnpm --filter frontend build",
     "build:backend": "pnpm --filter @kirimchat/backend build",
     "start": "concurrently -n \"backend,frontend\" -c \"blue,magenta\" \"pnpm start:backend\" \"pnpm start:frontend\"",
