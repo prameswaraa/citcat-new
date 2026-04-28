@@ -154,20 +154,88 @@ export function WABAConnectionButton({
     const { toast } = useToast()
 
     useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            if (!ALLOWED_MESSAGE_ORIGINS.has(event.origin)) {
+        const handleMessage = async (event: MessageEvent) => {
+            if (ALLOWED_MESSAGE_ORIGINS.has(event.origin)) {
+                const sessionInfo = parseEmbeddedSignupMessage(event.data)
+                if (sessionInfo) {
+                    sessionInfoRef.current = sessionInfo
+                }
                 return
             }
 
-            const sessionInfo = parseEmbeddedSignupMessage(event.data)
-            if (sessionInfo) {
-                sessionInfoRef.current = sessionInfo
+            if (event.origin !== window.location.origin || !event.data) {
+                return
+            }
+
+            if (event.data.type === "waba-embedded-signup-code") {
+                try {
+                    const embeddedCode = event.data.code
+                    const sessionInfo = sessionInfoRef.current
+
+                    if (!embeddedCode) {
+                        throw new Error("Missing authorization code. Please try connecting again.")
+                    }
+
+                    if (!sessionInfo?.phoneNumberId || !sessionInfo?.wabaId) {
+                        throw new Error(
+                            "Missing WhatsApp session info from Meta signup flow. Please complete the embedded signup flow again."
+                        )
+                    }
+
+                    setLoading(true)
+                    const result = await wabaApi.completeEmbeddedSignup(
+                        embeddedCode,
+                        sessionInfo
+                    )
+
+                    toast({
+                        title: "Success",
+                        description: "WhatsApp Business Account connected successfully!",
+                    })
+
+                    if (onSuccess) {
+                        onSuccess(result.waba)
+                    }
+
+                    if (onLoginComplete) {
+                        onLoginComplete()
+                    }
+                } catch (error: any) {
+                    toast({
+                        variant: "destructive",
+                        title: "Error",
+                        description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
+                    })
+
+                    if (onError) {
+                        onError(error)
+                    }
+                } finally {
+                    setLoading(false)
+                }
+            }
+
+            if (event.data.type === "waba-connection-error") {
+                setLoading(false)
+                const error = new Error(
+                    event.data.error || "Failed to connect WABA"
+                )
+
+                toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: getSafeErrorMessage(error, "Failed to connect WhatsApp"),
+                })
+
+                if (onError) {
+                    onError(error)
+                }
             }
         }
 
         window.addEventListener("message", handleMessage)
         return () => window.removeEventListener("message", handleMessage)
-    }, [])
+    }, [onError, onLoginComplete, onSuccess, toast])
 
     const handleConnect = async () => {
         try {
@@ -191,25 +259,21 @@ export function WABAConnectionButton({
                             }
 
                             const sessionInfo = sessionInfoRef.current
-                            if (!sessionInfo?.phoneNumberId || !sessionInfo?.wabaId) {
-                                throw new Error(
-                                    "Missing WhatsApp session info from Meta signup flow. Please complete the embedded signup flow again."
-                                )
-                            }
+                            if (sessionInfo?.phoneNumberId && sessionInfo?.wabaId) {
+                                const result = await wabaApi.completeEmbeddedSignup(code, sessionInfo)
 
-                            const result = await wabaApi.completeEmbeddedSignup(code, sessionInfo)
+                                toast({
+                                    title: "Success",
+                                    description: "WhatsApp Business Account connected successfully!",
+                                })
 
-                            toast({
-                                title: "Success",
-                                description: "WhatsApp Business Account connected successfully!",
-                            })
+                                if (onSuccess) {
+                                    onSuccess(result.waba)
+                                }
 
-                            if (onSuccess) {
-                                onSuccess(result.waba)
-                            }
-
-                            if (onLoginComplete) {
-                                onLoginComplete()
+                                if (onLoginComplete) {
+                                    onLoginComplete()
+                                }
                             }
 
                             resolve()
