@@ -100,7 +100,17 @@ const ensureFacebookSdkLoaded = async (): Promise<void> => {
 }
 
 function parseEmbeddedSignupMessage(data: unknown): EmbeddedSignupSessionData | null {
-    const events = Array.isArray(data) ? data : [data]
+    let parsedData = data
+
+    if (typeof data === "string") {
+        try {
+            parsedData = JSON.parse(data)
+        } catch {
+            return null
+        }
+    }
+
+    const events = Array.isArray(parsedData) ? parsedData : [parsedData]
 
     for (const item of events) {
         if (!item || typeof item !== "object") continue
