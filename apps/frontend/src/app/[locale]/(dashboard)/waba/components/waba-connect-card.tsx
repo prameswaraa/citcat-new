@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { 
   IconBrandWhatsapp, 
   IconShieldCheck, 
@@ -44,6 +51,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ManualConnectResponse | null>(null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
+  const [manualTokenDialogOpen, setManualTokenDialogOpen] = useState(false)
 
   const handleCopy = async (text: string, field: string) => {
     try {
@@ -64,6 +72,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
     try {
       const response = await wabaApi.manualConnect(accessToken, wabaId)
       setResult(response)
+      setManualTokenDialogOpen(false)
       toast({ title: "Success", description: "WhatsApp Business Account connected successfully!" })
       // Don't call onSuccess yet - let user see webhook info first
     } catch (err: any) {
@@ -287,6 +296,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
               onError={(error) => {
                 console.error("WABA connection error:", error)
               }}
+              onLoginComplete={() => setManualTokenDialogOpen(true)}
               enableCoexistence={true}
               className="w-full"
             >
@@ -296,9 +306,73 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
 
             <div className="rounded-lg border bg-muted/50 p-3">
               <p className="text-muted-foreground text-xs">
-                <strong>Note:</strong> {t("note")}
+                <strong>Note:</strong> After finishing Meta login, close the popup and paste the access token + WABA ID here to connect your account.
               </p>
             </div>
+
+            <Dialog open={manualTokenDialogOpen} onOpenChange={setManualTokenDialogOpen}>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Paste WhatsApp Access Token</DialogTitle>
+                  <DialogDescription>
+                    After completing Meta login/verification, paste the generated access token and WABA ID below. The token is sent directly to the backend and stored encrypted.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleManualSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="popupWabaId">WABA ID</Label>
+                    <Input
+                      id="popupWabaId"
+                      placeholder="e.g., 123456789012345"
+                      value={wabaId}
+                      onChange={(e) => setWabaId(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="popupAccessToken">Access Token</Label>
+                    <Input
+                      id="popupAccessToken"
+                      type="password"
+                      placeholder="Paste access token from Meta"
+                      value={accessToken}
+                      onChange={(e) => setAccessToken(e.target.value)}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use a token with whatsapp_business_management and whatsapp_business_messaging permissions.
+                    </p>
+                  </div>
+
+                  {error && (
+                    <Alert variant="destructive">
+                      <IconAlertCircle className="h-4 w-4" />
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading || !accessToken || !wabaId}
+                  >
+                    {isLoading ? (
+                      <>
+                        <IconLoader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <IconBrandWhatsapp className="mr-2 h-4 w-4" />
+                        Connect with Token
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Manual Login Tab */}

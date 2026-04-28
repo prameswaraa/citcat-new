@@ -10,6 +10,7 @@ import { getSafeErrorMessage } from "@/lib/error-utils"
 interface WABAConnectionButtonProps {
     onSuccess?: (waba: WABADetails) => void
     onError?: (error: Error) => void
+    onLoginComplete?: () => void
     className?: string
     enableCoexistence?: boolean
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
@@ -23,6 +24,7 @@ export function WABAConnectionButton({
     enableCoexistence = true, // Enable coexistence by default (Embedded Signup v4)
     variant = "default",
     children,
+    onLoginComplete,
 }: WABAConnectionButtonProps) {
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
@@ -99,15 +101,19 @@ export function WABAConnectionButton({
 
             window.addEventListener("message", handleMessage)
 
-            // Check if popup was closed without completing
+            // Check if popup was closed without completing.
+            // For Meta verification/manual token flow, closing the popup means the
+            // user may now paste the token/code into the app instead of relying on
+            // automatic OAuth callback handling.
             const checkPopupClosed = setInterval(() => {
                 if (popup.closed) {
                     clearInterval(checkPopupClosed)
                     setLoading(false)
                     window.removeEventListener("message", handleMessage)
 
-                    // Only show cancellation message if we didn't receive success/error
-                    if (loading) {
+                    if (onLoginComplete) {
+                        onLoginComplete()
+                    } else {
                         toast({
                             title: "Info",
                             description: "WhatsApp connection cancelled",
