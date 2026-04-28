@@ -141,24 +141,29 @@ function escapeHtml(value: string): string {
         .replace(/'/g, "&#039;")
 }
 
-function openResultPopup(result: EmbeddedSignupResult): Window | null {
-    const popup = window.open(
+function openResultPopupWindow(): Window | null {
+    return window.open(
         "",
         "waba-embedded-signup-result",
         "width=760,height=720,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes"
     )
+}
 
-    if (!popup) {
+function writeResultPopup(popup: Window | null, result?: EmbeddedSignupResult): Window | null {
+    const targetPopup = popup ?? openResultPopupWindow()
+
+    if (!targetPopup) {
         return null
     }
 
-    const code = escapeHtml(result.code)
-    const phoneNumberId = escapeHtml(result.sessionInfo.phoneNumberId)
-    const wabaId = escapeHtml(result.sessionInfo.wabaId)
-    const businessId = escapeHtml(result.sessionInfo.businessId || "")
+    const code = escapeHtml(result?.code || "Waiting for Facebook authorization code...")
+    const phoneNumberId = escapeHtml(result?.sessionInfo.phoneNumberId || "Waiting for phone_number_id...")
+    const wabaId = escapeHtml(result?.sessionInfo.wabaId || "Waiting for waba_id...")
+    const businessId = escapeHtml(result?.sessionInfo.businessId || "")
+    const isWaiting = !result
 
-    popup.document.open()
-    popup.document.write(`<!DOCTYPE html>
+    targetPopup.document.open()
+    targetPopup.document.write(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -182,7 +187,7 @@ function openResultPopup(result: EmbeddedSignupResult): Window | null {
 <body>
   <div class="card">
     <h1>Embedded Signup Result</h1>
-    <p>Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan.</p>
+    <p>${isWaiting ? "Menunggu hasil login Facebook/Meta. Jangan tutup popup ini dulu." : "Data dari Facebook/Meta sudah diterima. Silakan copy jika diperlukan."}</p>
 
     <div class="row">
       <div class="label">Authorization code</div>
@@ -203,17 +208,17 @@ function openResultPopup(result: EmbeddedSignupResult): Window | null {
     ${businessId ? `<div class="row"><div class="label">business_id</div><div class="value" id="business_id">${businessId}</div></div>` : ""}
 
     <div class="actions">
-      <button onclick="navigator.clipboard.writeText(document.getElementById('code').innerText)">Copy code</button>
-      <button onclick="navigator.clipboard.writeText(document.getElementById('phone_number_id').innerText)">Copy phone_number_id</button>
-      <button onclick="navigator.clipboard.writeText(document.getElementById('waba_id').innerText)">Copy waba_id</button>
+      <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('code').innerText)">Copy code</button>
+      <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('phone_number_id').innerText)">Copy phone_number_id</button>
+      <button ${isWaiting ? "disabled" : ""} onclick="navigator.clipboard.writeText(document.getElementById('waba_id').innerText)">Copy waba_id</button>
       ${businessId ? `<button onclick="navigator.clipboard.writeText(document.getElementById('business_id').innerText)">Copy business_id</button>` : ""}
       <button class="secondary" onclick="window.close()">Close</button>
     </div>
   </div>
 </body>
 </html>`)
-    popup.document.close()
-    return popup
+    targetPopup.document.close()
+    return targetPopup
 }
 
 interface WABAConnectionButtonProps {
@@ -285,7 +290,7 @@ export function WABAConnectionButton({
 
                 const result = { code: embeddedCode, sessionInfo }
                 latestResultRef.current = result
-                resultPopupRef.current = openResultPopup(result)
+                resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                 setLoading(false)
             }
 
@@ -311,7 +316,7 @@ export function WABAConnectionButton({
             sessionInfoRef.current = null
             latestResultRef.current = null
             resultPopupRef.current?.close()
-            resultPopupRef.current = null
+            resultPopupRef.current = writeResultPopup(openResultPopupWindow())
 
             await ensureFacebookSdkLoaded()
 
@@ -328,7 +333,7 @@ export function WABAConnectionButton({
                         if (code && sessionInfo?.phoneNumberId && sessionInfo?.wabaId) {
                             const result = { code, sessionInfo }
                             latestResultRef.current = result
-                            resultPopupRef.current = openResultPopup(result)
+                            resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                             setLoading(false)
                             return
                         }
@@ -338,7 +343,7 @@ export function WABAConnectionButton({
                             if (code && delayedSession?.phoneNumberId && delayedSession?.wabaId) {
                                 const result = { code, sessionInfo: delayedSession }
                                 latestResultRef.current = result
-                                resultPopupRef.current = openResultPopup(result)
+                                resultPopupRef.current = writeResultPopup(resultPopupRef.current, result)
                             }
                             setLoading(false)
                         }, 1200)
