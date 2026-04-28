@@ -7,6 +7,71 @@ import { wabaApi, type WABADetails } from "@/lib/api/waba-api"
 import { useToast } from "@/hooks/use-toast"
 import { getSafeErrorMessage } from "@/lib/error-utils"
 
+declare global {
+    interface Window {
+        FB?: {
+            init: (options: {
+                appId: string
+                autoLogAppEvents: boolean
+                xfbml: boolean
+                version: string
+            }) => void
+        }
+        fbAsyncInit?: () => void
+    }
+}
+
+const FACEBOOK_APP_ID = "1025851416807430"
+const FACEBOOK_SDK_VERSION = "v25.0"
+
+const ensureFacebookSdkLoaded = async (): Promise<void> => {
+    if (typeof window === "undefined") {
+        return
+    }
+
+    if (window.FB) {
+        return
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        const existingScript = document.querySelector(
+            'script[data-facebook-sdk="true"]'
+        ) as HTMLScriptElement | null
+
+        window.fbAsyncInit = function () {
+            if (!window.FB) {
+                reject(new Error("Facebook SDK failed to initialize."))
+                return
+            }
+
+            window.FB.init({
+                appId: FACEBOOK_APP_ID,
+                autoLogAppEvents: true,
+                xfbml: true,
+                version: FACEBOOK_SDK_VERSION,
+            })
+
+            resolve()
+        }
+
+        if (existingScript) {
+            existingScript.addEventListener("error", () => {
+                reject(new Error("Failed to load Facebook SDK."))
+            })
+            return
+        }
+
+        const script = document.createElement("script")
+        script.async = true
+        script.defer = true
+        script.crossOrigin = "anonymous"
+        script.src = "https://connect.facebook.net/en_US/sdk.js"
+        script.dataset.facebookSdk = "true"
+        script.onerror = () => reject(new Error("Failed to load Facebook SDK."))
+        document.body.appendChild(script)
+    })
+}
+
 interface WABAConnectionButtonProps {
     onSuccess?: (waba: WABADetails) => void
     onError?: (error: Error) => void
@@ -32,6 +97,8 @@ export function WABAConnectionButton({
     const handleConnect = async () => {
         try {
             setLoading(true)
+
+            await ensureFacebookSdkLoaded()
 
             // Initialize signup and get the Meta signup URL
             // Business account will be auto-created after OAuth callback
