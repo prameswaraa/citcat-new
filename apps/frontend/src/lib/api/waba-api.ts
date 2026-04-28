@@ -358,12 +358,20 @@ export const wabaApi = {
     },
 
     // Manual login methods
-    async manualConnect(accessToken: string, wabaId: string): Promise<ManualConnectResponse> {
+    async manualConnect(
+        accessToken: string,
+        wabaId: string,
+        credentials?: {
+            clientId?: string
+            clientSecret?: string
+            accessCode?: string
+        }
+    ): Promise<ManualConnectResponse> {
         const response = await fetch(`${API_URL}/api/v1/waba/manual/connect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ accessToken, wabaId }),
+            body: JSON.stringify({ accessToken, wabaId, ...credentials }),
         })
 
         if (!response.ok) {

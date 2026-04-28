@@ -22,15 +22,67 @@ const app = new Hono()
 
 // Validation schemas
 const manualConnectSchema = z.object({
-  accessToken: z.string().min(10, 'Access token is required'),
+  accessToken: z.string().optional(),
+  clientId: z.string().optional(),
+  clientSecret: z.string().optional(),
+  accessCode: z.string().optional(),
   wabaId: z.string().min(1, 'WABA ID is required'),
+}).superRefine((data, ctx) => {
+  const hasToken = Boolean(data.accessToken && data.accessToken.trim().length >= 10)
+  const hasCodeCredentials = Boolean(
+    data.clientId?.trim() &&
+    data.clientSecret?.trim() &&
+    data.accessCode?.trim()
+  )
+
+  if (!hasToken && !hasCodeCredentials) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Provide either access token or client id, client secret, and access code',
+      path: ['accessToken'],
+    })
+  }
 })
+
+const META_CODE_EXCHANGE_REDIRECT_URI =
+  'https://developers.facebook.com/es/oauth/callback/?use_case_enum=WHATSAPP_BUSINESS_MESSAGING&business_id=1685528451562903&nonce=KLYsrdRnz5eB3ChsIkG0coxdXmrLbXqh'
 
 /**
  * Generate a random verify token for webhook verification
  */
 function generateVerifyToken(): string {
   return randomBytes(32).toString('hex')
+}
+
+async function exchangeAccessCodeForToken(data: {
+  clientId: string
+  clientSecret: string
+  accessCode: string
+}): Promise<string> {
+  const response = await fetch('https://graph.facebook.com/v25.0/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: data.clientId,
+      client_secret: data.clientSecret,
+      code: data.accessCode,
+      grant_type: 'authorization_code',
+      redirect_uri: META_CODE_EXCHANGE_REDIRECT_URI,
+    }),
+  })
+
+  const result = await response.json().catch(() => ({})) as {
+    access_token?: string
+    error?: { message?: string }
+  }
+
+  if (!response.ok || !result.access_token) {
+    throw new Error(result.error?.message || 'Failed to exchange access code for token')
+  }
+
+  return result.access_token
 }
 
 /**
@@ -108,6 +160,26 @@ app.post('/connect', async (c: Context) => {
     const body = await c.req.json().catch(() => ({}))
     const data = manualConnectSchema.parse(body)
 
+    let accessToken = data.accessToken?.trim() || ''
+
+    if (!accessToken && data.clientId && data.clientSecret && data.accessCode) {
+      try {
+        accessToken = await exchangeAccessCodeForToken({
+          clientId: data.clientId.trim(),
+          clientSecret: data.clientSecret.trim(),
+          accessCode: data.accessCode.trim(),
+        })
+      } catch (error: any) {
+        logDetailedError(error, { action: 'exchangeManualAccessCode', wabaId: data.wabaId })
+        return c.json({
+          error: {
+            code: 'CODE_EXCHANGE_FAILED',
+            message: error.message || 'Failed to exchange access code for token'
+          }
+        }, 400)
+      }
+    }
+
     // Check if this WABA is already connected
     const existingAccount = await prisma.whatsAppAccount.findUnique({
       where: { wabaId: data.wabaId }
@@ -125,7 +197,7 @@ app.post('/connect', async (c: Context) => {
     // Validate token and fetch WABA data from Meta API
     let wabaData
     try {
-      wabaData = await validateTokenAndFetchWABA(data.accessToken, data.wabaId)
+      wabaData = await validateTokenAndFetchWABA(accessToken, data.wabaId)
     } catch (error: any) {
       logDetailedError(error, { action: 'validateManualToken', wabaId: data.wabaId })
       return c.json({
@@ -138,7 +210,7 @@ app.post('/connect', async (c: Context) => {
 
     // Encrypt access token
     const tokenEncryption = new TokenEncryptionService()
-    const encryptedToken = tokenEncryption.encrypt(data.accessToken)
+    const encryptedToken = tokenEncryption.encrypt(accessToken)
 
     // Generate unique verify token for this account
     const webhookVerifyToken = generateVerifyToken()

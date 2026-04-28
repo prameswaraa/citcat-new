@@ -46,6 +46,9 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
   
   // Manual login state
   const [accessToken, setAccessToken] = useState("")
+  const [clientId, setClientId] = useState("")
+  const [clientSecret, setClientSecret] = useState("")
+  const [accessCode, setAccessCode] = useState("")
   const [wabaId, setWabaId] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +73,11 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
     setIsLoading(true)
 
     try {
-      const response = await wabaApi.manualConnect(accessToken, wabaId)
+      const response = await wabaApi.manualConnect(accessToken, wabaId, {
+        clientId,
+        clientSecret,
+        accessCode,
+      })
       setResult(response)
       setManualTokenDialogOpen(false)
       toast({ title: "Success", description: "WhatsApp Business Account connected successfully!" })
@@ -306,7 +313,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
 
             <div className="rounded-lg border bg-muted/50 p-3">
               <p className="text-muted-foreground text-xs">
-                <strong>Note:</strong> After finishing Meta login, close the popup and paste the access token + WABA ID here to connect your account.
+                <strong>Note:</strong> After finishing Meta login, paste WABA ID plus Client ID, Client Secret, and ES response code here. Access token input remains optional.
               </p>
             </div>
 
@@ -331,18 +338,54 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                     />
                   </div>
 
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="popupClientId">Client ID</Label>
+                      <Input
+                        id="popupClientId"
+                        placeholder="Meta App ID / Client ID"
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="popupClientSecret">Client Secret</Label>
+                      <Input
+                        id="popupClientSecret"
+                        type="password"
+                        placeholder="Meta App Secret / Client Secret"
+                        value={clientSecret}
+                        onChange={(e) => setClientSecret(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Label htmlFor="popupAccessToken">Access Token</Label>
+                    <Label htmlFor="popupAccessCode">Access Code</Label>
+                    <Input
+                      id="popupAccessCode"
+                      type="password"
+                      placeholder="Paste ES response code from Meta"
+                      value={accessCode}
+                      onChange={(e) => setAccessCode(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Temporary manual flow: this code will be exchanged to an access token on the backend.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="popupAccessToken">Access Token (optional)</Label>
                     <Input
                       id="popupAccessToken"
                       type="password"
-                      placeholder="Paste access token from Meta"
+                      placeholder="Or paste access token directly"
                       value={accessToken}
                       onChange={(e) => setAccessToken(e.target.value)}
-                      required
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use a token with whatsapp_business_management and whatsapp_business_messaging permissions.
+                      Provide either Access Token, or Client ID + Client Secret + Access Code.
                     </p>
                   </div>
 
@@ -356,7 +399,11 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isLoading || !accessToken || !wabaId}
+                    disabled={
+                      isLoading ||
+                      !wabaId ||
+                      (!accessToken && (!clientId || !clientSecret || !accessCode))
+                    }
                   >
                     {isLoading ? (
                       <>
@@ -366,7 +413,7 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                     ) : (
                       <>
                         <IconBrandWhatsapp className="mr-2 h-4 w-4" />
-                        Connect with Token
+                        Connect Manual
                       </>
                     )}
                   </Button>
@@ -403,18 +450,54 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
                 </p>
               </div>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="clientId">Client ID</Label>
+                  <Input
+                    id="clientId"
+                    placeholder="Meta App ID / Client ID"
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="clientSecret">Client Secret</Label>
+                  <Input
+                    id="clientSecret"
+                    type="password"
+                    placeholder="Meta App Secret / Client Secret"
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="accessToken">Access Token</Label>
+                <Label htmlFor="accessCode">Access Code</Label>
+                <Input
+                  id="accessCode"
+                  type="password"
+                  placeholder="ES response code from Meta"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Temporary manual flow: this code will be exchanged for an access token on the backend.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="accessToken">Access Token (optional)</Label>
                 <Input
                   id="accessToken"
                   type="password"
-                  placeholder="Your permanent or system user access token"
+                  placeholder="Or paste a permanent/system user access token directly"
                   value={accessToken}
                   onChange={(e) => setAccessToken(e.target.value)}
-                  required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Use a System User token with whatsapp_business_messaging permission
+                  Provide either Access Token, or Client ID + Client Secret + Access Code.
                 </p>
               </div>
 
@@ -428,7 +511,11 @@ export function WABAConnectCard({ hasWABA, onSuccess }: Props) {
               <Button 
                 type="submit" 
                 className="w-full"
-                disabled={isLoading || !accessToken || !wabaId}
+                disabled={
+                  isLoading ||
+                  !wabaId ||
+                  (!accessToken && (!clientId || !clientSecret || !accessCode))
+                }
               >
                 {isLoading ? (
                   <>
